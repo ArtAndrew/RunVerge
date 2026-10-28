@@ -6,11 +6,28 @@ can use a separately configured model service; a model is not included in the im
 
 Use a fresh installation and test data only. This preview does not add production
 backup/restore, supported upgrades, enterprise login or provider billing acceptance.
-It is separate from the published macOS arm64 alpha.2 package. A successful image
+It is separate from the published macOS arm64 alpha.3 package. A successful image
 build includes a native Linux installation/restart check; CI additionally checks the
 Compose services together. Check the **Linux server preview** GitHub Actions result
 for the exact revision you intend to try. An untested revision is not a supported
-Linux release. ARM, Windows and named model providers need separate acceptance.
+Linux release. Windows and named model providers on Linux need separate acceptance.
+
+## Verified server architectures
+
+The same source and Docker Compose configuration passed on native Linux **amd64
+and arm64** hosts in [this verification run](https://github.com/ArtAndrew/RunVerge/actions/runs/40697158079)
+at revision `e6bec0a944ce602d829497d43a4f5b83d614b417`. Each host built and installed
+its own application binary, executed a synthetic task through a separate worker,
+and retained the result and accounting records after restarting PostgreSQL, the API
+and worker. The checks also installed the OpenRouter profile offline; no real model
+was called. The hosts, Docker daemons, images and bundle identities were checked for
+matching architecture. Both disposable test installations were removed afterward.
+
+Docker selects the host architecture automatically; the setup commands are the same
+on either server. Use a 64-bit Linux system. There is no prebuilt Linux download or
+published container image yet: this preview builds from source. You can access the
+server from a Windows, macOS or Linux computer using a browser and the SSH tunnel
+below; that does not require a native RunVerge application on the client computer.
 
 ## Before starting
 

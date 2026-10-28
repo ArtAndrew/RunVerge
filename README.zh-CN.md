@@ -20,7 +20,7 @@ alpha.3 软件包可在 macOS arm64 上运行，包含本地模型配置和明�
 
 [试用 OpenRouter](https://openrouter.ai/) · [连接到 RunVerge](docs/OPENROUTER.md)。
 
-`main` 分支已提供[从源码构建的 Linux 服务器预览版](docs/LINUX-SERVER.md)，仅限全新安装和测试数据。已在 Linux amd64 上验证安装、独立工作进程执行任务及重启后保留结果。此预览版与 alpha.3 下载包分开，指南目前为英文。
+`main` 分支已提供[从源码构建的 Linux 服务器预览版](docs/LINUX-SERVER.md)，仅限全新安装和测试数据。已在 Linux amd64 和 arm64 上验证安装、独立工作进程执行任务及重启后保留结果。此预览版与 alpha.3 下载包分开，指南目前为英文。
 
 应用的安装主机和模型服务商可以分别选择。目前提供 Mac 软件包，并不意味着产品只能使用本地模型。
 

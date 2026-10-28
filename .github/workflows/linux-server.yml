@@ -9,13 +9,32 @@ concurrency:
   group: linux-preview-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  linux-amd64:
-    runs-on: ubuntu-24.04
+  linux:
+    name: Linux ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            machine: x86_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            machine: aarch64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
+    env:
+      EXPECTED_ARCH: ${{ matrix.arch }}
+      EXPECTED_MACHINE: ${{ matrix.machine }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Require a native host and Docker daemon
+        run: |
+          test "$(uname -s)" = Linux
+          test "$(uname -m)" = "$EXPECTED_MACHINE"
+          test "$(docker info --format '{{.Architecture}}')" = "$EXPECTED_MACHINE"
       - name: Private settings helper checks
         run: |
           python3 -m unittest discover -s tests/development -p test_server_setup.py -v
@@ -23,6 +42,8 @@ jobs:
           python3 -m unittest discover -s tests/development -p test_openrouter_probe.py -v
       - name: Build and verify a native Linux installation
         run: docker build --target runtime --tag runverge:linux-preview .
+      - name: Require the target image architecture
+        run: test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' runverge:linux-preview)" = "linux/$EXPECTED_ARCH"
       - name: Verify private runtime directory metadata
         run: |
           python3 - <<'PY'
@@ -66,10 +87,33 @@ jobs:
       - name: Export native verification evidence
         if: always()
         run: docker build --target evidence --output "type=local,dest=$RUNNER_TEMP/runverge-evidence/native" .
+      - name: Bind architecture to installation and restart results
+        run: |
+          python3 - <<'PY'
+          import json, os, platform, subprocess
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'runverge-evidence'
+          build = json.loads((root / 'native/build-report.json').read_text())
+          native = json.loads((root / 'native/linux-native-smoke.json').read_text())
+          compose = json.loads((root / 'compose.json').read_text())
+          identity = build['identity']
+          assert identity['os'] == 'linux' and identity['arch'] == os.environ['EXPECTED_ARCH']
+          assert native['identity'] == identity
+          assert native['passed'] and native['cleanup_complete']
+          assert compose['passed'] and compose['cleanup_complete']
+          image_id = subprocess.check_output(['docker', 'image', 'inspect', '--format', '{{.Id}}', 'runverge:linux-preview'], text=True).strip()
+          report = {'scope': 'native_linux_source_and_compose_preview', 'passed': True,
+                    'host_machine': platform.machine(), 'arch': identity['arch'],
+                    'source_sha256': identity['source_sha256'], 'image_id': image_id,
+                    'native_steps': len(native['steps']), 'compose_steps': len(compose['steps']),
+                    'real_model_called': False}
+          (root / 'architecture.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report))
+          PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: linux-amd64-verification
+          name: linux-${{ matrix.arch }}-verification
           path: ${{ runner.temp }}/runverge-evidence
           if-no-files-found: ignore
           retention-days: 3
