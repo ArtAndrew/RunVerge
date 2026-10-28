@@ -1,8 +1,11 @@
 # RunVerge native bundle
 
-Status: experimental 0.14.0-alpha.2 is published. The current supported
-test target is macOS arm64. Linux, Compose, Helm, a service supervisor,
-automatic updates, backup/restore and release signing still require work.
+Status: experimental 0.14.0-alpha.3 is published for macOS arm64. The
+alpha.4 candidate adds first-task guidance and seven interface languages;
+it is not published yet. A separate Linux amd64/arm64 source/Compose
+preview is described in docs/LINUX-SERVER.md. A service supervisor,
+automatic updates, full backup/restore and release signing remain outside
+the supported alpha profile.
 
 The bundle contains a prebuilt Go server/worker/CLI, compiled Workspace, exact
 schema identity, component inventory and dependency license notices. Running
@@ -69,9 +72,10 @@ configuration; do not expose a development listener as a public service.
 
 Bootstrap creates an organization and its owner, not an agent. Create and
 publish an agent in Workspace after connecting with the organization ID and
-token from the private bootstrap file. The agent form defaults to the
-deterministic `fixture:echo` test executor; explicitly select your installed
-model connection for useful AI work.
+token from the private bootstrap file. The agent form can suggest an installed
+local model with an explicit zero API tariff. Check the selected connection;
+choose a paid model explicitly. The deterministic `fixture:echo` executor
+only repeats test input; select a real model for useful AI work.
 Model/API credentials remain outside the bundle. Token-based estimates are
 not final billed amounts; unresolved costs retain their reservations. A
 successful model response remains subject to human review.
