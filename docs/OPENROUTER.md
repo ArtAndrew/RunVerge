@@ -19,6 +19,10 @@ window. Connection preparation and response share one overall timeout.
 
 ## Select the model and data policy
 
+To try it, [create an OpenRouter account](https://openrouter.ai/) and
+[create your own API key](https://openrouter.ai/settings/keys). Keep the key private;
+RunVerge does not provide shared credits or pay for users' inference.
+
 Choose an exact model ID from [OpenRouter's catalog](https://openrouter.ai/models).
 For a free test choose a specific ID ending in `:free`. Check its current pricing:
 free profiles require zero input, output and fixed request prices. Do not configure

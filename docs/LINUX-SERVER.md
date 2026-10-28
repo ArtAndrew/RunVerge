@@ -70,7 +70,9 @@ can check the installation but does not generate an AI answer. Configure a model
 explicitly before evaluating real tasks. See [local model configuration](LOCAL-MODELS.md)
 and [the alpha quickstart](QUICKSTART-ALPHA.md). A model on the server's loopback
 address is not reachable through a container's own `127.0.0.1`; do not copy the
-macOS local endpoint unchanged. Named provider setup is a separate follow-up.
+macOS local endpoint unchanged. For the explicit OpenRouter text profile, see [OpenRouter setup](OPENROUTER.md).
+The real-model revision workflow was checked on macOS; Linux CI uses synthetic
+fixtures and installs the provider profile offline without a model key.
 
 ## Stop, resume and remove
 
