@@ -1,4 +1,4 @@
-import {getIntlLocale, getLocale, t} from './i18n.ts'
+import {getIntlLocale, t} from './i18n.ts'
 export const statusLabels: Record<string, string> = {
   queued: 'В очереди', running: 'В работе', succeeded: 'Завершена', failed: 'Ошибка',
   cancelled: 'Отменена', waiting_input: 'Нужен ваш ответ', waiting_approval: 'Ждёт согласования', blocked: 'Приостановлена',
@@ -16,10 +16,18 @@ export function money(value: string | number): string {
     amount = BigInt(value)
     if (amount < -9223372036854775808n || amount > 9223372036854775807n) return t('Нет данных')
   }
+  return formatExactUSD(amount, getIntlLocale())
+}
+
+// Let Intl place the currency, sign and separators, but never convert the
+// monetary value to a floating-point number or round its micro-USD fraction.
+export function formatExactUSD(amount: bigint, locale: string): string {
   const absolute = amount < 0n ? -amount : amount
-  const whole = new Intl.NumberFormat(getIntlLocale(), { maximumFractionDigits: 0 }).format(absolute / 1_000_000n)
   const fraction = (absolute % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '').padEnd(2, '0')
-  return getLocale() === 'en' ? `${amount < 0n ? '-' : ''}$${whole}.${fraction}` : `${amount < 0n ? '-' : ''}${whole},${fraction}\u00a0$`
+  const whole = amount / 1_000_000n
+  const signedWhole = amount < 0n && whole === 0n ? -0 : whole
+  return new Intl.NumberFormat(locale, {style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2})
+    .formatToParts(signedWhole).map(part => part.type === 'fraction' ? fraction : part.value).join('')
 }
 
 export function parseBudget(value: string): number {

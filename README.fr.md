@@ -74,7 +74,11 @@ Le budget, le nombre de tentatives et le délai limitent l’admission de nouvea
 3. Vérifiez le brouillon, consignez une correction et autorisez séparément une autre tentative.
 4. Examinez les deux matériaux et décidez quoi accepter. Reviendriez-vous avec une deuxième tâche ?
 
-**L’interface d’alpha.3 n’est disponible qu’en anglais et en russe.** Les sept langues du README ne sont pas sept traductions de l’interface. Changer la langue de l’interface préserve la connexion et le travail en cours ; cela ne traduit ni tâches ni réponses. [Comportement linguistique](docs/LANGUAGES.md).
+Le **paquet alpha.3 publié** propose une interface en anglais et en russe. Le **candidat alpha.4 actuel dans les sources** ajoute sept langues d’interface : anglais, russe, espagnol, portugais du Brésil, allemand, français et chinois simplifié. Alpha.4 n’est pas encore publiée ni acceptée comme version ; les liens de téléchargement ci-dessus pointent toujours vers alpha.3.
+
+Dans le candidat alpha.4, le guide de démarrage suit **enregistrer un brouillon d’agent → publier une version → créer une tâche et examiner la réponse**. Les instructions facultatives pour travailler sur un texte fourni et les exemples de tâches remplissent des champs modifiables uniquement après votre choix. Ils ne sélectionnent pas de modèle, ne publient pas d’agent et ne lancent aucun travail automatiquement.
+
+La langue se choisit dans la barre supérieure et est mémorisée sur cet appareil. Le changement conserve la connexion et le travail en cours ; les tâches déjà saisies, les réponses du modèle et les documents restent inchangés. Les montants restent des valeurs exactes en USD, sans conversion de devise. [Choix de langue, fichiers locaux et langue de repli](docs/LANGUAGES.md).
 
 ## Limites actuelles et documentation
 

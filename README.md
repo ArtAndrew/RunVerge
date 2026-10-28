@@ -78,7 +78,11 @@ Comparison describes the linked projects' public overviews, reviewed on 28 Octob
 3. Check the facts. Record a correction, then explicitly approve a new attempt.
 4. Inspect both artifacts and choose what to accept. Tell us whether you would return with a second task.
 
-The browser UI supports **English and Russian**, selectable in the top bar. The seven README languages do not imply seven interface translations. Changing the interface language preserves the connection and current work; task text and model output remain in their original language. [Language behavior](docs/LANGUAGES.md).
+The **published alpha.3 package** has an English/Russian interface. The **current alpha.4 source candidate** adds seven interface languages: English, Russian, Spanish, Brazilian Portuguese, German, French and Simplified Chinese. Alpha.4 is not yet published or accepted as a release; the download links above still point to alpha.3.
+
+In the alpha.4 candidate, the first-task guide walks through **save an agent draft → publish a version → create a task and review its answer**. Optional source-text instructions and task examples fill editable fields only after you choose them. They do not select a model, publish an agent or start work automatically.
+
+Choose the interface language in the top bar. The choice is stored on this device; switching keeps the connection and current work. Existing task text, model output and materials stay unchanged. Amounts remain exact USD values, not converted currencies. [Language selection, local assets and fallback behavior](docs/LANGUAGES.md).
 
 Downloads and exact SHA-256 values are on [GitHub Releases](https://github.com/ArtAndrew/RunVerge/releases). The alpha has no publisher signature; a checksum checks consistency with the published value, not publisher identity.
 

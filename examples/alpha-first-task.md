@@ -4,7 +4,17 @@
 
 Use this short example after the [quickstart](../docs/QUICKSTART-ALPHA.md). It needs no browsing, private data or external tool. Small prompts reduce the chance of hitting the local model's output limit.
 
-In source versions after `0.14.0-alpha.1`, **New task → Start with an example** offers three editable prompts: summarize text, draft instructions and compare options. They appear only while the task text is empty. Choosing one fills the text in the current interface language; it does not create a task or call the model. Edit it, select your published agent and review the limits before choosing **Create task**. Switching the interface language preserves text already entered. The released alpha.1 package uses the manual example below.
+## From an agent draft to a task
+
+The **published alpha.3 package** can use the manual example below. The **current alpha.4 source candidate** adds a first-task guide and seven interface languages; it is not yet a published or accepted release.
+
+1. **Create an agent draft.** For a single agent with empty name and instructions, you can choose **Use suggested agent instructions**. This fills editable instructions for working only from supplied text: preserve facts, flag missing information and produce a draft for review. It is optional. Choose a configured model and a budget yourself, then save.
+2. **Publish a version.** Check the agent card before publishing. Publication makes that version available for tasks; it does not call the model.
+3. **Create a task.** In **New task → Start with an example**, choose a summary, instructions or comparison prompt, or paste the request below. Examples appear only while the task text is empty. Choosing one fills the form without starting work. Review the text, published agent and limits, then explicitly choose **Create task**.
+
+The guide does not configure a model or grant permissions. If you cannot create or publish an agent, ask an authorized administrator to prepare one. A test executor only checks the platform; use a configured model for a generated answer.
+
+Suggested instructions and examples use the selected interface language when inserted. Switching languages afterward preserves entered text and existing model answers. See [language behavior](../docs/LANGUAGES.md).
 
 ## First request
 
