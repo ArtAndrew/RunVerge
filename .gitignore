@@ -12,3 +12,17 @@ __pycache__/
 *.egg-info/
 coverage.out
 *.test
+
+# Private development documents are kept outside published source and archives.
+/adr/
+/ADRs/
+/plans/
+/private/
+/docs/architecture/
+/docs/adr/
+/docs/plans/
+/docs/private/
+/docs/NEXT.md
+/docs/PROGRESS*.md
+/docs/RELEASE-ROADMAP.md
+/docs/WORK-ORDERS.md

@@ -8,5 +8,6 @@ RunVerge alpha.1 serves one local owner on macOS arm64 with test data. Read READ
 - Use targeted existing checks during development and one final candidate gate. Security and accounting changes require independent review.
 - Use newly initialized disposable PostgreSQL instances for tests. Never read a developer's saved database configuration implicitly for a destructive test or point tests at a working installation.
 - Keep secrets, private configuration, model weights, dependencies, compiled artifacts and raw local test output out of source commits and issue reports.
+- Keep internal plans, ADRs, work orders and progress reports local. Before publication, review the source tree, release archives and every commit being pushed; ignore rules do not remove already tracked files or history. Publish only reviewed branches and tags, never private development history through bulk pushes.
 - Original server/web code and documentation use ELv2. Client SDKs and examples use Apache-2.0; preserve the included license boundaries and upstream notices.
 - Document what was actually checked and its limits. Do not equate the number of tests, lines of code or source availability with production readiness.
