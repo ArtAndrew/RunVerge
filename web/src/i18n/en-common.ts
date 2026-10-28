@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Elastic-2.0
 export const enCommon: Record<string, string> = {
+  "Скопировать точный текст": "Copy exact text",
+  "Копируем…": "Copying…",
+  "Точный текст скопирован.": "Exact text copied.",
+  "Не удалось скопировать. Выделите текст вручную или скачайте материал.": "Could not copy. Select the text manually or download the material.",
   "Начать с примера": "Start with an example",
   "Резюме текста": "Summarize text",
   "Короткая инструкция": "Draft instructions",

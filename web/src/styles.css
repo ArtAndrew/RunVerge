@@ -54,4 +54,7 @@ main,.panel,.task-list,.list-toolbar,.task-table-wrap{min-width:0}.task-table-wr
 .example-choices{display:flex;flex-wrap:wrap;gap:8px}
 .task-examples small{display:block;margin-top:10px;font-size:11px;line-height:1.6;color:var(--muted)}
 
+.copy-text-control{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0;min-width:0}
+.copy-text-control>span{font-size:11px;color:var(--muted);max-width:34em}
+
 .event-connection{font-size:11px;color:var(--muted);margin-bottom:14px}.modal [inert] .button{opacity:.5;cursor:not-allowed}
