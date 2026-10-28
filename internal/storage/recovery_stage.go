@@ -32,15 +32,16 @@ var (
 // RecoveryStageReport describes only rollback-only validation. It is neither
 // an import receipt nor authorization to enable work or reuse archived access.
 type RecoveryStageReport struct {
-	Scope                  string                 `json:"scope"`
-	TargetInstallationID   string                 `json:"target_installation_id"`
-	RestoreID              string                 `json:"restore_id"`
-	SemanticCatalogSHA256  string                 `json:"semantic_catalog_sha256"`
-	Snapshot               RecoverySnapshotReport `json:"snapshot"`
-	ForeignKeysChecked     int                    `json:"foreign_keys_checked"`
-	GeneratedChecked       int                    `json:"generated_checked"`
-	RollbackConfirmed      bool                   `json:"rollback_confirmed"`
-	FullSemanticValidation bool                   `json:"full_semantic_validation"`
+	Scope                  string                    `json:"scope"`
+	TargetInstallationID   string                    `json:"target_installation_id"`
+	RestoreID              string                    `json:"restore_id"`
+	SemanticCatalogSHA256  string                    `json:"semantic_catalog_sha256"`
+	Snapshot               RecoverySnapshotReport    `json:"snapshot"`
+	ForeignKeysChecked     int                       `json:"foreign_keys_checked"`
+	GeneratedChecked       int                       `json:"generated_checked"`
+	RollbackConfirmed      bool                      `json:"rollback_confirmed"`
+	FullSemanticValidation bool                      `json:"full_semantic_validation"`
+	CostHistory            RecoveryCostHistoryReport `json:"cost_history"`
 }
 
 // CheckRecoverySnapshotData authenticates no key itself: input must come from
@@ -202,7 +203,23 @@ func (s *Store) CheckRecoverySnapshotData(ctx context.Context, archive *recovery
 	if err = validateRecoveryInvariants(ctx, tx, stageSchema); err != nil {
 		return result, err
 	}
-	return RecoveryStageReport{Scope: "rollback_only_typed_stage", TargetInstallationID: held.InstallationID, RestoreID: held.RestoreID, SemanticCatalogSHA256: recoverySemanticCatalogSHA256, Snapshot: snapshot, ForeignKeysChecked: fks, GeneratedChecked: generated}, nil
+	if err = validateRecoveryAllocations(ctx, tx, stageSchema); err != nil {
+		return result, err
+	}
+	if err = validateRecoveryWebhookProfiles(ctx, tx, stageSchema); err != nil {
+		return result, err
+	}
+	if err = validateRecoveryExecutionHistory(ctx, tx, stageSchema); err != nil {
+		return result, err
+	}
+	if err = validateRecoveryModelHistory(ctx, tx, stageSchema); err != nil {
+		return result, err
+	}
+	costHistory, err := checkRecoveryCostHistory(ctx, tx, stageSchema)
+	if err != nil {
+		return result, err
+	}
+	return RecoveryStageReport{Scope: "rollback_only_typed_stage", TargetInstallationID: held.InstallationID, RestoreID: held.RestoreID, SemanticCatalogSHA256: recoverySemanticCatalogSHA256, Snapshot: snapshot, ForeignKeysChecked: fks, GeneratedChecked: generated, CostHistory: costHistory}, nil
 }
 
 func recoveryStageCheckShape(ctx context.Context, tx pgx.Tx, target, stage string, inventory RecoverySnapshotInventory) error {
