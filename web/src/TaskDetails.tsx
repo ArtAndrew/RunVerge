@@ -4,6 +4,8 @@ import { ApiError, type Agent, type CurrentIdentity,type ApiClient, type Artifac
 import {unknownOperationCount} from './modelAccounting'
 import { dateTime, money, terminalStatuses } from './format'
 import ResultReview from './ResultReview'
+import ResultComparison from './ResultComparison'
+import {TaskForm} from './forms'
 import CopyText from './CopyText'
 import MaterialWorkspace from './MaterialWorkspace'
 import ToolActions from './ToolActions'
@@ -84,7 +86,8 @@ export default function TaskDetails({ identity,vault,draftScope,api, taskId, age
   const [error, setError] = useState<unknown>(null)
   const [loading, setLoading] = useState(true)
   const [refresh, setRefresh] = useState(0)
-  const [tab, setTab] = useState<'result' | 'events' | 'artifacts' | 'actions' | 'automation'>('result')
+  const [tab, setTab] = useState<'result' | 'events' | 'artifacts' | 'actions' | 'automation' | 'compare'>('result')
+  const [reuseSource, setReuseSource] = useState<Task | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelBusy, setCancelBusy] = useState(false)
   const [cancelError, setCancelError] = useState<unknown>(null)
@@ -99,7 +102,7 @@ export default function TaskDetails({ identity,vault,draftScope,api, taskId, age
 
   useEffect(() => {
     setCosts(null);setCostError(null)
-    setTask(null); setEvents([]); setArtifacts([]); setCandidates([]); setDecisions([]); setChildren([]); setLoading(true); journal.current=new EventJournal();needsSnapshot.current=true;setStreamStart(null);setStreamStatus('connecting');setStreamError(null);setHistoryReset(false);setHistoryGap(false);setEventTruncated(false);setMaterialSeed(null);setArtifactCursor(undefined);artifactPaging.current=false;artifactEpoch.current++;setArtifactBusy(false)
+    setReuseSource(null); setTask(null); setEvents([]); setArtifacts([]); setCandidates([]); setDecisions([]); setChildren([]); setLoading(true); journal.current=new EventJournal();needsSnapshot.current=true;setStreamStart(null);setStreamStatus('connecting');setStreamError(null);setHistoryReset(false);setHistoryGap(false);setEventTruncated(false);setMaterialSeed(null);setArtifactCursor(undefined);artifactPaging.current=false;artifactEpoch.current++;setArtifactBusy(false)
   }, [api, taskId])
 
   useEffect(() => {
@@ -224,6 +227,8 @@ export default function TaskDetails({ identity,vault,draftScope,api, taskId, age
     {loading && !task && <Loading />}
     {task && <>
       <div className="detail-heading"><div><div className="eyebrow">{t("Задача · ")}{task.id.slice(0, 12)}</div><h1>{task.goal}</h1><div className="detail-meta"><Status status={task.status} /><span><Icon name="agents" />{agent?.name ?? t("Агент")} · v{task.agent_version}</span><span><Icon name="clock" />{dateTime(task.created_at)}</span></div></div><button className="button button-secondary" onClick={() => setRefresh(value => value + 1)}><Icon name="refresh" />{t("Обновить")}</button></div>
+      {task.status === 'succeeded' && !task.parent_id && <p><button className="button button-secondary" disabled={Boolean(error) || commandsPaused} onClick={() => setReuseSource({...task})}>{t('Новая задача на этой основе')}</button></p>}
+      {reuseSource && <TaskForm api={api} agents={agents} source={reuseSource} onClose={() => setReuseSource(null)} onCreated={id => {setReuseSource(null); onChanged(); onOpenTask(id)}}/>}
       <div className="event-connection" role="status">{({connecting:t("Подключаем журнал…"),live:t("События поступают в реальном времени"),reconnecting:t("Восстанавливаем подключение к журналу…"),reset_required:t("Доступная история изменилась"),stopped:t("Журнал приостановлен")})[streamStatus]}</div>
       {(historyReset||streamStatus==='stopped')&&<div className="notice notice-warning"><div><strong>{t("Нужно обновить состояние")}</strong><p>{historyReset?t("Часть истории больше недоступна для продолжения. Новый снимок покажет текущее состояние; сохранённые черновики останутся."):t("Подключение не прошло проверку. Команды приостановлены до обновления состояния.")}</p><button className="button button-secondary" onClick={resetEventHistory}>{t("Обновить состояние")}</button></div></div>}
       {historyGap&&!historyReset&&<p className="muted">{t("История была восстановлена по новому снимку. Журнал может содержать не все прежние события.")}</p>}
@@ -235,12 +240,14 @@ export default function TaskDetails({ identity,vault,draftScope,api, taskId, age
         <section className="panel detail-main">
           <div className="tabs" role="tablist" aria-label={t("Данные задачи")}>
             <button id="result-tab" role="tab" aria-selected={tab === 'result'} aria-controls="task-panel" onClick={() => setTab('result')}>{t("Результат")}</button>
+            <button id="compare-tab" role="tab" aria-selected={tab === 'compare'} aria-controls="task-panel" onClick={() => setTab('compare')}>{t("Сравнение результатов")}</button>
             <button id="actions-tab" role="tab" aria-selected={tab === 'actions'} aria-controls="task-panel" onClick={() => setTab('actions')}>{t("Действия")}</button>
             <button id="automation-tab" role="tab" aria-selected={tab === 'automation'} aria-controls="task-panel" onClick={() => setTab('automation')}>{t("Автоматизация")}</button>
             <button id="events-tab" role="tab" aria-selected={tab === 'events'} aria-controls="task-panel" onClick={() => setTab('events')}>{t("Ход работы ")}<span>{events.length}</span></button>
             <button id="artifacts-tab" role="tab" aria-selected={tab === 'artifacts'} aria-controls="task-panel" onClick={() => setTab('artifacts')}>{t("Материалы ")}<span>{artifacts.length}</span></button>
           </div>
           <div id="task-panel" role="tabpanel" aria-labelledby={`${tab}-tab`} className="tab-content">
+            {tab === 'compare' && <ResultComparison api={api} task={task} candidates={candidates} decisions={decisions} loadError={error}/>}
             {tab === 'actions' && <div inert={commandsPaused}><ToolActions api={api} task={task} scope={draftScope} onChanged={next=>{setTask(next);setRefresh(value=>value+1);onChanged()}}/></div>}
             {tab === 'automation' && <div inert={commandsPaused}><AutomationControls api={api} task={task} agent={agent} scope={draftScope} onChanged={()=>{setRefresh(value=>value+1);onChanged()}}/></div>}
             {tab === 'result' && <div inert={commandsPaused}><ResultReview identity={identity} api={api} task={task} candidates={candidates} artifacts={artifacts} decisions={decisions} children={children} loadError={error} onRefresh={() => setRefresh(value => value + 1)} onChanged={next => {setTask(next);setRefresh(value=>value+1);onChanged()}} onOpenTask={onOpenTask} onEditMaterial={snapshot=>{setMaterialSeed(snapshot);setTab('artifacts')}}/>{!task.candidate_id && (task.result ? <div className="result-content"><div className="section-kicker"><Icon name="file" />{t("Ответ исполнителя")}</div><CopyText text={resultText}/><pre className="prose-output">{resultText}</pre></div> : <EmptyState icon={task.status === 'succeeded' ? 'check' : 'activity'} title={task.status === 'succeeded' ? t("Текстовый ответ не добавлен") : t("Результат появится здесь")} description={task.status === 'succeeded' ? t("Проверьте материалы и события задачи.") : t("Статус и ход выполнения обновляются автоматически. Материалы сохраняются в отдельной вкладке.")} />)}</div>}

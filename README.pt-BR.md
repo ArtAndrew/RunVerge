@@ -8,7 +8,7 @@
 
 RunVerge é uma aplicação para trabalhar com agentes de IA. Descreva a tarefa e seu orçamento, receba um rascunho, deixe comentários e decida se aceita a resposta ou autoriza outra tentativa. A resposta original continua disponível após as correções.
 
-[**Começar →**](docs/QUICKSTART-ALPHA.md) · [**Baixar alpha.4 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.4) · [**Primeira tarefa →**](examples/alpha-first-task.md) · [**Feedback →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
+[**Começar →**](docs/QUICKSTART-ALPHA.md) · [**Baixar alpha.5 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.5) · [**Primeira tarefa →**](examples/alpha-first-task.md) · [**Feedback →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
 
 > **Alpha.3 experimental:** macOS arm64, um proprietário local e apenas dados de teste. PostgreSQL 18 é configurado separadamente. Use um modelo local ou o OpenRouter. Restauração completa, atualização de instalações existentes e implantação em produção para uma organização inteira não são suportadas nesta versão. [Escopo suportado](docs/SUPPORT.md).
 
@@ -16,11 +16,11 @@ RunVerge é uma aplicação para trabalhar com agentes de IA. Descreva a tarefa 
 
 RunVerge e o modelo são serviços separados. RunVerge guarda tarefas e resultados; o modelo recebe uma solicitação e gera a resposta. O motor inclui uma conexão HTTPS Chat Completions configurável pelo administrador.
 
-O pacote alpha.4 roda no macOS arm64 e inclui configuração de modelos locais e um [perfil de texto para OpenRouter](docs/OPENROUTER.md). Escolha um modelo, salve a chave em um arquivo privado e revise o rascunho. O modelo do OpenRouter roda no provedor. Conexões diretas com DeepSeek, Nebius Token Factory e Z.ai e pacotes nativos para Windows/Linux ficam fora desta versão. Verificar um modelo não comprova compatibilidade com todos os provedores.
+O pacote alpha.5 roda no macOS arm64 e inclui configuração de modelos locais e um [perfil de texto para OpenRouter](docs/OPENROUTER.md). Escolha um modelo, salve a chave em um arquivo privado e revise o rascunho. O modelo do OpenRouter roda no provedor. Conexões diretas com DeepSeek, Nebius Token Factory e Z.ai e pacotes nativos para Windows/Linux ficam fora desta versão. Verificar um modelo não comprova compatibilidade com todos os provedores.
 
 [Experimentar o OpenRouter](https://openrouter.ai/) · [Conectar ao RunVerge](docs/OPENROUTER.md).
 
-A branch `main` inclui uma [prévia para servidores Linux com compilação do código-fonte](docs/LINUX-SERVER.md), para instalações novas com dados de teste. A instalação, o worker separado e a preservação do resultado após reiniciar foram verificados no Linux amd64 e arm64. É uma opção separada do pacote alpha.4. O guia está, por enquanto, em inglês.
+A branch `main` inclui uma [prévia para servidores Linux com compilação do código-fonte](docs/LINUX-SERVER.md), para instalações novas com dados de teste. A instalação, o worker separado e a preservação do resultado após reiniciar foram verificados no Linux amd64 e arm64. É uma opção separada do pacote alpha.5. O guia está, por enquanto, em inglês.
 
 O computador da aplicação e o provedor do modelo são escolhas separadas. O pacote atual para Mac não significa que o produto deva usar apenas modelos locais.
 
@@ -55,7 +55,7 @@ Use RunVerge se precisar de páginas de tarefas com rascunhos salvos, decisões 
 | [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) | Orquestração com estado, execução durável e intervenção humana | Você precisa de grafos personalizados com etapas programadas e etapas do modelo |
 | [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) | Planejamento, subagentes, contexto de arquivos e memória | Você precisa desses recursos como base do agente |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Harness extensível por plugins com interface web | Você quer personalizar o harness por plugins |
-| **RunVerge alpha.4** | **Aplicação local de tarefas e revisão** | **Você quer avaliar o fluxo com um proprietário e dados de teste** |
+| **RunVerge alpha.5** | **Aplicação local de tarefas e revisão** | **Você quer avaliar o fluxo com um proprietário e dados de teste** |
 
 As descrições oficiais vinculadas foram conferidas em 28 de outubro de 2026. A comparação trata de pontos de partida, não de recursos ausentes nos demais projetos. LangGraph e Deep Agents também oferecem persistência e intervenção humana; o ecossistema LangChain possui produtos de implantação gerenciada. Não há evidências comparativas de superioridade do RunVerge em qualidade, velocidade, segurança ou custo total.
 
@@ -65,7 +65,7 @@ As descrições oficiais vinculadas foram conferidas em 28 de outubro de 2026. A
 
 Orçamento, número de tentativas e prazo restringem a admissão de novo trabalho. Não garantem a precisão do texto nem a fatura final do provedor. Uma operação enviada com resultado incerto mantém sua reserva e não é repetida às cegas. Tarifa local de API zero não mede CPU/GPU, energia ou depreciação, nem torna ferramentas pagas gratuitas.
 
-**MCP:** há um [exemplo limitado de leitura de texto](docs/MCP-READ.md) com configuração confiável, permissões e aprovação da execução. Servidores arbitrários, OAuth e um catálogo geral de conectores não fazem parte da alpha.4.
+**MCP:** há um [exemplo limitado de leitura de texto](docs/MCP-READ.md) com configuração confiável, permissões e aprovação da execução. Servidores arbitrários, OAuth e um catálogo geral de conectores não fazem parte da alpha.5.
 
 ## Como experimentar
 
@@ -74,9 +74,9 @@ Orçamento, número de tentativas e prazo restringem a admissão de novo trabalh
 3. Confira o rascunho, registre uma correção e autorize outra tentativa separadamente.
 4. Examine os dois materiais e decida o que aceitar. Conte se voltaria com uma segunda tarefa.
 
-**A alpha.4 oferece sete idiomas de interface:** inglês, russo, espanhol, português do Brasil, alemão, francês e chinês simplificado.
+**A alpha.5 oferece sete idiomas de interface:** inglês, russo, espanhol, português do Brasil, alemão, francês e chinês simplificado.
 
-Na alpha.4, o guia inicial percorre **salvar um rascunho de agente → publicar uma versão → criar uma tarefa e revisar a resposta**. As instruções opcionais para trabalhar com um texto fornecido e os exemplos de tarefas só preenchem campos editáveis após sua escolha. Não selecionam um modelo, publicam um agente nem iniciam trabalho automaticamente.
+Na alpha.5, o guia inicial percorre **salvar um rascunho de agente → publicar uma versão → criar uma tarefa e revisar a resposta**. As instruções opcionais para trabalhar com um texto fornecido e os exemplos de tarefas só preenchem campos editáveis após sua escolha. Não selecionam um modelo, publicam um agente nem iniciam trabalho automaticamente.
 
 O idioma é escolhido na barra superior e salvo neste dispositivo. A troca mantém a conexão e o trabalho atual; os textos já inseridos, as respostas do modelo e os materiais não são traduzidos. Os valores continuam exatos em USD, sem conversão de moeda. [Seleção de idioma, arquivos locais e idioma de fallback](docs/LANGUAGES.md).
 
@@ -84,12 +84,12 @@ O idioma é escolhido na barra superior e salvo neste dispositivo. A troca mant�
 
 Um agente verificou o fluxo de publicação; ainda falta avaliação independente por novos usuários. Um modelo local pequeno pode omitir fatos ou truncar a resposta. Guarde resultados importantes fora da plataforma.
 
-Restauração completa, atualizações, uso em equipe, ciclo empresarial de SSO, implantação para provedores de nuvem, MCP arbitrário e desempenho de produção não foram aceitos para a alpha.4. Não exponha a instalação como serviço público multiusuário. Não há comparação lado a lado; identifique os materiais por ID e data.
+Restauração completa, atualizações, uso em equipe, ciclo empresarial de SSO, implantação para provedores de nuvem, MCP arbitrário e desempenho de produção não foram aceitos para a alpha.5. Não exponha a instalação como serviço público multiusuário. Em **Comparar resultados**, veja duas versões exatas e seus comentários. **Usar em uma nova tarefa** permite repetir uma tarefa concluída com novos dados. [Guia em inglês](docs/REPEAT-WORK.md).
 
 Os pacotes e valores SHA-256 estão em [Releases](https://github.com/ArtAndrew/RunVerge/releases). Não há assinatura do editor; o checksum verifica correspondência com o valor publicado, não a identidade do editor.
 
 - [Instalação](docs/NATIVE-BUNDLE.md) · [modelos](docs/LOCAL-MODELS.md) · [MCP](docs/MCP-READ.md)
-- [Notas](docs/RELEASE-NOTES-alpha.4.md) · [suporte](docs/SUPPORT.md) · [validação](docs/VALIDATION-alpha.4.md)
+- [Notas](docs/RELEASE-NOTES-alpha.5.md) · [suporte](docs/SUPPORT.md) · [validação](docs/VALIDATION-alpha.5.md)
 - [Desenvolvimento](docs/DEVELOPMENT.md) · [API](contracts/README.md) · [conteúdo público](docs/PUBLIC-SOURCE.md)
 
 [Envie feedback](https://github.com/ArtAndrew/RunVerge/issues/new/choose) com sistema operacional, versão e etapa difícil. Não anexe tokens, configurações privadas, strings de conexão ou documentos privados. Os guias detalhados vinculados podem estar em inglês ou russo.

@@ -1,6 +1,6 @@
 import {t} from './i18n'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { type Agent, type AvailableModel, type ApiClient, type Connection, type TeamDefinition, type ToolInfo, normalizeBaseUrl } from './api'
+import { type Task, type Agent, type AvailableModel, type ApiClient, type Connection, type TeamDefinition, type ToolInfo, normalizeBaseUrl } from './api'
 import { byteLength, money, parseBudget } from './format'
 import { ErrorNotice, Icon, Modal } from './ui'
 import TeamFields, {validateTeamForm} from './TeamFields'
@@ -31,13 +31,14 @@ export function ConnectionForm({ initial, busy, error, onConnect }: { initial: C
   </form>
 }
 
-export function TaskForm({ api, agents, onClose, onCreated }: { api: ApiClient; agents: Agent[]; onClose: () => void; onCreated: (id: string) => void }) {
+export function TaskForm({ api, agents, source, onClose, onCreated }: { api: ApiClient; agents: Agent[]; source?: Task; onClose: () => void; onCreated: (id: string) => void }) {
   const published = agents.filter(agent => agent.published)
-  const [agentId, setAgentId] = useState(published[0]?.id ?? '')
-  const [goal, setGoal] = useState('')
+  const [agentId, setAgentId] = useState(source ? (published.find(agent => agent.id === source.agent_id)?.id ?? '') : (published[0]?.id ?? ''))
+  const [goal, setGoal] = useState(source?.goal ?? '')
+  const [reuseConfirmed, setReuseConfirmed] = useState(false)
   const goalInput = useRef<HTMLTextAreaElement>(null)
-  const [budget, setBudget] = useState('1.00')
-  const [maxRuns,setMaxRuns]=useState('3')
+  const [budget, setBudget] = useState(source ? (BigInt(source.budget_microusd) / 1000000n).toString() + '.' + (BigInt(source.budget_microusd) % 1000000n).toString().padStart(6, '0') : '1.00')
+  const [maxRuns,setMaxRuns]=useState(String(source?.max_runs ?? 3))
   const [hours,setHours]=useState('24')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
@@ -45,6 +46,7 @@ export function TaskForm({ api, agents, onClose, onCreated }: { api: ApiClient; 
   async function submit(event: FormEvent) {
     event.preventDefault()
     try {
+      if (source && !reuseConfirmed) throw new Error('Проверьте новые исходные данные и подтвердите создание отдельной задачи.')
       if (!goal.trim()) throw new Error('Опишите результат, который нужно получить.')
       if (byteLength(goal.trim()) > 16 * 1024) throw new Error('Описание задачи слишком большое: максимум 16 КиБ.')
       if (!agent) throw new Error('Выберите опубликованного агента.')
@@ -61,6 +63,7 @@ export function TaskForm({ api, agents, onClose, onCreated }: { api: ApiClient; 
   return <Modal title={t("Новая задача")} description={t("Задайте ожидаемый результат, исполнителя и предел расходов.")} onClose={onClose} busy={busy}>
     <form onSubmit={submit} className="modal-form">
       <ErrorNotice error={error} />
+      {source && <div className="notice notice-info"><p>{t('Текст и лимиты скопированы из завершённой задачи. Замените исходные данные. Результаты, замечания и расходы остаются в прежней задаче.')}</p><p>{t('Для новой задачи используется текущая опубликованная версия агента. Срок начинается заново.')}</p></div>}
       {goal === '' && <fieldset className="task-examples" disabled={busy}>
         <legend>{t('Начать с примера')}</legend>
         <div className="example-choices">{taskExamples.map(example => <button key={example.id} type="button" className="button button-secondary" onClick={() => {
@@ -77,7 +80,8 @@ export function TaskForm({ api, agents, onClose, onCreated }: { api: ApiClient; 
       <div className="form-columns"><label className="field">{t("Предел попыток")}<input aria-label={t("Предел попыток")} type="number" min={1} max={10} value={maxRuns} onChange={event=>setMaxRuns(event.target.value)} disabled={busy}/></label><label className="field">{t("Срок выполнения, часы")}<input aria-label={t("Срок выполнения, часы")} type="number" min={1} max={720} value={hours} onChange={event=>setHours(event.target.value)} disabled={busy}/></label></div>
       <p className="aside-note">{t("Повторные попытки используют общий бюджет и срок. Новая попытка потребует отдельного подтверждения.")}</p>
       {agent?.team&&<div className="notice notice-info"><p>{t("Задачу выполнит команда из")} {agent.team.members.length} {t("участников. Бюджет покрывает всю задачу и её подзадачи.")}</p></div>}
-      <div className="modal-footer"><button className="button button-secondary" type="button" onClick={onClose} disabled={busy}>{t("Закрыть")}</button><button className="button button-primary" type="submit" disabled={busy || !published.length}>{busy ? t("Создаём задачу…") : t("Создать задачу")}<Icon name="arrow" /></button></div>
+      <>{source && <label className="acknowledgment"><input type="checkbox" checked={reuseConfirmed} onChange={event => setReuseConfirmed(event.target.checked)} disabled={busy}/>{t('Я проверил исходные данные и лимиты. Создание новой задачи запустит отдельную работу со своим бюджетом.')}</label>}</>
+      <div className="modal-footer"><button className="button button-secondary" type="button" onClick={onClose} disabled={busy}>{t("Закрыть")}</button><button className="button button-primary" type="submit" disabled={busy || !published.length || Boolean(source && !reuseConfirmed)}>{busy ? t("Создаём задачу…") : t("Создать задачу")}<Icon name="arrow" /></button></div>
     </form>
   </Modal>
 }

@@ -1,0 +1,6 @@
+.comparison-selectors, .comparison-columns {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem}
+.comparison-columns article {min-width:0; border:1px solid var(--border);border-radius:12px;padding:1rem}
+.comparison-columns details {overflow-wrap:anywhere;margin:1rem 0}
+.comparison-text {max-height:65vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.comparison-decision {border-top:1px solid var(--border);padding:.75rem 0}
+@media(max-width:800px){.comparison-selectors,.comparison-columns{grid-template-columns:1fr}}
