@@ -1,0 +1,46 @@
+{
+  "contract_version": "0.6.0",
+  "result": "pass",
+  "executed_at": "2026-10-24T05:57:05.840Z",
+  "scope": "Read-only reopening of existing live tool outcomes after version-label-only UI rebuild; no new business API commands or tool dispatches",
+  "ui_version_label": "0.6",
+  "source_live_report": "web/tests/tools-live-report-0.6.json",
+  "task_id": "tsk_fbf5c920ded2d80297b9dd1ce27cc965",
+  "views": [
+    {
+      "execution_id": "tex_39e3c4417f27933c2459b32f7f49359a",
+      "status": "succeeded",
+      "available_commands": []
+    },
+    {
+      "execution_id": "tex_6c7230f90b5751c26924b630007789e3",
+      "status": "rejected",
+      "available_commands": []
+    }
+  ],
+  "business_api_mutations": 0,
+  "browser_errors": 0,
+  "screenshots": [
+    "tools-live-0.6-reopened-desktop.png",
+    "tools-live-0.6-reopened-mobile.png"
+  ],
+  "source_sha256": {
+    "web/src/App.tsx": "16015bac12e7360a7f0186d56f36a700426aa38dd6088f9ac4dd35867681e453",
+    "web/src/ToolActions.tsx": "26a44775fa698464055c4820a850b8e12ad0c0b293c6b5ec541f812524fd5901",
+    "web/src/toolIntent.ts": "4accb3b7b5b628f143ab34c1b6dfb38d8a83979015478460f151308d8fa7bb2c",
+    "web/src/api.ts": "07b94cf6d6a372eb6510ca426ff6414631c148baf724025d944a461dd52175a3",
+    "web/dist/index.html": "521b541f1f30d7dad832597ec4e84c7b8eb2d8b5c0974f677ab94273b46060d0",
+    "web/dist/assets/index-CdvPHs-d.css": "65b77ff912f4c4c6fbe192adcd1562f21f8ac7c1a3bcd1abef4caa568cf28fee",
+    "web/dist/assets/index-HARwdnT9.js": "1ba0552cb6876b0fbaf31a91adbe0fa16528a28775996b0f7802e21c3b6c7678"
+  },
+  "capture_attempts": [
+    {
+      "result": "script_locator_failure",
+      "detail": "Task title matched parent and children; first read-only capture stopped before opening the task or issuing any business mutation."
+    },
+    {
+      "result": "pass",
+      "detail": "Parent-team row selected; two existing execution views read, zero business mutations."
+    }
+  ]
+}

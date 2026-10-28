@@ -1,0 +1,322 @@
+{
+  "catalog_version": "1",
+  "api_contract": "0.14.0",
+  "assessment": "support_and_role_observation",
+  "read_only": true,
+  "observed_at": "2026-10-26T12:00:00Z",
+  "identity": {
+    "principal_id": "capability-user",
+    "organization_id": "org",
+    "principal_kind": "human",
+    "role": "member",
+    "permissions": [
+      "task.read",
+      "agent.read"
+    ]
+  },
+  "authorization_rules": [
+    "Каталог не предоставляет полномочий.",
+    "Каждое действие заново проверяется сервером."
+  ],
+  "operations": [
+    {
+      "id": "get_capabilities",
+      "capability_id": "product.catalog",
+      "method": "GET",
+      "path": "/api/v1/capabilities",
+      "input_schema": "",
+      "output_schema": "ProductCapabilities",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "current_membership",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "Текущее активное участие в организации."
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/capabilities"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform capabilities"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "Client.capabilities"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "Client.capabilities"
+        },
+        {
+          "surface": "mcp",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Возможности"
+        }
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "core",
+      "name": "Задачи и проверка результатов",
+      "status": "implemented",
+      "summary": "Работа с опубликованными агентами и явным принятием результата.",
+      "constraints": [
+        "Условия текущего сервера и прав проверяются отдельно."
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "private_mcp",
+      "name": "Частный MCP профиль",
+      "status": "bounded",
+      "summary": "Доступен ограниченный набор операций в подготовленном окружении.",
+      "constraints": [
+        "Условия текущего сервера и прав проверяются отдельно."
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "provider_lifecycle",
+      "name": "Жизненный цикл провайдера",
+      "status": "not_implemented",
+      "summary": "Самостоятельная регистрация провайдера пока не реализована.",
+      "constraints": [
+        "Условия текущего сервера и прав проверяются отдельно."
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "principal_kind": "human",
+      "role": "viewer",
+      "permissions": []
+    },
+    {
+      "principal_kind": "human",
+      "role": "member",
+      "permissions": []
+    },
+    {
+      "principal_kind": "human",
+      "role": "admin",
+      "permissions": []
+    },
+    {
+      "principal_kind": "human",
+      "role": "owner",
+      "permissions": []
+    },
+    {
+      "principal_kind": "service",
+      "role": "viewer",
+      "permissions": []
+    },
+    {
+      "principal_kind": "service",
+      "role": "member",
+      "permissions": []
+    }
+  ],
+  "onboarding": [
+    {
+      "id": "employee",
+      "persona": "Сотрудник",
+      "status": "available",
+      "summary": "Следуйте шагам в пределах текущих прав.",
+      "prerequisites": [
+        "Подготовленное рабочее пространство и доступ к организации."
+      ],
+      "steps": [
+        {
+          "id": "inspect",
+          "instruction": "Ознакомьтесь с возможностями, затем откройте нужный рабочий экран.",
+          "actor": "Текущий участник",
+          "operation_ids": [
+            "get_capabilities"
+          ],
+          "commands": [
+            [
+              "platform",
+              "capabilities",
+              "--json"
+            ]
+          ],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        }
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "agent_developer",
+      "persona": "Разработчик агента",
+      "status": "available",
+      "summary": "Следуйте шагам в пределах текущих прав.",
+      "prerequisites": [
+        "Подготовленное рабочее пространство и доступ к организации."
+      ],
+      "steps": [
+        {
+          "id": "inspect",
+          "instruction": "Ознакомьтесь с возможностями, затем откройте нужный рабочий экран.",
+          "actor": "Текущий участник",
+          "operation_ids": [
+            "get_capabilities"
+          ],
+          "commands": [
+            [
+              "platform",
+              "capabilities",
+              "--json"
+            ]
+          ],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        }
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "team_creator",
+      "persona": "Создатель команды",
+      "status": "partial",
+      "summary": "Следуйте шагам в пределах текущих прав.",
+      "prerequisites": [
+        "Подготовленное рабочее пространство и доступ к организации."
+      ],
+      "steps": [
+        {
+          "id": "inspect",
+          "instruction": "Ознакомьтесь с возможностями, затем откройте нужный рабочий экран.",
+          "actor": "Текущий участник",
+          "operation_ids": [
+            "get_capabilities"
+          ],
+          "commands": [
+            [
+              "platform",
+              "capabilities",
+              "--json"
+            ]
+          ],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        }
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "organization_admin",
+      "persona": "Администратор организации",
+      "status": "partial",
+      "summary": "Следуйте шагам в пределах текущих прав.",
+      "prerequisites": [
+        "Подготовленное рабочее пространство и доступ к организации."
+      ],
+      "steps": [
+        {
+          "id": "inspect",
+          "instruction": "Ознакомьтесь с возможностями, затем откройте нужный рабочий экран.",
+          "actor": "Текущий участник",
+          "operation_ids": [
+            "get_capabilities"
+          ],
+          "commands": [
+            [
+              "platform",
+              "capabilities",
+              "--json"
+            ]
+          ],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        }
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "provider",
+      "persona": "Провайдер",
+      "status": "not_implemented",
+      "summary": "Самостоятельная регистрация провайдера пока не поддерживается.",
+      "prerequisites": [
+        "Подготовленное рабочее пространство и доступ к организации."
+      ],
+      "steps": [],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "authorized_agent",
+      "persona": "Уполномоченный агент",
+      "status": "partial",
+      "summary": "Следуйте шагам в пределах текущих прав.",
+      "prerequisites": [
+        "Подготовленное рабочее пространство и доступ к организации."
+      ],
+      "steps": [
+        {
+          "id": "inspect",
+          "instruction": "Ознакомьтесь с возможностями, затем откройте нужный рабочий экран.",
+          "actor": "Текущий участник",
+          "operation_ids": [
+            "get_capabilities"
+          ],
+          "commands": [
+            [
+              "platform",
+              "capabilities",
+              "--json"
+            ]
+          ],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        }
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    }
+  ],
+  "remediation_command": [
+    "platform",
+    "doctor",
+    "--catalog",
+    "--json"
+  ]
+}

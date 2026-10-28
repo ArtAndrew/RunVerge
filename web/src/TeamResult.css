@@ -1,0 +1,26 @@
+/* SPDX-License-Identifier: Elastic-2.0 */
+.team-result {min-width:0;display:grid;gap:16px;margin:14px 0 22px}
+.team-result-heading {display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.team-result-heading h3 {font-size:17px;margin:0;letter-spacing:-.3px}
+.team-result-completeness,.team-member-state {font-size:10px;padding:5px 8px;border-radius:5px;background:#edf4f1;color:#496f5f;white-space:nowrap}
+.team-result-completeness.partial,.team-member-state.omitted {background:#fcf5e5;color:#987732}
+.team-result-explanation,.team-result-caution {font-size:12px;color:#6b7881;margin:0;line-height:1.7}
+.team-result-caution {padding:12px 14px;background:#f5f8f7;border-radius:7px}
+.team-result-members {list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.team-result-member {padding:17px;border:1px solid var(--border);border-radius:9px;min-width:0;display:grid;gap:12px;background:#fff}
+.team-member-heading {display:flex;align-items:flex-start;gap:10px;min-width:0}
+.team-member-heading>div {flex:1;min-width:0}
+.team-member-heading h4 {font-size:13px;margin:0;overflow-wrap:anywhere}
+.team-member-heading p {font-size:11px;color:#7c8991;margin:5px 0 0;line-height:1.6;overflow-wrap:anywhere}
+.team-member-number {width:24px;height:24px;border-radius:6px;background:#edf3f1;color:#5a7b6e;display:grid;place-items:center;font-size:11px;flex-shrink:0}
+.team-source-caption,.team-member-omission,.team-child-unavailable {font-size:11px;color:#79868d;margin:0;line-height:1.7}
+.team-exact,.team-source-metadata {min-width:0;font-size:11px;color:#61776d}
+.team-exact>summary,.team-source-metadata>summary {cursor:pointer;line-height:1.7;overflow-wrap:anywhere}
+.team-exact>summary>span {display:inline-block;margin-left:10px;font-size:10px;color:#8b9993}
+.team-exact-body {margin-top:10px;display:grid;gap:10px;min-width:0}
+.team-exact-body>p {font-size:10px;margin:0;line-height:1.7}
+.team-exact-text {max-height:24rem;overflow:auto;background:#f7f9f8;border:1px solid #e3eae6;padding:12px;border-radius:6px;tab-size:2;overflow-wrap:anywhere}
+.team-result-member>.button,.team-exact-body>.button {justify-self:start}
+.team-result .technical-ids {margin:12px 0}
+.team-result .technical-ids dd {overflow-wrap:anywhere}
+@media(max-width:600px){.team-result-member{padding:13px}.team-member-heading{display:grid;grid-template-columns:24px minmax(0,1fr)}.team-member-state{grid-column:2;margin-left:0;justify-self:start;max-width:100%;white-space:normal}.team-result-heading h3{font-size:15px}.team-exact-text{max-height:20rem}}

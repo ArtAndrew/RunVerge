@@ -1,0 +1,25 @@
+name: Bug report / Ошибка
+description: Report a problem with the experimental alpha.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include tokens, passwords, database URLs, private documents or unredacted logs. / Не публикуйте секреты и приватные данные."
+  - type: input
+    id: version
+    attributes:
+      label: RunVerge version and macOS version
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Шаги
+      description: Include the expected result and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Safe diagnostics / Диагностика без секретов
+      description: Error message, model name and installation method. Review screenshots before attaching them.

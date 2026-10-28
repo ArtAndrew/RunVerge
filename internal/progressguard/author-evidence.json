@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "module": "internal/progressguard",
+  "phase": "standalone author seal, not integrated",
+  "source_hashes": {
+    "internal/progressguard/README.md": "142a930842523754e8c3b7a1d426f51c09e6160068e0f48286108a8847aa8616",
+    "internal/progressguard/fingerprint.go": "4975d4b1a4469bac75306ee68dbbbbda983068577729bf33763ad71395091464",
+    "internal/progressguard/fingerprint_test.go": "5db0bce81a241864b4eb660728420c56513858f5c57c7b898cc6f8eff82e011a",
+    "internal/progressguard/guard.go": "abf921adf79b96a7bed8fdd358be5609de175d84363bf5b7f497bcd7639450eb",
+    "internal/progressguard/guard_test.go": "5866f251e95ab53a30cb2ab15de2416fce9cf4c1816c6c938b0bcb21d394bd05"
+  },
+  "source_stable": true,
+  "commands": [
+    {
+      "command": "go test -race -json -count=1 ./internal/progressguard",
+      "exit_code": 0,
+      "wall_seconds": 3.255,
+      "log_path": "/workspace/Documents/Codex/2026-10-23/harness-deepseek-harness-deep-agents-angchain/work/progressguard-race-0.8.log",
+      "log_sha256": "a13fe2b64928dfcf9bc9a605f789bc7abbb6c5a166c187e0d215a81783dd1872",
+      "passed_top_level": 18,
+      "passed_subtests": 53,
+      "failed_tests": []
+    },
+    {
+      "command": "go vet ./internal/progressguard",
+      "exit_code": 0,
+      "wall_seconds": 0.307,
+      "log_path": "/workspace/Documents/Codex/2026-10-23/harness-deepseek-harness-deep-agents-angchain/work/progressguard-vet-0.8.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "earlier_fuzz": {
+    "command": "go test -run=^$ -fuzz=FuzzFingerprintArgumentsNeverPanics -fuzztime=3s ./internal/progressguard",
+    "exit_code": 0,
+    "executions": 73138,
+    "new_interesting_inputs": 161,
+    "package_seconds": 4.275,
+    "scope_note": "Observed before the final pending-proposal boundary test was added. Production implementation and fingerprint fuzz target unchanged afterward."
+  },
+  "limitations": [
+    "No storage, network, worker or public contract integration.",
+    "No truth or hallucination detection; conservative repetition signals require human review.",
+    "Caller must enforce complete durable history, independent progress evidence, atomic signal persistence and all budgets.",
+    "Pending proposal is not proof of an effect. Coordinator must separately deny duplicate same-batch automatic proposals.",
+    "Identical read polling is bounded by repeat threshold; no inferred wait-state exemption.",
+    "No full ADR-0019/ADR-0020 acceptance or performance SLO claimed."
+  ]
+}

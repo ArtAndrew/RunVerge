@@ -1,0 +1,120 @@
+{
+  "contract_version": "0.7.0",
+  "result": "pass",
+  "executed_at": "2026-10-24T06:26:06.793Z",
+  "scope": "Built UI -> actual local API -> PostgreSQL -> worker -> explicit synthetic native model and TLS tool; no business responses intercepted",
+  "agent_created_via_installed_tool_selector": true,
+  "agent_id": "agt_e365d15315d5bc991881050a5269b7b3",
+  "native_fixture_model": "native-local-fixture",
+  "real_paid_model_call": false,
+  "billing_settlement": false,
+  "results": [
+    {
+      "mode": "success",
+      "task_id": "tsk_be3ac2cb4de7b08f188ffa0f8dfbac7e",
+      "proposal_id": "mtp_ce18bac5b8599edd7484b5f1089eea42",
+      "execution_id": "tex_6b644a4d4d75c545a559efe1da7e88dd",
+      "initial_operation_id": "op_292741639e162aa5519521d5599ef245",
+      "continued_operation_id": "op_401e55b316582d9745b45f4bf66cd91c",
+      "run_id": "run_c685e921bbcd32db729d2927f5a5c34f",
+      "receipt_method": "registered_tool_response",
+      "arguments_digest": "83d4ddbbd1521f04b315217f07c179e746820f8e08c547b04ad0b20de0f2f995",
+      "status": "succeeded",
+      "final_accepted_separately": true,
+      "spent_microusd": "0",
+      "reserved_microusd": "2017",
+      "dispatch_requests": 1,
+      "continue_requests": 1
+    },
+    {
+      "mode": "unknown",
+      "task_id": "tsk_32016f85d566414519fa0ab2ab58fb55",
+      "proposal_id": "mtp_6596778d1225e540381f7ce82b8265bd",
+      "execution_id": "tex_299ef4f284e45b83a0b38a34037451a7",
+      "initial_operation_id": "op_d47c574571a0e7e78bcdda4f64362bc4",
+      "continued_operation_id": "op_2a40bf17232ecde35f0b6aa5148b3e63",
+      "run_id": "run_89fd75d222d66ecb2363a2fd4091ff57",
+      "receipt_method": "operator_assertion",
+      "arguments_digest": "9d441947e708925eaad5ff0a473a4807f65a18de4b0aa104a8e9f50cd1ec2d03",
+      "status": "succeeded",
+      "final_accepted_separately": true,
+      "spent_microusd": "0",
+      "reserved_microusd": "2017",
+      "dispatch_requests": 1,
+      "continue_requests": 1
+    }
+  ],
+  "requests": [
+    {
+      "path": "/api/v1/agents",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/agents/agt_e365d15315d5bc991881050a5269b7b3/publish",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/tasks/tsk_be3ac2cb4de7b08f188ffa0f8dfbac7e/tool-executions",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/tasks/tsk_be3ac2cb4de7b08f188ffa0f8dfbac7e/tool-executions/tex_6b644a4d4d75c545a559efe1da7e88dd/decide",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_be3ac2cb4de7b08f188ffa0f8dfbac7e/tool-executions/tex_6b644a4d4d75c545a559efe1da7e88dd/dispatch",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_be3ac2cb4de7b08f188ffa0f8dfbac7e/continue-model",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_be3ac2cb4de7b08f188ffa0f8dfbac7e/review",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/tasks/tsk_32016f85d566414519fa0ab2ab58fb55/tool-executions",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/tasks/tsk_32016f85d566414519fa0ab2ab58fb55/tool-executions/tex_299ef4f284e45b83a0b38a34037451a7/decide",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_32016f85d566414519fa0ab2ab58fb55/tool-executions/tex_299ef4f284e45b83a0b38a34037451a7/dispatch",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_32016f85d566414519fa0ab2ab58fb55/tool-executions/tex_299ef4f284e45b83a0b38a34037451a7/reconcile",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_32016f85d566414519fa0ab2ab58fb55/continue-model",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_32016f85d566414519fa0ab2ab58fb55/review",
+      "status": 200
+    }
+  ],
+  "browser_errors": 0,
+  "token_persisted": false,
+  "screenshots": [
+    "model-tools-live-0.7-desktop.png",
+    "model-tools-live-0.7-mobile.png"
+  ],
+  "limits": [
+    "Fixture model and effects are synthetic",
+    "Operator assertion faithfully records a claim without proving its truth",
+    "No corporate SSO or human presence assertion"
+  ]
+}

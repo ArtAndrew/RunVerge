@@ -1,0 +1,28 @@
+name: First-use feedback / Первый опыт
+description: Help us choose the next useful improvement.
+body:
+  - type: markdown
+    attributes:
+      value: "Share your experience without including private task content or credentials."
+  - type: dropdown
+    id: stage
+    attributes:
+      label: How far did you get? / До какого шага дошли?
+      options:
+        - Installed and received a useful result
+        - Received a result but it was not useful
+        - Installed but could not complete a task
+        - Could not install or configure
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What task did you want help with, and what got in the way?
+      description: Describe the task category, not confidential source material. Approximate time to first result is helpful.
+    validations:
+      required: true
+  - type: textarea
+    id: return
+    attributes:
+      label: Would you use it for a second task? What improvement matters most?

@@ -1,0 +1,39 @@
+{
+  "source_sha256": {
+    "src/teamManifest.ts": "57aa5c3bd71cadeb806a261f9f393dd6aa0dd9d2a12981fd0c866532d689bb3f",
+    "src/TeamResult.tsx": "b2eca9ba800f80b962534b22b6c5af9af8772050d4b42cc577b007033477d3c5",
+    "src/TeamResult.css": "e279a24d41d2fe5dd6b0badcee2bb4c6a26ef5df70e8311abae3921c30243395",
+    "src/ResultReview.tsx": "0a8bfe49a829bd3a8306a05f8b45aef0ac9b0e053e41e9303dac6b902296f3e0",
+    "src/TaskDetails.tsx": "950fbce948fba90314a9625c7c13b1ec26af4f7461fe3b1389e1abc443f6b75b",
+    "tests/teamManifest.test.mjs": "5975f4798af68684300d58a891219b551287eb61fff5f7d989a126c2a94b20b5",
+    "scripts/smoke-team-result.mjs": "d5aa99cf70d8cda3931f719a2f915ae4893c2e9a20d47d66b2f07fd94621ab09"
+  },
+  "presentation": "0.5.0",
+  "manifest_version": 1,
+  "fixture_contract": "0.5.0",
+  "result": "pass",
+  "executed_at": "2026-10-23T19:20:03.815Z",
+  "scope": "built UI with intercepted API fixtures; no live API/PG/provider acceptance claim",
+  "checks": [
+    "partial participant overview",
+    "no initial raw JSON DOM",
+    "lazy exact source and artifact text",
+    "opaque nested team source",
+    "XSS treated as text and no external requests",
+    "exact UTF-8 source download",
+    "known direct-child navigation",
+    "same view in artifact tab and review modal",
+    "digest-bound review payload unchanged",
+    "unknown version duplicate keys malformed JSON fallback",
+    "oversized artifact bounded render and exact download",
+    "390px panels fit viewport"
+  ],
+  "review_requests": 1,
+  "reviewed_exact_digest": "66ba18449184a48fe4762f7b31d08f4c848b12ff5bd917122f16b045f3f0ef26",
+  "browser_errors": 0,
+  "real_provider_call": false,
+  "screenshots": [
+    "team-result-0.5-desktop.png",
+    "team-result-0.5-mobile.png"
+  ]
+}

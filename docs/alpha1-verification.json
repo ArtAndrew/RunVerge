@@ -1,0 +1,84 @@
+{
+  "version": "0.14.0-alpha.1",
+  "verification_passed": true,
+  "verification_mode": "verified_postgresql_baseline_plus_targeted_ui_and_public_documentation_delta",
+  "source_stable_during_delta_checks": true,
+  "final_source_input_count": 596,
+  "targeted_checks": [
+    {
+      "name": "go-vet",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "go-capabilities-race",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "contracts",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "python-sdk",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "development-tools",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "synthetic-peers",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "typescript-sdk",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "typescript-sdk-http",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "web-typecheck",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "web-build",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "name": "web-unit",
+      "passed": true,
+      "exit_code": 0
+    }
+  ],
+  "baseline_full_go_race_passed": true,
+  "baseline_go_top_pass": 671,
+  "baseline_go_sub_pass": 1703,
+  "runtime_delta_documentation_only": true,
+  "fresh_postgresql_rerun": false,
+  "fresh_rerun_limit": "shared-memory initialization denied by execution environment",
+  "final_native_file_install_verify_passed": true,
+  "agent_browser_walkthrough": true,
+  "independent_human_acceptance": false,
+  "interface_languages": [
+    "ru",
+    "en"
+  ],
+  "model_answers_require_review": true,
+  "bundle_manifest_sha256": "2422cd2ab2f23e9c41f015a7f860c2c26bfb973a935164061b825b73d174129a",
+  "bundle_source_sha256": "6a5efb04e553b290783f8cf0be978ead9004835f129511e0f2e9b2ec2ef93916",
+  "archive_sha256": "54694f4b6713cc47ec79c17dc1996bfbddfb033228a0d4ac44479acec0d0ae43",
+  "archive_files_verified": 41,
+  "release_ready": true,
+  "scope": "experimental_local_single_owner_test_data_only"
+}

@@ -1,0 +1,142 @@
+{
+  "contract_version": "0.7.0",
+  "examples": [
+    {
+      "name": "duplicate_member_ids",
+      "schema": "TeamDefinition",
+      "schema_valid": true,
+      "semantic_valid": false,
+      "value": {
+        "pattern": "delegate_verify",
+        "members": [
+          {
+            "id": "worker",
+            "agent_id": "agent_worker",
+            "agent_version": 1
+          },
+          {
+            "id": "worker",
+            "agent_id": "agent_verifier",
+            "agent_version": 2
+          }
+        ],
+        "join_policy": "all",
+        "max_depth": 2,
+        "max_children": 2
+      }
+    },
+    {
+      "name": "delegate_verify_requires_two_members",
+      "schema": "TeamDefinition",
+      "schema_valid": true,
+      "semantic_valid": false,
+      "value": {
+        "pattern": "delegate_verify",
+        "members": [
+          {
+            "id": "worker",
+            "agent_id": "agent_worker",
+            "agent_version": 1
+          }
+        ],
+        "join_policy": "all",
+        "max_depth": 2,
+        "max_children": 2
+      }
+    },
+    {
+      "name": "parallel_exceeds_member_count",
+      "schema": "TeamDefinition",
+      "schema_valid": true,
+      "semantic_valid": false,
+      "value": {
+        "pattern": "delegate_verify",
+        "members": [
+          {
+            "id": "worker",
+            "agent_id": "agent_worker",
+            "agent_version": 1,
+            "task": "Prepare a draft"
+          },
+          {
+            "id": "verifier",
+            "agent_id": "agent_verifier",
+            "agent_version": 2
+          }
+        ],
+        "join_policy": "all",
+        "max_depth": 2,
+        "max_children": 2,
+        "max_parallel": 32
+      }
+    },
+    {
+      "name": "review_whitespace_reason",
+      "schema": "ReviewTaskRequest",
+      "schema_valid": true,
+      "semantic_valid": false,
+      "value": {
+        "artifact_id": "artifact_fixture",
+        "artifact_version": 1,
+        "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "candidate_id": "candidate_fixture",
+        "decision": "request_changes",
+        "reason": "   ",
+        "expected_version": 3
+      }
+    },
+    {
+      "name": "retry_whitespace_reason",
+      "schema": "RetryTaskRequest",
+      "schema_valid": false,
+      "semantic_valid": false,
+      "value": {
+        "expected_version": 4,
+        "reason": "   ",
+        "feedback": "Cite the sources for the two conclusions.",
+        "acknowledge_new_cost": true
+      }
+    },
+    {
+      "name": "review_unbound_candidate",
+      "schema": "ReviewTaskRequest",
+      "schema_valid": true,
+      "semantic_valid": false,
+      "value": {
+        "artifact_id": "artifact_fixture",
+        "artifact_version": 1,
+        "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "candidate_id": "candidate_other_task",
+        "decision": "request_changes",
+        "reason": "Add cited evidence",
+        "expected_version": 3
+      }
+    },
+    {
+      "name": "material-merge-base-after-expected-version",
+      "schema": "ReviseMaterial",
+      "value": {
+        "expected_version": 2,
+        "content": "",
+        "reason": "Explicit revision",
+        "merge_base_version": 3
+      },
+      "schema_valid": true,
+      "semantic_valid": false,
+      "reason": "The current expected head and merge base relation is enforced by the server."
+    },
+    {
+      "name": "material-publication-unrelated-parent",
+      "schema": "PublishMaterial",
+      "value": {
+        "expected_task_version": 8,
+        "expected_material_version": 1,
+        "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "parent_candidate_id": "candidate_other_task"
+      },
+      "schema_valid": true,
+      "semantic_valid": false,
+      "reason": "A structurally valid ID does not establish task/run ownership or original review basis."
+    }
+  ]
+}

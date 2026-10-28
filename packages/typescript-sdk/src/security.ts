@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0
+import {ProtocolError} from './errors.js';
+import type {OrganizationLoginPolicy,ServiceAccount,ServiceKey,OrganizationSecurityAuditEntry,UpdateLoginPolicyInput,CreateServiceAccountInput,UpdateServiceAccountInput,RevokeServiceKeyInput} from './types.js';
+const record=(v:unknown):v is Record<string,unknown>=>Boolean(v&&typeof v==='object'&&!Array.isArray(v));
+const strings=(v:unknown):v is string[]=>Array.isArray(v)&&v.every(x=>typeof x==='string');
+const positive=(v:unknown)=>Number.isSafeInteger(v)&&Number(v)>0;
+const role=(v:unknown)=>v==='member'||v==='viewer';
+const mode=(v:unknown)=>v==='mixed'||v==='oidc_required';
+export function securityText(v:unknown,max:number,empty=false):v is string{return typeof v==='string'&&(empty||Boolean(v.trim()))&&!v.includes('\0')&&!/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(v)&&new TextEncoder().encode(v).length<=max;}
+const date=(v:unknown)=>securityText(v,128)&&Number.isFinite(Date.parse(v));
+// Reject credential-shaped fields even in unknown extensions. Work is bounded;
+// opaque user text is not classified as a secret by this protocol check.
+const credentialNames=new Set(['token','rawtoken','accesstoken','refreshtoken','idtoken','sessiontoken','bearertoken','secret','clientsecret','password','privatekey','apikey','authorization','credential','credentials','tokenhash','tokenprefix','secretreference','credentialhash','tokendigest']);
+function noSecret(value:Record<string,unknown>,maximumNodes=10000){const pending:[unknown,number][]=[[value,0]];let nodes=0;while(pending.length){const [v,depth]=pending.pop()!;if(++nodes>maximumNodes||depth>32)return false;if(!v||typeof v!=='object')continue;if(Array.isArray(v)){if(nodes+pending.length+v.length>maximumNodes)return false;for(const x of v)pending.push([x,depth+1]);continue}for(const k in v){if(!Object.hasOwn(v,k))continue;if(nodes+pending.length+1>maximumNodes||credentialNames.has(k.replace(/[^a-z0-9]/gi,'').toLowerCase()))return false;pending.push([(v as Record<string,unknown>)[k],depth+1])}}return true;}
+export const credentialFree=(v:unknown,maximumNodes=10000)=>record(v)&&noSecret(v,maximumNodes);
+function facts(v:unknown,org:string):asserts v is Record<string,unknown>{if(!record(v)||v.organization_id!==org||!positive(v.version)||!noSecret(v))throw new ProtocolError('Invalid security response');}
+export function loginPolicyFacts(value:unknown,org:string):OrganizationLoginPolicy{
+ facts(value,org);if(!mode(value.mode)||!securityText(value.oidc_issuer,2048,true)||typeof value.service_access_enabled!=='boolean'||!Number.isSafeInteger(value.max_service_key_ttl_seconds)||Number(value.max_service_key_ttl_seconds)<1||Number(value.max_service_key_ttl_seconds)>86400||!date(value.created_at)||!date(value.updated_at)||!strings(value.available_commands)||typeof value.can_require_oidc!=='boolean'||!strings(value.readiness_reasons)||(value.configured_oidc_issuer!==undefined&&!securityText(value.configured_oidc_issuer,2048)))throw new ProtocolError('Invalid login policy response');
+ return value as unknown as OrganizationLoginPolicy;
+}
+export function serviceAccountFacts(value:unknown,org:string,pid?:string):ServiceAccount{
+ facts(value,org);if(value.principal_kind!=='service'||!securityText(value.principal_id,128)||(pid!==undefined&&value.principal_id!==pid)||!securityText(value.display_name,120)||!role(value.role)||typeof value.active!=='boolean'||typeof value.principal_active!=='boolean'||!date(value.created_at)||!date(value.updated_at)||!strings(value.available_commands)||!Array.isArray(value.assignable_roles)||!value.assignable_roles.every(role)||(value.credentials_revoked_at!==undefined&&!date(value.credentials_revoked_at)))throw new ProtocolError('Invalid service account response');
+ return value as unknown as ServiceAccount;
+}
+export function serviceKeyFacts(value:unknown,org:string,pid:string,key?:string):ServiceKey{
+ facts(value,org);if(value.principal_id!==pid||!securityText(value.id,128)||(key!==undefined&&value.id!==key)||!role(value.role_ceiling)||typeof value.revoked!=='boolean'||!date(value.created_at)||!date(value.expires_at)||!securityText(value.status,128)||!strings(value.available_commands))throw new ProtocolError('Invalid service key response');
+ return value as unknown as ServiceKey;
+}
+function auditState(v:unknown):boolean{return record(v)&&positive(v.version)&&noSecret(v)&&(v.mode===undefined||mode(v.mode))&&(v.oidc_issuer===undefined||securityText(v.oidc_issuer,2048,true))&&(v.service_access_enabled===undefined||typeof v.service_access_enabled==='boolean')&&(v.max_service_key_ttl_seconds===undefined||(Number.isSafeInteger(v.max_service_key_ttl_seconds)&&Number(v.max_service_key_ttl_seconds)>=1&&Number(v.max_service_key_ttl_seconds)<=86400))&&(v.display_name===undefined||securityText(v.display_name,120))&&(v.role===undefined||role(v.role))&&(v.active===undefined||typeof v.active==='boolean')&&(v.role_ceiling===undefined||role(v.role_ceiling))&&(v.expires_at===undefined||date(v.expires_at))&&(v.revoked===undefined||typeof v.revoked==='boolean');}
+export function securityAuditFacts(value:unknown,org:string,pid?:string):OrganizationSecurityAuditEntry{
+ if(!record(value)||value.organization_id!==org||!noSecret(value)||!['id','actor_type','object_type','object_id','action'].every(k=>securityText(value[k],128))||!securityText(value.reason,4096)||!date(value.created_at)||!auditState(value.after)||(value.before!==undefined&&!auditState(value.before))||(value.actor_id!==undefined&&!securityText(value.actor_id,128))||(value.target_principal_id!==undefined&&!securityText(value.target_principal_id,128))||(pid!==undefined&&value.target_principal_id!==pid))throw new ProtocolError('Invalid security audit response');
+ return value as unknown as OrganizationSecurityAuditEntry;
+}
+export function policyInput(input:UpdateLoginPolicyInput){if(!input||!positive(input.expectedVersion)||!mode(input.mode)||!securityText(input.oidcIssuer,2048,true)||typeof input.serviceAccessEnabled!=='boolean'||!Number.isSafeInteger(input.maxServiceKeyTTLSeconds)||input.maxServiceKeyTTLSeconds<1||input.maxServiceKeyTTLSeconds>86400||!securityText(input.reason,4096))throw new TypeError('Invalid login policy input');return{expected_version:input.expectedVersion,mode:input.mode,oidc_issuer:input.oidcIssuer,service_access_enabled:input.serviceAccessEnabled,max_service_key_ttl_seconds:input.maxServiceKeyTTLSeconds,reason:input.reason};}
+export function serviceInput(input:CreateServiceAccountInput|UpdateServiceAccountInput,update=false){if(!input||!securityText(input.displayName,120)||!role(input.role)||!securityText(input.reason,4096))throw new TypeError('Invalid service account input');const base={display_name:input.displayName,role:input.role,reason:input.reason};if(!update)return base;const i=input as UpdateServiceAccountInput;if(!positive(i.expectedVersion)||typeof i.active!=='boolean')throw new TypeError('Explicit service status and version required');return{...base,expected_version:i.expectedVersion,active:i.active};}
+export function keyRevokeInput(input:RevokeServiceKeyInput){if(!input||!positive(input.expectedVersion)||!securityText(input.reason,4096))throw new TypeError('Invalid key revocation input');return{expected_version:input.expectedVersion,reason:input.reason};}

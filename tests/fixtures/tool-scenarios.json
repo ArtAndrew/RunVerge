@@ -1,0 +1,10 @@
+{
+  "success": {
+    "tool_id": "tool_local_action_fixture",
+    "arguments_json": "{\"mode\":\"success\",\"note\":\"Explicit synthetic SDK fixture\"}"
+  },
+  "unknown": {
+    "tool_id": "tool_local_action_fixture",
+    "arguments_json": "{\"mode\":\"unknown\",\"note\":\"Explicit synthetic SDK response loss\"}"
+  }
+}

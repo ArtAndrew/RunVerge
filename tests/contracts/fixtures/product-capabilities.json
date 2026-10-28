@@ -1,0 +1,5607 @@
+{
+  "catalog_version": "1",
+  "api_contract": "0.14.0",
+  "assessment": "support_and_role_observation",
+  "read_only": true,
+  "observed_at": "1970-01-01T00:00:01Z",
+  "identity": {
+    "principal_id": "catalog_fixture",
+    "organization_id": "org_catalog_fixture",
+    "role": "viewer",
+    "principal_kind": "human",
+    "permissions": [
+      "tasks.read",
+      "agents.read",
+      "costs.read"
+    ]
+  },
+  "authorization_rules": [
+    "Каталог описывает поддержку и текущую роль; он не выдаёт разрешение или допуск отправки.",
+    "Реальное действие заново проверяет организацию, личность, ресурс, версии, политику, согласования и бюджет.",
+    "Configuration grant проверяется отдельно от permissions роли; сервисный member может иметь только точную делегированную область.",
+    "MCP discovery и включение mutation tool не расширяют права учётной записи.",
+    "Неизвестный отправленный эффект нельзя автоматически повторять. Счёт, эффект и приёмка результата — отдельные факты.",
+    "Истечение или отзыв ключа запрещает новые admissions. Logout не отменяет долговечную работу; account/policy/grant отзывает соответствующее согласие на исполнение.",
+    "Отзыв не отменяет уже начатую отправку, неизвестный эффект или финансовую обязанность; позднее наблюдение не восстанавливает права.",
+    "Список поддержанных профилей не является списком установленных подключений или проверкой доступности поставщика."
+  ],
+  "operations": [
+    {
+      "id": "get_capabilities",
+      "capability_id": "discovery",
+      "method": "GET",
+      "path": "/api/v1/capabilities",
+      "input_schema": "",
+      "output_schema": "ProductCapabilities",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "current_membership",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/capabilities"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform capabilities"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "capabilities"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "capabilities"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Возможности · каталог и пути начала работы"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_capabilities"
+        }
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "get_configuration_catalog",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/catalog",
+      "input_schema": "",
+      "output_schema": "ConfigurationCatalog",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "current_membership",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "observation_not_delegated_authority"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/catalog"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config catalog"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_catalog"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationCatalog"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Что доступно"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_catalog"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_configuration_destinations",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/destinations",
+      "input_schema": "",
+      "output_schema": "ConfigurationDestination",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "scoped_configuration",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_manager_or_exact_live_inspect_grant",
+        "current_grant_ancestry_and_authority_epochs"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/destinations"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config destinations list"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_destinations"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationDestinations"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Места подключения и версии"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_destinations_list"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_configuration_resources",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/resources",
+      "input_schema": "",
+      "output_schema": "ConfigurationResource",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "scoped_configuration",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_manager_or_exact_live_inspect_grant",
+        "current_grant_ancestry_and_authority_epochs"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/resources"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config resources list"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_resources"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationResources"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Сохранённые версии настроек"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_resources_list"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_configuration_grants",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/grants",
+      "input_schema": "",
+      "output_schema": "CapabilityEnvelope",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_manager_or_current_record_visibility",
+        "historical_read_does_not_require_live_grant"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/grants"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config grants list"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_grants"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationGrants"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Разрешения агентам и участникам"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_grants_list"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_configuration_grants_grant_id",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/grants/{grant_id}",
+      "input_schema": "",
+      "output_schema": "CapabilityEnvelope",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_manager_or_current_record_visibility",
+        "historical_read_does_not_require_live_grant"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/grants/{grant_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config grants get"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_grant"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationGrant"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Проверка актуального разрешения перед действием"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_grants_get"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "post_configuration_grants",
+      "capability_id": "configuration",
+      "method": "POST",
+      "path": "/api/v1/configuration/grants",
+      "input_schema": "CreateConfigurationGrant",
+      "output_schema": "CapabilityEnvelope",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "scoped_configuration",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_owner_root_or_live_parent_delegate",
+        "attenuated_scope_expiry_and_cumulative_limits"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/configuration/grants"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config grants create"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "create_configuration_grant"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "createConfigurationGrant"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Выдать разрешение / Передать часть прав"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_configuration_grants_create"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "post_configuration_grants_grant_id_revoke",
+      "capability_id": "configuration",
+      "method": "POST",
+      "path": "/api/v1/configuration/grants/{grant_id}/revoke",
+      "input_schema": "RevokeConfigurationGrant",
+      "output_schema": "CapabilityEnvelope",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "scoped_configuration",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_manager_or_current_grant_issuer_or_subject",
+        "exact_grant_version"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/configuration/grants/{grant_id}/revoke"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config grants revoke"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "revoke_configuration_grant"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "revokeConfigurationGrant"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Подтвердить отзыв"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_configuration_grants_revoke"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_configuration_plans",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/plans",
+      "input_schema": "",
+      "output_schema": "ConfigurationPlan",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_manager_or_current_record_visibility",
+        "historical_read_does_not_require_live_grant"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/plans"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config plans list"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_plans"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationPlans"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Планы изменений"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_plans_list"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_configuration_plans_plan_id",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/plans/{plan_id}",
+      "input_schema": "",
+      "output_schema": "ConfigurationPlan",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_manager_or_current_record_visibility",
+        "historical_read_does_not_require_live_grant"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/plans/{plan_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config plans get"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_plan"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationPlan"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Проверка актуального плана перед действием"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_plans_get"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "post_configuration_plans",
+      "capability_id": "configuration",
+      "method": "POST",
+      "path": "/api/v1/configuration/plans",
+      "input_schema": "CreateConfigurationPlan",
+      "output_schema": "ConfigurationPlan",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "scoped_configuration",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_manager_or_exact_live_grant",
+        "current_grant_ancestry_and_authority_epochs",
+        "exact_destination_purpose_and_resource_pins"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/configuration/plans"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config plans create"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "create_configuration_plan"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "createConfigurationPlan"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Сохранить план"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_configuration_plans_create"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "post_configuration_plans_plan_id_validate",
+      "capability_id": "configuration",
+      "method": "POST",
+      "path": "/api/v1/configuration/plans/{plan_id}/validate",
+      "input_schema": "ValidateConfigurationPlan",
+      "output_schema": "ConfigurationValidation",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "scoped_configuration",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_manager_or_exact_live_grant",
+        "current_grant_ancestry_and_authority_epochs",
+        "exact_destination_purpose_and_resource_pins"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/configuration/plans/{plan_id}/validate"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config plans validate"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "validate_configuration_plan"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "validateConfigurationPlan"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Сохранить проверку плана"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_configuration_plans_validate"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "post_configuration_plans_plan_id_approve",
+      "capability_id": "configuration",
+      "method": "POST",
+      "path": "/api/v1/configuration/plans/{plan_id}/approve",
+      "input_schema": "ApproveConfigurationPlan",
+      "output_schema": "ConfigurationApproval",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "human_owner",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_manager_or_exact_live_grant",
+        "current_grant_ancestry_and_authority_epochs",
+        "exact_destination_purpose_and_resource_pins",
+        "human_owner_exact_plan_approval"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/configuration/plans/{plan_id}/approve"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config plans approve"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "approve_configuration_plan"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "approveConfigurationPlan"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Подтвердить согласование"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_configuration_plans_approve"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "post_configuration_plans_plan_id_apply",
+      "capability_id": "configuration",
+      "method": "POST",
+      "path": "/api/v1/configuration/plans/{plan_id}/apply",
+      "input_schema": "ApplyConfigurationPlan",
+      "output_schema": "ConfigurationPlan",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "scoped_configuration",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_manager_or_exact_live_grant",
+        "current_grant_ancestry_and_authority_epochs",
+        "exact_destination_purpose_and_resource_pins",
+        "fresh_static_validation_and_required_owner_approval"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/configuration/plans/{plan_id}/apply"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config plans apply"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "apply_configuration_plan"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "applyConfigurationPlan"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Подтвердить применение"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_configuration_plans_apply"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "post_configuration_plans_plan_id_verify",
+      "capability_id": "configuration",
+      "method": "POST",
+      "path": "/api/v1/configuration/plans/{plan_id}/verify",
+      "input_schema": "StartConfigurationVerification",
+      "output_schema": "ConfigurationVerification",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "scoped_configuration",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_manager_or_exact_live_grant",
+        "current_grant_ancestry_and_authority_epochs",
+        "exact_destination_purpose_and_resource_pins",
+        "explicit_cost_ceiling_and_acknowledgement",
+        "one_verification_per_plan_operation",
+        "unknown_outcome_no_redispatch"
+      ],
+      "effect": "queues_external_work",
+      "cost_semantics": "may_reserve_and_queue",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/configuration/plans/{plan_id}/verify"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config plans verify"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "start_configuration_verification"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "startConfigurationVerification"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Запустить одну проверку"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_configuration_plans_verify"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_configuration_verifications",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/verifications",
+      "input_schema": "",
+      "output_schema": "ConfigurationVerification",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_manager_or_current_record_visibility",
+        "historical_read_does_not_require_live_grant"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/verifications"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config verifications list"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_verifications"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationVerifications"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · Проверки соединений"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_verifications_list"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_configuration_verifications_verification_id",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/verifications/{verification_id}",
+      "input_schema": "",
+      "output_schema": "ConfigurationVerification",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_manager_or_current_record_visibility",
+        "historical_read_does_not_require_live_grant"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/verifications/{verification_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config verifications get"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_verification"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationVerification"
+        },
+        {
+          "surface": "workspace",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_verifications_get"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_configuration_audit",
+      "capability_id": "configuration",
+      "method": "GET",
+      "path": "/api/v1/configuration/audit",
+      "input_schema": "",
+      "output_schema": "ConfigurationAuditEntry",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_manager_or_current_record_visibility",
+        "historical_read_does_not_require_live_grant"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/configuration/audit"
+        },
+        {
+          "surface": "cli",
+          "status": "available",
+          "name": "platform config audit list"
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "configuration_audit"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "configurationAudit"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Настройки подключений · История настройки"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_configuration_audit_list"
+        }
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "get_compatibility",
+      "capability_id": "discovery",
+      "method": "GET",
+      "path": "/api/v1/compatibility",
+      "input_schema": "",
+      "output_schema": "APICompatibility",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "public",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "explicit_wire_compatibility"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/compatibility"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "typescript",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "workspace",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_api_compatibility"
+        }
+      ],
+      "documentation": [
+        "contracts/EVENTS.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_event-snapshot",
+      "capability_id": "events",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/event-snapshot",
+      "input_schema": "",
+      "output_schema": "TaskEventSnapshot",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/event-snapshot"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_task_event_snapshot"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getTaskEventSnapshot"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Начальное состояние хода работы"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_event_snapshot"
+        }
+      ],
+      "documentation": [
+        "contracts/EVENTS.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_event-feed",
+      "capability_id": "events",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/event-feed",
+      "input_schema": "",
+      "output_schema": "TaskEventBatch",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/event-feed"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "task_event_feed"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "taskEventFeed"
+        },
+        {
+          "surface": "workspace",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_event_feed"
+        }
+      ],
+      "documentation": [
+        "contracts/EVENTS.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_event-stream",
+      "capability_id": "events",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/event-stream",
+      "input_schema": "",
+      "output_schema": "TaskEventStreamFrame",
+      "response_kind": "sse",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "bounded_stream_admission_and_scoped_replay_cursor"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "scoped_stream_resume",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/event-stream"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "stream_task_events"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "streamTaskEvents"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Ход работы в реальном времени"
+        },
+        {
+          "surface": "mcp",
+          "status": "not_exposed",
+          "name": ""
+        }
+      ],
+      "documentation": [
+        "contracts/EVENTS.md"
+      ]
+    },
+    {
+      "id": "get_me",
+      "capability_id": "discovery",
+      "method": "GET",
+      "path": "/api/v1/me",
+      "input_schema": "",
+      "output_schema": "CurrentIdentity",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "current_membership",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/me"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_current_identity"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getCurrentIdentity"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Подключение и текущая учётная запись · подтверждение доступа"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_identity"
+        }
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "get_login-policy",
+      "capability_id": "security",
+      "method": "GET",
+      "path": "/api/v1/login-policy",
+      "input_schema": "",
+      "output_schema": "OrganizationLoginPolicy",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_administrator_required"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/login-policy"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_login_policy"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getLoginPolicy"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · Политика входа"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_login_policy_get"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "post_login-policy_update",
+      "capability_id": "security",
+      "method": "POST",
+      "path": "/api/v1/login-policy/update",
+      "input_schema": "UpdateOrganizationLoginPolicy",
+      "output_schema": "OrganizationLoginPolicy",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "human_owner",
+      "permission_alternatives": [
+        [
+          "organization.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_administrator_required"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/login-policy/update"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "update_login_policy"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "updateLoginPolicy"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · Изменить политику входа"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_login_policy_update"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "get_service-accounts",
+      "capability_id": "security",
+      "method": "GET",
+      "path": "/api/v1/service-accounts",
+      "input_schema": "",
+      "output_schema": "ServiceAccount",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_administrator_required"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/service-accounts"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "list_service_accounts"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "listServiceAccounts"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · Служебные аккаунты"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_service_accounts_list"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "post_service-accounts",
+      "capability_id": "security",
+      "method": "POST",
+      "path": "/api/v1/service-accounts",
+      "input_schema": "CreateServiceAccount",
+      "output_schema": "ServiceAccount",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_administrator_required"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/service-accounts"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "create_service_account"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "createServiceAccount"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · Создать служебный аккаунт"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_service_accounts_create"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "get_service-accounts_principal_id",
+      "capability_id": "security",
+      "method": "GET",
+      "path": "/api/v1/service-accounts/{principal_id}",
+      "input_schema": "",
+      "output_schema": "ServiceAccount",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_administrator_required"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/service-accounts/{principal_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_service_account"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getServiceAccount"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · Карточка служебного аккаунта"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_service_accounts_get"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "post_service-accounts_principal_id_update",
+      "capability_id": "security",
+      "method": "POST",
+      "path": "/api/v1/service-accounts/{principal_id}/update",
+      "input_schema": "UpdateServiceAccount",
+      "output_schema": "ServiceAccount",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_administrator_required"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/service-accounts/{principal_id}/update"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "update_service_account"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "updateServiceAccount"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · Изменить служебный аккаунт"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_service_accounts_update"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "get_service-accounts_principal_id_keys",
+      "capability_id": "security",
+      "method": "GET",
+      "path": "/api/v1/service-accounts/{principal_id}/keys",
+      "input_schema": "",
+      "output_schema": "ServiceKey",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_administrator_required"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/service-accounts/{principal_id}/keys"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "list_service_keys"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "listServiceKeys"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · Метаданные ключей аккаунта"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_service_keys_list"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "get_service-accounts_principal_id_keys_key_id",
+      "capability_id": "security",
+      "method": "GET",
+      "path": "/api/v1/service-accounts/{principal_id}/keys/{key_id}",
+      "input_schema": "",
+      "output_schema": "ServiceKey",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_administrator_required"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/service-accounts/{principal_id}/keys/{key_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_service_key"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getServiceKey"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · Проверка ключа перед отзывом"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_service_keys_get"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "post_service-accounts_principal_id_keys_key_id_revoke",
+      "capability_id": "security",
+      "method": "POST",
+      "path": "/api/v1/service-accounts/{principal_id}/keys/{key_id}/revoke",
+      "input_schema": "RevokeServiceKey",
+      "output_schema": "ServiceKey",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_administrator_required"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/service-accounts/{principal_id}/keys/{key_id}/revoke"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "revoke_service_key"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "revokeServiceKey"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · Отозвать ключ"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_service_keys_revoke"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "get_security-audit",
+      "capability_id": "security",
+      "method": "GET",
+      "path": "/api/v1/security-audit",
+      "input_schema": "",
+      "output_schema": "OrganizationSecurityAuditEntry",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "human_administrator_required"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/security-audit"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "list_security_audit"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "listSecurityAudit"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Безопасность · История безопасности"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_security_audit_list"
+        }
+      ],
+      "documentation": [
+        "contracts/SECURITY.md"
+      ]
+    },
+    {
+      "id": "get_members_capabilities",
+      "capability_id": "membership",
+      "method": "GET",
+      "path": "/api/v1/members/capabilities",
+      "input_schema": "",
+      "output_schema": "MembershipCapabilities",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "current_membership",
+      "permission_alternatives": [],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/members/capabilities"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "membership_capabilities"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "membershipCapabilities"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Участники · Доступные действия управления"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_members_capabilities"
+        }
+      ],
+      "documentation": [
+        "contracts/MEMBERSHIPS.md"
+      ]
+    },
+    {
+      "id": "get_members",
+      "capability_id": "membership",
+      "method": "GET",
+      "path": "/api/v1/members",
+      "input_schema": "",
+      "output_schema": "OrganizationMember",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/members"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "list_members"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "listMembers"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Участники · список"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_members_list"
+        }
+      ],
+      "documentation": [
+        "contracts/MEMBERSHIPS.md"
+      ]
+    },
+    {
+      "id": "get_members_principal_id",
+      "capability_id": "membership",
+      "method": "GET",
+      "path": "/api/v1/members/{principal_id}",
+      "input_schema": "",
+      "output_schema": "OrganizationMember",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/members/{principal_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_member"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getMember"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Участники · актуальная карточка участника"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_members_get"
+        }
+      ],
+      "documentation": [
+        "contracts/MEMBERSHIPS.md"
+      ]
+    },
+    {
+      "id": "post_members",
+      "capability_id": "membership",
+      "method": "POST",
+      "path": "/api/v1/members",
+      "input_schema": "CreateOrganizationMember",
+      "output_schema": "OrganizationMember",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "no_self_management_or_owner_escalation"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/members"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "create_member"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "createMember"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Участники · Добавить участника"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_members_create"
+        }
+      ],
+      "documentation": [
+        "contracts/MEMBERSHIPS.md"
+      ]
+    },
+    {
+      "id": "post_members_principal_id_update",
+      "capability_id": "membership",
+      "method": "POST",
+      "path": "/api/v1/members/{principal_id}/update",
+      "input_schema": "UpdateOrganizationMember",
+      "output_schema": "OrganizationMember",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "no_self_management_or_owner_escalation"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/members/{principal_id}/update"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "update_member"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "updateMember"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Участники · Изменить участника"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_members_update"
+        }
+      ],
+      "documentation": [
+        "contracts/MEMBERSHIPS.md"
+      ]
+    },
+    {
+      "id": "post_members_principal_id_revoke-credentials",
+      "capability_id": "membership",
+      "method": "POST",
+      "path": "/api/v1/members/{principal_id}/revoke-credentials",
+      "input_schema": "RevokeMemberCredentials",
+      "output_schema": "OrganizationMember",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "no_self_management_or_owner_escalation"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/members/{principal_id}/revoke-credentials"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "revoke_member_credentials"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "revokeMemberCredentials"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Участники · Отозвать учётные данные"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_members_revoke_credentials"
+        }
+      ],
+      "documentation": [
+        "contracts/MEMBERSHIPS.md"
+      ]
+    },
+    {
+      "id": "get_membership-audit",
+      "capability_id": "membership",
+      "method": "GET",
+      "path": "/api/v1/membership-audit",
+      "input_schema": "",
+      "output_schema": "MembershipAuditEntry",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "identity.manage"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/membership-audit"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "list_membership_audit"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "listMembershipAudit"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Участники · История изменений доступа"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_membership_audit_list"
+        }
+      ],
+      "documentation": [
+        "contracts/MEMBERSHIPS.md"
+      ]
+    },
+    {
+      "id": "get_tools",
+      "capability_id": "agents",
+      "method": "GET",
+      "path": "/api/v1/tools",
+      "input_schema": "",
+      "output_schema": "ToolInfo",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tools"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "tools"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "tools"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Агенты и действия задачи · Выбор установленных инструментов"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tools_list"
+        }
+      ],
+      "documentation": [
+        "contracts/README.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_model-tool-proposals",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/model-tool-proposals",
+      "input_schema": "",
+      "output_schema": "ModelToolProposal",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/model-tool-proposals"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "model_proposals"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "modelProposals"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Предложения модели по инструментам"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_model_proposals_list"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_model-tool-proposals_proposal_id",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/model-tool-proposals/{proposal_id}",
+      "input_schema": "",
+      "output_schema": "ModelToolProposal",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/model-tool-proposals/{proposal_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_model_proposal"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getModelProposal"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Точные аргументы предложения модели"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_model_proposals_get"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_continue-model",
+      "capability_id": "model_tools",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/continue-model",
+      "input_schema": "ContinueModelRequest",
+      "output_schema": "Task",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.continue_own"
+        ],
+        [
+          "tasks.continue_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "exact_terminal_proposal_outcomes",
+        "explicit_cost_acknowledgement",
+        "unknown_outcome_no_redispatch"
+      ],
+      "effect": "queues_external_work",
+      "cost_semantics": "may_reserve_and_queue",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/continue-model"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "continue_model"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "continueModel"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Действия · Продолжить модель с результатами"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_model_continue"
+        }
+      ],
+      "documentation": [
+        "contracts/MODEL-TOOLS.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_automation",
+      "capability_id": "automation",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/automation",
+      "input_schema": "",
+      "output_schema": "TaskAutomationState",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/automation"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "automation"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "automation"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Автоматическая работа"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_automation_get"
+        }
+      ],
+      "documentation": [
+        "contracts/AUTOMATION.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_automation",
+      "capability_id": "automation",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/automation",
+      "input_schema": "CreateTaskAutomation",
+      "output_schema": "TaskAutomationState",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.automate_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_grant_authority_and_exact_task_pins",
+        "lifetime_cumulative_limits",
+        "explicit_cost_acknowledgement",
+        "automatic_continuation_within_cumulative_ceilings"
+      ],
+      "effect": "queues_external_work",
+      "cost_semantics": "may_reserve_and_queue",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/automation"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "create_automation"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "createAutomation"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Выдать разрешение на автоматическую работу"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_automation_create"
+        }
+      ],
+      "documentation": [
+        "contracts/AUTOMATION.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_automation_revoke",
+      "capability_id": "automation",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/automation/revoke",
+      "input_schema": "RevokeTaskAutomation",
+      "output_schema": "TaskAutomationState",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.automate_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "human_grant_authority_and_exact_task_pins",
+        "lifetime_cumulative_limits"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/automation/revoke"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "revoke_automation"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "revokeAutomation"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Отозвать автоматическое разрешение"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_automation_revoke"
+        }
+      ],
+      "documentation": [
+        "contracts/AUTOMATION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_progress-signals",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/progress-signals",
+      "input_schema": "",
+      "output_schema": "ProgressSignal",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/progress-signals"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "progress_signals"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "progressSignals"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Сигналы автоматической работы"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_progress_signals_list"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_tool-executions",
+      "capability_id": "external_actions",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/tool-executions",
+      "input_schema": "",
+      "output_schema": "ToolExecution",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/tool-executions"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "tool_executions"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "toolExecutions"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Действия · Список внешних действий"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tool_executions_list"
+        }
+      ],
+      "documentation": [
+        "contracts/TOOL-EXECUTIONS.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_tool-executions",
+      "capability_id": "external_actions",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/tool-executions",
+      "input_schema": "PrepareToolExecution",
+      "output_schema": "ToolExecutionView",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "actions.prepare_own"
+        ],
+        [
+          "actions.prepare_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "immutable_occurrence_intent_and_reservation_before_io"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "reserves_upper_bound",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/tool-executions"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "prepare_tool_execution"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "prepareToolExecution"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Действия · Подготовить внешнее действие"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_tool_executions_prepare"
+        }
+      ],
+      "documentation": [
+        "contracts/TOOL-EXECUTIONS.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_tool-executions_execution_id",
+      "capability_id": "external_actions",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/tool-executions/{execution_id}",
+      "input_schema": "",
+      "output_schema": "ToolExecutionView",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/tool-executions/{execution_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_tool_execution"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getToolExecution"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Действия · Точное внешнее действие"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tool_executions_get"
+        }
+      ],
+      "documentation": [
+        "contracts/TOOL-EXECUTIONS.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_tool-executions_execution_id_decide",
+      "capability_id": "external_actions",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/tool-executions/{execution_id}/decide",
+      "input_schema": "DecideToolExecution",
+      "output_schema": "ToolExecutionView",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "actions.approve_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "exact_human_approval"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/tool-executions/{execution_id}/decide"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "decide_tool_execution"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "decideToolExecution"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Действия · Разрешить или отклонить действие"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_tool_executions_decide"
+        }
+      ],
+      "documentation": [
+        "contracts/TOOL-EXECUTIONS.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_tool-executions_execution_id_dispatch",
+      "capability_id": "external_actions",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/tool-executions/{execution_id}/dispatch",
+      "input_schema": "DispatchToolExecution",
+      "output_schema": "ToolExecutionView",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "actions.dispatch_own"
+        ],
+        [
+          "actions.dispatch_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "exact_approval_and_cost_acknowledgement",
+        "short_send_permit",
+        "unknown_outcome_no_redispatch"
+      ],
+      "effect": "queues_external_work",
+      "cost_semantics": "possible_charge_existing_reservation",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/tool-executions/{execution_id}/dispatch"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "dispatch_tool_execution"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "dispatchToolExecution"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Действия · Отправить с подтверждением расходов"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_tool_executions_dispatch"
+        }
+      ],
+      "documentation": [
+        "contracts/TOOL-EXECUTIONS.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_tool-executions_execution_id_reconcile",
+      "capability_id": "external_actions",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/tool-executions/{execution_id}/reconcile",
+      "input_schema": "ReconcileToolExecution",
+      "output_schema": "ToolExecutionView",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "actions.reconcile_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "observation_is_not_invoice_or_redispatch"
+      ],
+      "effect": "records_observation",
+      "cost_semantics": "observation_no_settlement",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/tool-executions/{execution_id}/reconcile"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "reconcile_tool_execution"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "reconcileToolExecution"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Действия · Сверить неизвестный исход"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_tool_executions_reconcile"
+        }
+      ],
+      "documentation": [
+        "contracts/TOOL-EXECUTIONS.md"
+      ]
+    },
+    {
+      "id": "get_models",
+      "capability_id": "agents",
+      "method": "GET",
+      "path": "/api/v1/models",
+      "input_schema": "",
+      "output_schema": "AvailableModel",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "agents.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/models"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "list_models"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "models"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Агенты · Выбор установленной модели"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_models_list"
+        }
+      ],
+      "documentation": [
+        "contracts/README.md"
+      ]
+    },
+    {
+      "id": "post_agents",
+      "capability_id": "agents",
+      "method": "POST",
+      "path": "/api/v1/agents",
+      "input_schema": "CreateAgent",
+      "output_schema": "Agent",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "agents.write"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "published_exact_model_tool_or_team_pins"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/agents"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "create_agent"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "createAgent"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Агенты · Сохранить черновик"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_agents_create"
+        }
+      ],
+      "documentation": [
+        "contracts/README.md"
+      ]
+    },
+    {
+      "id": "get_agents",
+      "capability_id": "agents",
+      "method": "GET",
+      "path": "/api/v1/agents",
+      "input_schema": "",
+      "output_schema": "Agent",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "agents.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/agents"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "list_agents"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "listAgents"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Агенты · список"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_agents_list"
+        }
+      ],
+      "documentation": [
+        "contracts/README.md"
+      ]
+    },
+    {
+      "id": "post_agents_id_publish",
+      "capability_id": "agents",
+      "method": "POST",
+      "path": "/api/v1/agents/{id}/publish",
+      "input_schema": "PublishAgent",
+      "output_schema": "Agent",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "agents.write"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "published_exact_model_tool_or_team_pins"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/agents/{id}/publish"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "publish_agent"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "publishAgent"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Агенты · Опубликовать"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_agents_publish"
+        }
+      ],
+      "documentation": [
+        "contracts/README.md"
+      ]
+    },
+    {
+      "id": "post_tasks",
+      "capability_id": "tasks",
+      "method": "POST",
+      "path": "/api/v1/tasks",
+      "input_schema": "CreateTask",
+      "output_schema": "Task",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.create"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "published_agent_pins_and_budget_admission"
+      ],
+      "effect": "queues_external_work",
+      "cost_semantics": "may_reserve_and_queue",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "create_task"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "createTask"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задачи · Создать задачу"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_tasks_create"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks",
+      "input_schema": "",
+      "output_schema": "Task",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "list_tasks"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "listTasks"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задачи · список"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_list"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}",
+      "input_schema": "",
+      "output_schema": "Task",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_task"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getTask"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задачи · Карточка задачи"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_get"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_cancel",
+      "capability_id": "tasks",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/cancel",
+      "input_schema": "EmptyCommand",
+      "output_schema": "Task",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.cancel_own"
+        ],
+        [
+          "tasks.cancel_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "cascade_current_state_and_prior_liabilities_preserved"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/cancel"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "cancel_task"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "cancelTask"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Отменить задачу"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_tasks_cancel"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_events",
+      "capability_id": "events",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/events",
+      "input_schema": "",
+      "output_schema": "Event",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/events"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "events"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "events"
+        },
+        {
+          "surface": "workspace",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_events"
+        }
+      ],
+      "documentation": [
+        "contracts/EVENTS.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_artifacts",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/artifacts",
+      "input_schema": "",
+      "output_schema": "Artifact",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/artifacts"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "artifacts"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "artifacts"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Материалы и результаты"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_artifacts"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_runs",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/runs",
+      "input_schema": "",
+      "output_schema": "Run",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/runs"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "runs"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "runs"
+        },
+        {
+          "surface": "workspace",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_runs"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_operations",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/operations",
+      "input_schema": "",
+      "output_schema": "Operation",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/operations"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "operations"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "operations"
+        },
+        {
+          "surface": "workspace",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_operations"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_actions",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/actions",
+      "input_schema": "",
+      "output_schema": "Action",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/actions"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "actions"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "actions"
+        },
+        {
+          "surface": "workspace",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_actions"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_approvals",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/approvals",
+      "input_schema": "",
+      "output_schema": "Approval",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/approvals"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "approvals"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "approvals"
+        },
+        {
+          "surface": "workspace",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_approvals"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_costs",
+      "capability_id": "costs",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/costs",
+      "input_schema": "",
+      "output_schema": "CostReport",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "costs.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/costs"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "costs"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "costs"
+        },
+        {
+          "surface": "workspace",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_costs"
+        }
+      ],
+      "documentation": [
+        "contracts/COSTS.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_review",
+      "capability_id": "tasks",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/review",
+      "input_schema": "ReviewTaskRequest",
+      "output_schema": "Task",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.review_own"
+        ],
+        [
+          "tasks.review_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "exact_candidate_artifact_digest",
+        "human_review_authority"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/review"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "review_task"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "reviewTask"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Сохранить решение по точному результату"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_tasks_review"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_retry",
+      "capability_id": "tasks",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/retry",
+      "input_schema": "RetryTaskRequest",
+      "output_schema": "Task",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.retry_own"
+        ],
+        [
+          "tasks.retry_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "explicit_new_attempt_and_cost_acknowledgement",
+        "prior_liabilities_preserved"
+      ],
+      "effect": "queues_external_work",
+      "cost_semantics": "may_reserve_and_queue",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/retry"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "retry_task"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "retryTask"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Новая попытка с подтверждением расходов"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_tasks_retry"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_candidates",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/candidates",
+      "input_schema": "",
+      "output_schema": "TaskCandidate",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/candidates"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "candidates"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "candidates"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Результат для проверки"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_candidates"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_decisions",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/decisions",
+      "input_schema": "",
+      "output_schema": "TaskDecision",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/decisions"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "decisions"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "decisions"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · История решений по результату"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_decisions"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_children",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/children",
+      "input_schema": "",
+      "output_schema": "Task",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/children"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "children"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "children"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Работа участников команды"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_children"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_artifacts_artifact_id",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/artifacts/{artifact_id}",
+      "input_schema": "",
+      "output_schema": "Artifact",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/artifacts/{artifact_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_artifact"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getArtifact"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Точная версия результата или квитанции"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_artifacts_version"
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_materials",
+      "capability_id": "collaboration",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/materials",
+      "input_schema": "",
+      "output_schema": "Material",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/materials"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "materials"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "materials"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Рабочие материалы"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_materials_list"
+        }
+      ],
+      "documentation": [
+        "contracts/MATERIALS.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_materials",
+      "capability_id": "collaboration",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/materials",
+      "input_schema": "CreateMaterial",
+      "output_schema": "Material",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "materials.write_own"
+        ],
+        [
+          "materials.write_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "exact_material_revision_and_task_owner_or_manager"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/materials"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "create_material"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "createMaterial"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Создать рабочий материал"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_materials_create"
+        }
+      ],
+      "documentation": [
+        "contracts/MATERIALS.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_materials_material_id",
+      "capability_id": "collaboration",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/materials/{material_id}",
+      "input_schema": "",
+      "output_schema": "Material",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/materials/{material_id}"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_material"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getMaterial"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Открыть рабочий материал"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_materials_get"
+        }
+      ],
+      "documentation": [
+        "contracts/MATERIALS.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_materials_material_id_revisions",
+      "capability_id": "collaboration",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/materials/{material_id}/revisions",
+      "input_schema": "",
+      "output_schema": "MaterialRevision",
+      "response_kind": "list",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/materials/{material_id}/revisions"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "material_revisions"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "materialRevisions"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · История версий рабочего материала"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_materials_revisions"
+        }
+      ],
+      "documentation": [
+        "contracts/MATERIALS.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_materials_material_id_revisions",
+      "capability_id": "collaboration",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/materials/{material_id}/revisions",
+      "input_schema": "ReviseMaterial",
+      "output_schema": "Material",
+      "response_kind": "object",
+      "success_status": 201,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "materials.write_own"
+        ],
+        [
+          "materials.write_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "exact_material_revision_and_task_owner_or_manager"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/materials/{material_id}/revisions"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "revise_material"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "reviseMaterial"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Сохранить новую версию рабочего материала"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_materials_revise"
+        }
+      ],
+      "documentation": [
+        "contracts/MATERIALS.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_materials_material_id_revisions_version",
+      "capability_id": "collaboration",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/materials/{material_id}/revisions/{version}",
+      "input_schema": "",
+      "output_schema": "MaterialContent",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/materials/{material_id}/revisions/{version}"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_material_version"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getMaterialVersion"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Точная версия рабочего материала"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_materials_version"
+        }
+      ],
+      "documentation": [
+        "contracts/MATERIALS.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_materials_material_id_publish",
+      "capability_id": "collaboration",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/materials/{material_id}/publish",
+      "input_schema": "PublishMaterial",
+      "output_schema": "Task",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "materials.publish_own"
+        ],
+        [
+          "materials.publish_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "exact_material_revision_and_task_owner_or_manager"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/materials/{material_id}/publish"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "publish_material"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "publishMaterial"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Предложить материал на проверку"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_materials_publish"
+        }
+      ],
+      "documentation": [
+        "contracts/MATERIALS.md"
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "text_model",
+      "name": "Текстовые модели",
+      "status": "bounded",
+      "summary": "Версионированный HTTP chat-completions профиль с резервом и непроверенным результатом.",
+      "constraints": [
+        "Тариф и верхняя граница устанавливаются доверенным оператором.",
+        "Нет автоматического повторного платного вызова; окончательный счёт поступает отдельно."
+      ],
+      "documentation": [
+        "docs/LOCAL-MODELS.md",
+        "docs/CONFIGURATION-PROFILES.md"
+      ]
+    },
+    {
+      "id": "multiagent",
+      "name": "Команды агентов",
+      "status": "bounded",
+      "summary": "Последовательность, параллельные задания и делегирование с отдельной проверкой.",
+      "constraints": [
+        "Закреплённые опубликованные версии, общий бюджет, срок и накопительные лимиты.",
+        "Проверка другим агентом не доказывает истинность результата."
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "collaboration",
+      "name": "Совместная работа",
+      "status": "bounded",
+      "summary": "Версии материалов, конфликты, явное слияние, публикация и отдельная приёмка.",
+      "constraints": [
+        "Редактирование текста не заменяет первоначальные источники выполнения.",
+        "Нет универсального realtime/offline coediting и большого object storage."
+      ],
+      "documentation": [
+        "contracts/MATERIALS.md"
+      ]
+    },
+    {
+      "id": "automation",
+      "name": "Ограниченная автономность",
+      "status": "bounded",
+      "summary": "Точные task grants, накопительные лимиты и остановка детерминированных повторов.",
+      "constraints": [
+        "Согласование и отправка изменяющих действий остаются отдельными.",
+        "Нет обещания устранить все галлюцинации и циклы."
+      ],
+      "documentation": [
+        "contracts/AUTOMATION.md"
+      ]
+    },
+    {
+      "id": "mcp_server",
+      "name": "MCP-интерфейс платформы",
+      "status": "bounded",
+      "summary": "Частный tools профиль2026-07-28: stdio и Streamable HTTP.",
+      "constraints": [
+        "Чтение по умолчанию; mutation tools требуют операторского opt-in и обычной текущей авторизации.",
+        "SSE task events — отдельный API transport, не MCP tool."
+      ],
+      "documentation": [
+        "docs/MCP-ADAPTER.md"
+      ]
+    },
+    {
+      "id": "mcp_gateway",
+      "name": "MCP-подключения",
+      "status": "bounded",
+      "summary": "Зарегистрированные HTTPS peers, ограниченное discovery и явные gateway действия.",
+      "constraints": [
+        "Configuration verify читает только одобренное бесплатное discovery/list, без tools/call.",
+        "Произвольный stdio процесс не допускается этим action gateway."
+      ],
+      "documentation": [
+        "contracts/TOOL-EXECUTIONS.md",
+        "docs/CONFIGURATION.md"
+      ]
+    },
+    {
+      "id": "mcp_extended",
+      "name": "Расширенные MCP-возможности",
+      "status": "not_implemented",
+      "summary": "Полный внешний OAuth onboarding и расширенные peer профили пока не выпущены.",
+      "constraints": [
+        "Нет гарантированной поддержки legacy fallback, MRTR/elicitation continuation, Tasks/Apps/Skills, sampling/roots или server resources/prompts.",
+        "Используйте только описанный частный tools профиль."
+      ],
+      "documentation": [
+        "docs/MCP-ADAPTER.md"
+      ]
+    },
+    {
+      "id": "configuration",
+      "name": "Настройка агентом",
+      "status": "bounded",
+      "summary": "Inspect, точный план, static validation/diff, approval, apply и отдельная verify.",
+      "constraints": [
+        "Первоначальный доверенный профиль и ключи устанавливает оператор.",
+        "CLI doctor наблюдает состояние без probes; сохранено, ответ получен и счёт закрыт — разные состояния."
+      ],
+      "documentation": [
+        "contracts/CONFIGURATION.md",
+        "docs/DOCTOR.md"
+      ]
+    },
+    {
+      "id": "identity",
+      "name": "Вход и доступ",
+      "status": "bounded",
+      "summary": "OIDC Code+PKCE, exact issuer policy, scoped memberships и ограниченные service keys.",
+      "constraints": [
+        "Полный корпоративный lifecycle, приглашения, SCIM/группы ещё не завершены.",
+        "Service identity не получает human review/admin authority."
+      ],
+      "documentation": [
+        "contracts/SECURITY.md",
+        "contracts/MEMBERSHIPS.md"
+      ]
+    },
+    {
+      "id": "events",
+      "name": "Наблюдение и восстановление интерфейса",
+      "status": "bounded",
+      "summary": "Typed events, snapshot, ограниченный replay и SSE.",
+      "constraints": [
+        "Reconnect не разрешает повторить mutation.",
+        "Полная retention/webhook доставка ещё не реализована."
+      ],
+      "documentation": [
+        "contracts/EVENTS.md"
+      ]
+    },
+    {
+      "id": "sandbox",
+      "name": "Изоляция исполняемого кода",
+      "status": "not_implemented",
+      "summary": "Продуктовая sandbox, egress policy и внешний credential broker ещё не готовы.",
+      "constraints": [
+        "Настройка HTTPS peer не предоставляет изоляцию чужого процесса.",
+        "Не подключайте произвольное исполнение кода как будто этот профиль уже есть."
+      ],
+      "documentation": [
+        "docs/SUPPORT.md"
+      ]
+    },
+    {
+      "id": "provider",
+      "name": "Поставка облачному провайдеру",
+      "status": "not_implemented",
+      "summary": "Provider lifecycle, placement, квоты и интеграция панели ещё в разработке.",
+      "constraints": [
+        "Создание участника локальной организации не заменяет provision клиента.",
+        "Нет принятого provider release, installer/backup/restore и нагрузочного профиля."
+      ],
+      "documentation": [
+        "docs/SUPPORT.md"
+      ]
+    },
+    {
+      "id": "billing",
+      "name": "Учёт расходов",
+      "status": "bounded",
+      "summary": "Точные micro-USD, резерв, unknown, подтверждённые факты и quarantine.",
+      "constraints": [
+        "Usage из ответа модели не является окончательным счётом.",
+        "Полный аутентифицированный billing ingress и сверка с реальным provider account ещё открыты."
+      ],
+      "documentation": [
+        "contracts/COSTS.md"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "principal_kind": "human",
+      "role": "viewer",
+      "permissions": [
+        "tasks.read",
+        "agents.read",
+        "costs.read"
+      ]
+    },
+    {
+      "principal_kind": "human",
+      "role": "member",
+      "permissions": [
+        "tasks.read",
+        "tasks.create",
+        "tasks.review_own",
+        "tasks.retry_own",
+        "tasks.continue_own",
+        "tasks.cancel_own",
+        "actions.prepare_own",
+        "actions.dispatch_own",
+        "materials.write_own",
+        "materials.publish_own",
+        "agents.read",
+        "agents.write",
+        "costs.read"
+      ]
+    },
+    {
+      "principal_kind": "human",
+      "role": "admin",
+      "permissions": [
+        "tasks.read",
+        "tasks.create",
+        "tasks.review_own",
+        "tasks.retry_own",
+        "tasks.continue_own",
+        "tasks.cancel_own",
+        "tasks.cancel_any",
+        "tasks.review_any",
+        "tasks.retry_any",
+        "tasks.continue_any",
+        "tasks.automate_any",
+        "actions.prepare_own",
+        "actions.dispatch_own",
+        "materials.write_own",
+        "materials.write_any",
+        "materials.publish_own",
+        "materials.publish_any",
+        "agents.read",
+        "agents.write",
+        "costs.read",
+        "actions.prepare_any",
+        "actions.dispatch_any",
+        "actions.approve_any",
+        "actions.reconcile_any",
+        "identity.manage",
+        "connections.manage",
+        "configuration.manage",
+        "webhooks.manage"
+      ]
+    },
+    {
+      "principal_kind": "human",
+      "role": "owner",
+      "permissions": [
+        "tasks.read",
+        "tasks.create",
+        "tasks.review_own",
+        "tasks.retry_own",
+        "tasks.continue_own",
+        "tasks.cancel_own",
+        "tasks.cancel_any",
+        "tasks.review_any",
+        "tasks.retry_any",
+        "tasks.continue_any",
+        "tasks.automate_any",
+        "actions.prepare_own",
+        "actions.dispatch_own",
+        "materials.write_own",
+        "materials.write_any",
+        "materials.publish_own",
+        "materials.publish_any",
+        "agents.read",
+        "agents.write",
+        "costs.read",
+        "actions.prepare_any",
+        "actions.dispatch_any",
+        "actions.approve_any",
+        "actions.reconcile_any",
+        "identity.manage",
+        "connections.manage",
+        "configuration.manage",
+        "webhooks.manage",
+        "organization.manage"
+      ]
+    },
+    {
+      "principal_kind": "service",
+      "role": "viewer",
+      "permissions": [
+        "tasks.read",
+        "agents.read",
+        "costs.read"
+      ]
+    },
+    {
+      "principal_kind": "service",
+      "role": "member",
+      "permissions": [
+        "tasks.read",
+        "tasks.create",
+        "tasks.retry_own",
+        "tasks.continue_own",
+        "tasks.cancel_own",
+        "actions.prepare_own",
+        "actions.dispatch_own",
+        "materials.write_own",
+        "materials.publish_own",
+        "agents.read",
+        "agents.write",
+        "costs.read"
+      ]
+    }
+  ],
+  "onboarding": [
+    {
+      "id": "employee",
+      "persona": "Сотрудник",
+      "status": "partial",
+      "summary": "Выбрать готового агента, запустить задачу с пределом и принять точный результат.",
+      "prerequisites": [
+        "Действующий доступ member или согласованная роль.",
+        "Опубликованный агент и подготовленное разрешённое подключение."
+      ],
+      "steps": [
+        {
+          "id": "choose",
+          "instruction": "Прочитайте опубликованные версии агентов и выберите подходящую.",
+          "actor": "current_user",
+          "operation_ids": [
+            "get_agents"
+          ],
+          "commands": [],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "run",
+          "instruction": "Создайте задачу с явным бюджетом; worker может вызвать платную модель.",
+          "actor": "authorized_member",
+          "operation_ids": [
+            "post_tasks"
+          ],
+          "commands": [],
+          "effect": "queues_external_work",
+          "cost_acknowledgement": true
+        },
+        {
+          "id": "observe",
+          "instruction": "Наблюдайте результат, ожидания, резервы и неизвестные расходы. При запрете запросите минимальный доступ.",
+          "actor": "current_reader",
+          "operation_ids": [
+            "get_tasks_id",
+            "get_tasks_id_costs",
+            "get_tasks_id_candidates"
+          ],
+          "commands": [],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "review",
+          "instruction": "Проверьте точный материал и отдельно примите, отклоните или верните с замечанием. Новая платная попытка требует отдельного действия.",
+          "actor": "authorized_human",
+          "operation_ids": [
+            "post_tasks_id_review"
+          ],
+          "commands": [],
+          "effect": "platform_write",
+          "cost_acknowledgement": false
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md",
+        "docs/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "agent_developer",
+      "persona": "Разработчик агента",
+      "status": "partial",
+      "summary": "Создать и опубликовать агента без изменения ядра.",
+      "prerequisites": [
+        "Право agents.write и tasks.create.",
+        "Установленные model/tool профили и ограниченный тестовый бюджет."
+      ],
+      "steps": [
+        {
+          "id": "discover",
+          "instruction": "Прочитайте доступные модели и инструменты; discovery не даёт права их выполнить.",
+          "actor": "developer",
+          "operation_ids": [
+            "get_models",
+            "get_tools"
+          ],
+          "commands": [],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "publish",
+          "instruction": "Создайте draft и опубликуйте точную версию. Активная работа сохраняет прежние pins.",
+          "actor": "developer",
+          "operation_ids": [
+            "post_agents",
+            "post_agents_id_publish"
+          ],
+          "commands": [],
+          "effect": "platform_write",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "try",
+          "instruction": "Создайте ограниченную задачу и проверьте результат и расходы; неизвестный исход не отправляйте заново.",
+          "actor": "developer",
+          "operation_ids": [
+            "post_tasks",
+            "get_tasks_id_costs"
+          ],
+          "commands": [],
+          "effect": "queues_external_work",
+          "cost_acknowledgement": true
+        }
+      ],
+      "documentation": [
+        "contracts/README.md",
+        "docs/DEVELOPMENT.md"
+      ]
+    },
+    {
+      "id": "team_builder",
+      "persona": "Создатель команды",
+      "status": "partial",
+      "summary": "Собрать sequence/parallel/delegate_verify из опубликованных версий.",
+      "prerequisites": [
+        "Подготовлены агенты участников.",
+        "Определены общий бюджет, срок, глубина и политика частичного результата."
+      ],
+      "steps": [
+        {
+          "id": "pin",
+          "instruction": "Выберите точные опубликованные версии участников и шаблон команды.",
+          "actor": "developer",
+          "operation_ids": [
+            "get_agents"
+          ],
+          "commands": [],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "publish_team",
+          "instruction": "Создайте team:coordinator и опубликуйте версию с ограниченным join.",
+          "actor": "developer",
+          "operation_ids": [
+            "post_agents",
+            "post_agents_id_publish"
+          ],
+          "commands": [],
+          "effect": "platform_write",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "observe_tree",
+          "instruction": "Запустите задачу, наблюдайте дочерние результаты и общий расход. Неполный итог не выдавайте за полный.",
+          "actor": "authorized_member",
+          "operation_ids": [
+            "post_tasks",
+            "get_tasks_id_children",
+            "get_tasks_id_costs"
+          ],
+          "commands": [],
+          "effect": "queues_external_work",
+          "cost_acknowledgement": true
+        }
+      ],
+      "documentation": [
+        "contracts/EXECUTION.md",
+        "docs/CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "organization_admin",
+      "persona": "Администратор организации",
+      "status": "partial",
+      "summary": "Настроить разрешённые подключения с отдельными проверками и согласованиями.",
+      "prerequisites": [
+        "Доверенный оператор установил purpose/destination и передал ключи worker.",
+        "Human manager либо member с точным живым grant; owner доступен для требуемого approval."
+      ],
+      "steps": [
+        {
+          "id": "inspect",
+          "instruction": "Прочитайте совместимость, свою личность, каталог и доступную область. При отказе не расширяйте её самостоятельно.",
+          "actor": "current_reader",
+          "operation_ids": [
+            "get_compatibility",
+            "get_me",
+            "get_capabilities",
+            "get_configuration_catalog",
+            "get_configuration_destinations",
+            "get_configuration_resources"
+          ],
+          "commands": [
+            [
+              "platform",
+              "capabilities",
+              "--json"
+            ],
+            [
+              "platform",
+              "config",
+              "catalog",
+              "--json"
+            ]
+          ],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "plan",
+          "instruction": "Создайте точный неизменяемый план, прочитайте diff и выполните static validation без обращения к поставщику. Устаревший план пересоставляется осознанно.",
+          "actor": "authorized_plan_actor",
+          "operation_ids": [
+            "post_configuration_plans",
+            "post_configuration_plans_plan_id_validate"
+          ],
+          "commands": [],
+          "effect": "platform_write",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "approve",
+          "instruction": "Если требуется политикой, владелец одобряет точный digest и validation; service не подменяет owner.",
+          "actor": "human_owner",
+          "operation_ids": [
+            "post_configuration_plans_plan_id_approve"
+          ],
+          "commands": [],
+          "effect": "platform_write",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "apply",
+          "instruction": "Примените свежий план один раз; после потери ответа прочитайте состояние и используйте исходный ключ. Сохранение не доказывает соединение.",
+          "actor": "authorized_plan_actor",
+          "operation_ids": [
+            "post_configuration_plans_plan_id_apply"
+          ],
+          "commands": [],
+          "effect": "platform_write",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "verify",
+          "instruction": "Отдельно разрешите одну проверку с денежным пределом. Model response оставляет unknown bill; MCP verify делает только бесплатное одобренное discovery/list.",
+          "actor": "authorized_plan_actor",
+          "operation_ids": [
+            "post_configuration_plans_plan_id_verify",
+            "get_configuration_verifications_verification_id"
+          ],
+          "commands": [],
+          "effect": "queues_external_work",
+          "cost_acknowledgement": true
+        },
+        {
+          "id": "diagnose",
+          "instruction": "Прочитайте сохранённый receipt и doctor. Неизвестный эффект не повторяйте; счёт и приёмка результата проверяются отдельно.",
+          "actor": "current_reader",
+          "operation_ids": [
+            "get_configuration_verifications",
+            "get_tasks_id_costs"
+          ],
+          "commands": [
+            [
+              "platform",
+              "doctor",
+              "--json"
+            ],
+            [
+              "platform",
+              "doctor",
+              "--catalog",
+              "--json"
+            ]
+          ],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        }
+      ],
+      "documentation": [
+        "docs/CONFIGURATION-PROFILES.md",
+        "docs/CONFIGURATION.md",
+        "docs/DOCTOR.md"
+      ]
+    },
+    {
+      "id": "cloud_provider",
+      "persona": "Облачный провайдер",
+      "status": "not_implemented",
+      "summary": "Промышленный provision организаций и интеграция панели ещё не поддержаны.",
+      "prerequisites": [
+        "Нужны отдельные lifecycle, placement, quota, billing и recovery contracts.",
+        "Локальный bootstrap не является готовым cloud onboarding."
+      ],
+      "steps": [],
+      "documentation": [
+        "docs/SUPPORT.md"
+      ]
+    },
+    {
+      "id": "authorized_agent",
+      "persona": "Уполномоченный агент",
+      "status": "partial",
+      "summary": "Разобраться в API и настроить только выданную область.",
+      "prerequisites": [
+        "Сервисный member key с ограниченным TTL/role ceiling.",
+        "Владелец выдал grant на точные назначения, действия и накопительный предел."
+      ],
+      "steps": [
+        {
+          "id": "inspect",
+          "instruction": "Прочитайте совместимость, свою личность, каталог и доступную область. При отказе не расширяйте её самостоятельно.",
+          "actor": "current_reader",
+          "operation_ids": [
+            "get_compatibility",
+            "get_me",
+            "get_capabilities",
+            "get_configuration_catalog",
+            "get_configuration_destinations",
+            "get_configuration_resources"
+          ],
+          "commands": [
+            [
+              "platform",
+              "capabilities",
+              "--json"
+            ],
+            [
+              "platform",
+              "config",
+              "catalog",
+              "--json"
+            ]
+          ],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "plan",
+          "instruction": "Создайте точный неизменяемый план, прочитайте diff и выполните static validation без обращения к поставщику. Устаревший план пересоставляется осознанно.",
+          "actor": "authorized_plan_actor",
+          "operation_ids": [
+            "post_configuration_plans",
+            "post_configuration_plans_plan_id_validate"
+          ],
+          "commands": [],
+          "effect": "platform_write",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "approve",
+          "instruction": "Если требуется политикой, владелец одобряет точный digest и validation; service не подменяет owner.",
+          "actor": "human_owner",
+          "operation_ids": [
+            "post_configuration_plans_plan_id_approve"
+          ],
+          "commands": [],
+          "effect": "platform_write",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "apply",
+          "instruction": "Примените свежий план один раз; после потери ответа прочитайте состояние и используйте исходный ключ. Сохранение не доказывает соединение.",
+          "actor": "authorized_plan_actor",
+          "operation_ids": [
+            "post_configuration_plans_plan_id_apply"
+          ],
+          "commands": [],
+          "effect": "platform_write",
+          "cost_acknowledgement": false
+        },
+        {
+          "id": "verify",
+          "instruction": "Отдельно разрешите одну проверку с денежным пределом. Model response оставляет unknown bill; MCP verify делает только бесплатное одобренное discovery/list.",
+          "actor": "authorized_plan_actor",
+          "operation_ids": [
+            "post_configuration_plans_plan_id_verify",
+            "get_configuration_verifications_verification_id"
+          ],
+          "commands": [],
+          "effect": "queues_external_work",
+          "cost_acknowledgement": true
+        },
+        {
+          "id": "diagnose",
+          "instruction": "Прочитайте сохранённый receipt и doctor. Неизвестный эффект не повторяйте; счёт и приёмка результата проверяются отдельно.",
+          "actor": "current_reader",
+          "operation_ids": [
+            "get_configuration_verifications",
+            "get_tasks_id_costs"
+          ],
+          "commands": [
+            [
+              "platform",
+              "doctor",
+              "--json"
+            ],
+            [
+              "platform",
+              "doctor",
+              "--catalog",
+              "--json"
+            ]
+          ],
+          "effect": "read_only",
+          "cost_acknowledgement": false
+        }
+      ],
+      "documentation": [
+        "contracts/CAPABILITIES.md",
+        "docs/CONFIGURATION.md",
+        "docs/DOCTOR.md"
+      ]
+    }
+  ],
+  "remediation_command": [
+    "platform",
+    "doctor",
+    "--catalog",
+    "--json"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "contract_version": "0.7.0",
+  "time": "2026-10-24T06:25:09.904692+00:00",
+  "scope": "Actual current API response schemas and39method/path families; synthetic local model/tool only",
+  "exit_code": 0,
+  "stable_inputs": true,
+  "source_hashes_before": {
+    "contracts/domain.schema.json": "8374faf31480392a71682814cbb41d3958778db5341533938a0dd9bde8f7ce9a",
+    "contracts/errors.json": "5441dd12e60482db1771e3d587a48faf3810ea36e44afe660bbfab5b3c71f39f",
+    "contracts/openapi.json": "485037164742aebb8e65e400b8665fb3d08ef3dc9469bce62a42146b64e3c085",
+    "contracts/permissions.json": "6dcba59dc0620bebfbf72f3d101e439092d558dc9ab6ce22f4344c553df96859",
+    "contracts/state-machines.json": "d4e821b8697ccf7a168a68124631a9f3c2bebedfcc82180644befa1f303966c2",
+    "tests/contracts/fixtures/invalid-dtos.json": "4019333ca22840e66d0844f6e2074f596ff0a1265b517b41302fa4924b74b4d9",
+    "tests/contracts/fixtures/semantic-examples.json": "c26fb8153cb75d24b3f2e45071eae8851b39a18c56099bc483bb378cc70ddc7d",
+    "tests/contracts/fixtures/valid-dtos.json": "90fcc7c943e54ef471013973ca724fe00d8d83cd11e6232de98f4fc62023f6ec",
+    "tests/contracts/run_live.py": "6ae65fb10f195576b6ec9ad2da3938943d66951bc08e604503bc4bb8a2841e1b",
+    "tests/contracts/support.py": "7632391ea88086d92ae90457a882a7ca4da014d910ef7b0a55c5e1a009291a2d",
+    "tests/contracts/test_contracts.py": "66b5fa45e3d0619f9935f6e09e30535095e49baf1814f1b40cdb8bcce0a9bf03"
+  },
+  "source_hashes_after": {
+    "contracts/domain.schema.json": "8374faf31480392a71682814cbb41d3958778db5341533938a0dd9bde8f7ce9a",
+    "contracts/errors.json": "5441dd12e60482db1771e3d587a48faf3810ea36e44afe660bbfab5b3c71f39f",
+    "contracts/openapi.json": "485037164742aebb8e65e400b8665fb3d08ef3dc9469bce62a42146b64e3c085",
+    "contracts/permissions.json": "6dcba59dc0620bebfbf72f3d101e439092d558dc9ab6ce22f4344c553df96859",
+    "contracts/state-machines.json": "d4e821b8697ccf7a168a68124631a9f3c2bebedfcc82180644befa1f303966c2",
+    "tests/contracts/fixtures/invalid-dtos.json": "4019333ca22840e66d0844f6e2074f596ff0a1265b517b41302fa4924b74b4d9",
+    "tests/contracts/fixtures/semantic-examples.json": "c26fb8153cb75d24b3f2e45071eae8851b39a18c56099bc483bb378cc70ddc7d",
+    "tests/contracts/fixtures/valid-dtos.json": "90fcc7c943e54ef471013973ca724fe00d8d83cd11e6232de98f4fc62023f6ec",
+    "tests/contracts/run_live.py": "6ae65fb10f195576b6ec9ad2da3938943d66951bc08e604503bc4bb8a2841e1b",
+    "tests/contracts/support.py": "7632391ea88086d92ae90457a882a7ca4da014d910ef7b0a55c5e1a009291a2d",
+    "tests/contracts/test_contracts.py": "66b5fa45e3d0619f9935f6e09e30535095e49baf1814f1b40cdb8bcce0a9bf03"
+  },
+  "passed": true
+}

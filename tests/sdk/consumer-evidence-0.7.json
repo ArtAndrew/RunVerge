@@ -1,0 +1,70 @@
+{
+  "contract_version": "0.7.0",
+  "result": "pass",
+  "time": "2026-10-24T06:29:58.241861+00:00",
+  "scope": "0.7 bounded native model tools; full-product acceptance remains open",
+  "offline_counts": {
+    "python": 48,
+    "typescript": 54,
+    "contracts": 23,
+    "web": 51
+  },
+  "go_author": {
+    "top_level": 41,
+    "subtests": 136,
+    "stable_input_files": 34,
+    "report": "docs/security/model-loop-runtime-author-evidence-2026-10-24.json"
+  },
+  "sdk_actual": {
+    "scenarios": 14,
+    "native_scenarios": 4,
+    "stable_input_files": 185,
+    "report": "tests/sdk/live-report-0.7.json",
+    "binding": "tests/sdk/live-evidence-0.7.json"
+  },
+  "contract_actual": {
+    "method_paths": 39,
+    "response_observations": 146,
+    "stable_input_files": 11,
+    "report": "tests/contracts/live-report-0.7.json",
+    "binding": "tests/contracts/live-evidence-0.7.json"
+  },
+  "ui_actual": {
+    "native_scenarios": 2,
+    "stable_input_files": 30,
+    "business_responses_intercepted": false,
+    "agent_creation_through_installed_tool_selector": true,
+    "final_result_accepted_in_separate_command": true,
+    "report": "web/tests/model-tools-live-report-0.7.json",
+    "binding": "web/tests/model-tools-live-evidence-0.7.json"
+  },
+  "mock_ui": {
+    "checks": 16,
+    "explicit_mutations": 6,
+    "report": "web/tests/model-tools-report-0.7.json",
+    "mobile_scroll_scope": "390px built browser mock with a longer two-proposal continuation dialog; checkbox disable/enable and footer reachability checked. Actual live two-flow report unchanged."
+  },
+  "physical_observations": "tests/sdk/tool-physical-observations-0.7.json",
+  "peer_sources": "docs/evidence/model-loop-peer-sources-0.7.json",
+  "initial_fixture_failure": "tests/sdk/live-report-0.7-initial-fixture-failure.json",
+  "packaging": "tests/sdk/package-report-0.7.json",
+  "declaration_phase": {
+    "path": "packages/typescript-sdk/dist/types.d.ts",
+    "sdk_flow_time_hash": "b09165d25ff671ef6ebf89bb8e848f5489f6d75f74419f4ef8b4460c484dd741",
+    "final_packaged_hash": "856e0f49dc745c87908a0e7a07346082bf21a76cd0f52f3af1f7c6c4dee0fab2",
+    "reason": "The source already included optional ToolExecution.model_proposal_id during SDK flows; final package prepack regenerated its declaration output. Runtime JavaScript hashes unchanged. Isolated final packaged declaration consumer passed. No claim that initial SDK flow used the later declaration bytes."
+  },
+  "review_fixes": [
+    "native source accepts request_changes/reject but never final accept or material publication",
+    "continuation hints use tasks.continue_* permissions",
+    "native execution binding includes proposal/occurrence/Run/op/artifact and exact digests",
+    "stale action A poll cannot replace selected B; receipt body cleared and binding-checked",
+    "continuation shows exact arguments, saved outcome reason, call/proposal/receipt bindings"
+  ],
+  "limits": [
+    "Models and tool effects in live tests are synthetic; no paid provider or billing evidence",
+    "Operator assertion records a claim, not provider verification or truth",
+    "No general exactly-once guarantee from finite fixture counters",
+    "Corporate SSO, sandbox, full provider lifecycle/load/usability/release acceptance remain open"
+  ]
+}

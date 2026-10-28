@@ -1,0 +1,287 @@
+{
+  "catalog": {
+    "organization_id": "org",
+    "revision": "9007199254740993",
+    "audience": "platform.configuration.v1",
+    "actions": [
+      "inspect",
+      "plan",
+      "validate",
+      "apply",
+      "verify",
+      "delegate"
+    ],
+    "can_issue_root_grants": true,
+    "can_approve": true,
+    "max_operations": 8,
+    "max_grant_depth": 4,
+    "available_commands": [
+      "inspect",
+      "create_plan",
+      "create_grant"
+    ]
+  },
+  "destination": {
+    "organization_id": "org",
+    "id": "destination",
+    "version": 1,
+    "kind": "model",
+    "name": "Prepared model",
+    "target_id": "model_target",
+    "credential_purpose_id": "purpose",
+    "credential_purpose_version": 1,
+    "requires_approval": true,
+    "max_verify_charge_microusd": "1000",
+    "model": "local-fixture",
+    "discovery_unmetered_approved": false,
+    "active": true,
+    "created_at": "2026-10-25T07:00:00Z"
+  },
+  "grant": {
+    "organization_id": "org",
+    "id": "grant",
+    "audience": "platform.configuration.v1",
+    "issuer_id": "owner",
+    "subject_id": "service",
+    "depth": 0,
+    "version": 1,
+    "actions": [
+      "inspect",
+      "plan",
+      "validate",
+      "apply",
+      "verify",
+      "delegate"
+    ],
+    "scopes": [
+      {
+        "destination_id": "destination",
+        "destination_version": 1,
+        "kind": "model",
+        "target_id": "model_target",
+        "credential_purpose_id": "purpose",
+        "credential_purpose_version": 1
+      }
+    ],
+    "max_plans": 10,
+    "used_plans": 0,
+    "max_verifications": 5,
+    "used_verifications": 0,
+    "max_allocated_charge_microusd": "1000",
+    "allocated_charge_microusd": "0",
+    "revoked": false,
+    "status": "active",
+    "created_at": "2026-10-25T07:00:00Z",
+    "expires_at": "2026-10-25T08:00:00Z",
+    "available_commands": [
+      "revoke",
+      "delegate"
+    ]
+  },
+  "plan": {
+    "organization_id": "org",
+    "id": "plan",
+    "actor_id": "owner",
+    "version": 1,
+    "status": "planned",
+    "base_revision": "9007199254740993",
+    "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "operations": [
+      {
+        "id": "op",
+        "scope": {
+          "destination_id": "destination",
+          "destination_version": 1,
+          "kind": "model",
+          "target_id": "model_target",
+          "credential_purpose_id": "purpose",
+          "credential_purpose_version": 1
+        },
+        "expected_resource_version": 0,
+        "active": true
+      }
+    ],
+    "diff": [
+      {
+        "operation_id": "op",
+        "kind": "model",
+        "target_id": "model_target",
+        "expected_version": 0,
+        "new_version": 1,
+        "active": true,
+        "retired_versions": [],
+        "may_stop_pinned_tasks": false
+      }
+    ],
+    "reason": "Exact prepared setup",
+    "created_at": "2026-10-25T07:00:00Z",
+    "expires_at": "2026-10-25T08:00:00Z",
+    "applied_revision": "0",
+    "available_commands": [
+      "validate",
+      "approve",
+      "apply"
+    ]
+  },
+  "validation": {
+    "organization_id": "org",
+    "id": "validation",
+    "plan_id": "plan",
+    "plan_version": 1,
+    "plan_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "base_revision": "9007199254740993",
+    "current_revision": "9007199254740993",
+    "valid": true,
+    "decision": {
+      "organization_id": "org",
+      "id": "decision",
+      "action": "validate",
+      "target_id": "plan",
+      "outcome": "requires_approval",
+      "reason_codes": [],
+      "configuration_revision": "9007199254740993",
+      "obligations": [
+        "requires_approval"
+      ],
+      "evaluated_at": "2026-10-25T07:00:00Z"
+    },
+    "diff": [
+      {
+        "operation_id": "op",
+        "kind": "model",
+        "target_id": "model_target",
+        "expected_version": 0,
+        "new_version": 1,
+        "active": true,
+        "retired_versions": [],
+        "may_stop_pinned_tasks": false
+      }
+    ],
+    "created_at": "2026-10-25T07:00:00Z"
+  },
+  "approval": {
+    "organization_id": "org",
+    "id": "approval",
+    "plan_id": "plan",
+    "plan_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "validation_id": "validation",
+    "principal_id": "owner",
+    "reason": "Owner reviewed exact diff",
+    "created_at": "2026-10-25T07:00:00Z"
+  },
+  "verification": {
+    "organization_id": "org",
+    "id": "verification",
+    "plan_id": "plan",
+    "operation_id": "op",
+    "actor_id": "owner",
+    "scope": {
+      "destination_id": "destination",
+      "destination_version": 1,
+      "kind": "model",
+      "target_id": "model_target",
+      "credential_purpose_id": "purpose",
+      "credential_purpose_version": 1
+    },
+    "resource_version": 1,
+    "kind": "model",
+    "status": "unknown",
+    "version": 2,
+    "task_id": "task_probe",
+    "max_charge_microusd": "1000",
+    "cost_status": "unknown",
+    "tool_count": 0,
+    "created_at": "2026-10-25T07:00:00Z",
+    "updated_at": "2026-10-25T07:00:00Z"
+  },
+  "resource": {
+    "organization_id": "org",
+    "kind": "model",
+    "id": "model_target",
+    "version": 1,
+    "scope": {
+      "destination_id": "destination",
+      "destination_version": 1,
+      "kind": "model",
+      "target_id": "model_target",
+      "credential_purpose_id": "purpose",
+      "credential_purpose_version": 1
+    },
+    "active": true,
+    "created_at": "2026-10-25T07:00:00Z"
+  },
+  "audit": {
+    "organization_id": "org",
+    "id": "audit",
+    "actor_type": "principal",
+    "actor_id": "owner",
+    "object_type": "configuration_plan",
+    "object_id": "plan",
+    "action": "configuration.applied",
+    "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "reason": "Exact reviewed setup",
+    "created_at": "2026-10-25T07:00:00Z"
+  },
+  "requests": {
+    "createPlan": {
+      "base_revision": "9007199254740993",
+      "ttl_seconds": 900,
+      "operations": [
+        {
+          "id": "op",
+          "destination_id": "destination",
+          "destination_version": 1,
+          "expected_resource_version": 0,
+          "active": false
+        }
+      ],
+      "reason": "Disable explicitly"
+    },
+    "createGrant": {
+      "subject_id": "service",
+      "actions": [
+        "inspect",
+        "plan"
+      ],
+      "destinations": [
+        {
+          "id": "destination",
+          "version": 1
+        }
+      ],
+      "ttl_seconds": 3600,
+      "max_plans": 10,
+      "max_verifications": 5,
+      "max_allocated_charge_microusd": "1000",
+      "reason": "Scoped setup"
+    },
+    "revokeGrant": {
+      "expected_version": 1,
+      "reason": "Stop future setup"
+    },
+    "validatePlan": {
+      "expected_version": 1,
+      "plan_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "approvePlan": {
+      "expected_version": 1,
+      "plan_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "validation_id": "validation",
+      "reason": "Owner review"
+    },
+    "applyPlan": {
+      "expected_version": 1,
+      "plan_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "validation_id": "validation",
+      "reason": "Apply reviewed settings"
+    },
+    "verify": {
+      "expected_plan_version": 2,
+      "plan_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "operation_id": "op",
+      "max_charge_microusd": "1000",
+      "acknowledge_cost": true,
+      "reason": "One bounded check"
+    }
+  }
+}

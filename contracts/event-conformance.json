@@ -1,0 +1,1221 @@
+{
+  "cases": [
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "action_id": "contract_value",
+          "dispatch_not_after": "2026-10-24T12:00:00Z",
+          "fencing_token": "9223372036854775807",
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "action.dispatched"
+      },
+      "name": "action.dispatched",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "external_call": false,
+          "grant_id": "contract_value",
+          "reason": "contract_value",
+          "signal_count": 0,
+          "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "task_acceptance_changed": false
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "automation.completed"
+      },
+      "name": "automation.completed",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "external_call": false,
+          "grant_id": "contract_value",
+          "reason": "contract_value",
+          "signal_count": 0,
+          "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "task_acceptance_changed": false
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "automation.expired"
+      },
+      "name": "automation.expired",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "acceptance_automated": false,
+          "expires_at": "2026-10-24T12:00:00Z",
+          "grant_id": "contract_value",
+          "independent_of_login_session": true,
+          "max_charge_microusd": "1000000000000",
+          "max_model_turns": 1,
+          "max_tool_executions": 0,
+          "mode": "contract_value",
+          "principal_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "automation.granted"
+      },
+      "name": "automation.granted",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "grant_id": "contract_value",
+          "past_effects_preserved": true,
+          "principal_id": "contract_value",
+          "reason": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "automation.revoked"
+      },
+      "name": "automation.revoked",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "external_call": false,
+          "grant_id": "contract_value",
+          "reason": "contract_value",
+          "signal_count": 0,
+          "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "task_acceptance_changed": false
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "automation.stopped"
+      },
+      "name": "automation.stopped",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "actual_microusd": "9223372036854775807",
+          "incident": false,
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.adjustment"
+      },
+      "name": "cost.adjustment",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "actual_microusd": "9223372036854775807",
+          "basis": "fixture_per_logical_operation",
+          "reservation_id": "contract_value",
+          "synthetic_cost": true
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.fixture_reconciled"
+      },
+      "name": "cost.fixture_reconciled",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "actual_microusd": "9223372036854775807",
+          "incident": false,
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.quarantine_resolution"
+      },
+      "name": "cost.quarantine_resolution",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "actual_microusd": "9223372036854775807",
+          "evidence_id": "contract_value",
+          "quarantine_id": "contract_value",
+          "reason": "projection_overflow",
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.quarantined"
+      },
+      "name": "cost.quarantined",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "basis": "not_dispatched",
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.released"
+      },
+      "name": "cost.released",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "amount_microusd": "9223372036854775807",
+          "category": "contract_value",
+          "price_version": "contract_value",
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.reserved"
+      },
+      "name": "cost.reserved",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "actual_microusd": "9223372036854775807",
+          "incident": false,
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.settle"
+      },
+      "name": "cost.settle",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "actual_microusd": "9223372036854775807",
+          "reservation_id": "contract_value",
+          "synthetic_cost": true
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.settled"
+      },
+      "name": "cost.settled",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "reason": "contract_value",
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.unknown"
+      },
+      "name": "cost.unknown",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "costs_unchanged": true,
+          "draft_only": true,
+          "material_id": "contract_value",
+          "principal_id": "contract_value",
+          "version": 1
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "material.created"
+      },
+      "name": "material.created",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "artifact_id": "contract_value",
+          "artifact_version": 1,
+          "candidate_id": "contract_value",
+          "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "costs_unchanged": true,
+          "material_id": "contract_value",
+          "material_version": 1,
+          "new_run_created": false,
+          "parent_candidate_id": "contract_value",
+          "published_by": "contract_value",
+          "review_basis_candidate_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "material.published"
+      },
+      "name": "material.published",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "base_version": 1,
+          "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "costs_unchanged": true,
+          "draft_only": true,
+          "material_id": "contract_value",
+          "principal_id": "contract_value",
+          "version": 1
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "material.revised"
+      },
+      "name": "material.revised",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "artifact_id": "contract_value",
+          "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "cost_status": "contract_value",
+          "operation_id": "contract_value",
+          "proposal_count": 0,
+          "reservation_id": "contract_value",
+          "source": "contract_value",
+          "verified": false
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "model.candidate_created"
+      },
+      "name": "model.candidate_created",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "acknowledged_new_cost": true,
+          "messages_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "model_turn": 1,
+          "operation_id": "contract_value",
+          "prior_liabilities_preserved": true,
+          "reason": "contract_value",
+          "run_id": "contract_value",
+          "source_candidate_id": "contract_value",
+          "source_operation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "model.continuation_queued"
+      },
+      "name": "model.continuation_queued",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "adapter": "fixture",
+          "attempt": 1,
+          "fencing_token": "9223372036854775807",
+          "operation_id": "contract_value",
+          "synthetic_cost": true
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "operation.claimed"
+      },
+      "name": "operation.claimed",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "reason": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.blocked"
+      },
+      "name": "task.blocked",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "liabilities_preserved": true,
+          "reason": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.cancelled"
+      },
+      "name": "task.cancelled",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "agent_version": 1,
+          "run_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.created"
+      },
+      "name": "task.created",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "candidate_id": "contract_value",
+          "decision": "accept",
+          "decision_id": "contract_value",
+          "method": "inherited_authorized_user_decision",
+          "parent_decision_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.decision_inherited"
+      },
+      "name": "task.decision_inherited",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "agent_version": 1,
+          "member_id": "contract_value",
+          "parent_id": "contract_value",
+          "root_id": "contract_value",
+          "state": "dependency_pending"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.delegated"
+      },
+      "name": "task.delegated",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "acknowledged_new_cost": true,
+          "attempt": 1,
+          "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "operation_id": "contract_value",
+          "prior_liabilities_preserved": true,
+          "reason": "contract_value",
+          "run_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.new_attempt"
+      },
+      "name": "task.new_attempt",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "candidate_id": "contract_value",
+          "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "costs_unchanged": true,
+          "decision": "accept",
+          "decision_id": "contract_value",
+          "method": "authorized_user_decision",
+          "principal_id": "contract_value",
+          "run_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.result_decided"
+      },
+      "name": "task.result_decided",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "adapter": "fixture:echo",
+          "verification": "exact_goal_echo"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.succeeded"
+      },
+      "name": "task.succeeded",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "reason": "contract_value",
+          "run_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "team.blocked"
+      },
+      "name": "team.blocked",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "all_fixture": false,
+          "artifact_id": "contract_value",
+          "candidate_id": "contract_value",
+          "complete": false,
+          "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "run_id": "contract_value",
+          "synthetic_cost": false,
+          "verified": false
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "team.candidate_created"
+      },
+      "name": "team.candidate_created",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "all_fixture": false,
+          "join_policy": "all",
+          "pattern": "sequence",
+          "plan_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "run_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "team.initialized"
+      },
+      "name": "team.initialized",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "acceptance": "not_implied",
+          "candidate_id": "contract_value",
+          "child_task_id": "contract_value",
+          "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "member_id": "contract_value",
+          "run_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "team.member_candidate"
+      },
+      "name": "team.member_candidate",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "member_id": "contract_value",
+          "operation_id": "contract_value",
+          "parent_id": "contract_value",
+          "parent_run_id": "contract_value",
+          "run_id": "contract_value",
+          "source_candidate_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "team.member_started"
+      },
+      "name": "team.member_started",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "approval_id": "contract_value",
+          "decision": "contract_value",
+          "execution_id": "contract_value",
+          "external_call": false,
+          "method": "contract_value",
+          "principal_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.approval_decided"
+      },
+      "name": "tool.approval_decided",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "execution_id": "contract_value",
+          "liabilities_preserved": false,
+          "outcome": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.cancelled"
+      },
+      "name": "tool.cancelled",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "attempt": 1,
+          "execution_id": "contract_value",
+          "fencing_token": "9223372036854775807"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.claimed"
+      },
+      "name": "tool.claimed",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "execution_id": "contract_value",
+          "proof": "pending_action_never_dispatched",
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.cost_released"
+      },
+      "name": "tool.cost_released",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "cost_acknowledged": true,
+          "execution_id": "contract_value",
+          "external_call": false,
+          "intent_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "principal_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.dispatch_queued"
+      },
+      "name": "tool.dispatch_queued",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "action_id": "contract_value",
+          "dispatch_not_after": "2026-10-24T12:00:00Z",
+          "execution_id": "contract_value",
+          "fencing_token": "9223372036854775807",
+          "intent_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.dispatched"
+      },
+      "name": "tool.dispatched",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "execution_id": "contract_value",
+          "financial_settlement": false,
+          "method": "registered_tool_response",
+          "outcome": "contract_value",
+          "receipt_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.effect_observed"
+      },
+      "name": "tool.effect_observed",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "execution_id": "contract_value",
+          "external_call": false,
+          "financial_settlement": false,
+          "method": "operator_assertion",
+          "outcome": "contract_value",
+          "principal_id": "contract_value",
+          "receipt_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.operator_reconciled"
+      },
+      "name": "tool.operator_reconciled",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "additional_payload_retained": false,
+          "execution_id": "contract_value",
+          "receipt_id": "contract_value",
+          "requires_operator_review": true,
+          "retained_conflicts": 8
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.outcome_conflict_overflow"
+      },
+      "name": "tool.outcome_conflict_overflow",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "artifact_id": "contract_value",
+          "artifact_version": 1,
+          "conflict_id": "contract_value",
+          "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "effect_reference": "contract_value",
+          "evidence_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "execution_id": "contract_value",
+          "existing_receipt_unchanged": true,
+          "financial_settlement": false,
+          "observed_outcome": "contract_value",
+          "receipt_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.outcome_conflicted"
+      },
+      "name": "tool.outcome_conflicted",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "execution_id": "contract_value",
+          "resend_allowed": false
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.outcome_unknown"
+      },
+      "name": "tool.outcome_unknown",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "action_id": "contract_value",
+          "approval_id": "contract_value",
+          "execution_id": "contract_value",
+          "external_call": false,
+          "intent_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "reservation_id": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.prepared"
+      },
+      "name": "tool.prepared",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "execution_id": "contract_value",
+          "external_call": false,
+          "reason": "contract_value"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "tool.stopped_unsent"
+      },
+      "name": "tool.stopped_unsent",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "adapter": "model",
+          "attempt": 1,
+          "fencing_token": "9223372036854775807",
+          "model_connection_id": "model_contract",
+          "model_connection_version": 1,
+          "operation_id": "op_contract"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "operation.claimed"
+      },
+      "name": "operation.claimed.model",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "id": "evt_legacy",
+        "legacy_data_json": "{\"fence\":9223372036854775807,\"amount\":9007199254740993}",
+        "organization_id": "org_contract",
+        "payload_version": 0,
+        "sequence": "9223372036854775807",
+        "task_id": "task_contract",
+        "type": "historical.unknown"
+      },
+      "name": "legacy.opaque_wide_integer",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "id": "evt_legacy",
+        "legacy_data_json": "{\"fence\":9223372036854775807,\"amount\":9007199254740993}",
+        "organization_id": "org_contract",
+        "payload_version": 0,
+        "sequence": 9007199254740992,
+        "task_id": "task_contract",
+        "type": "historical.unknown"
+      },
+      "name": "sequence.numeric",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "id": "evt_legacy",
+        "legacy_data_json": "{\"fence\":9223372036854775807,\"amount\":9007199254740993}",
+        "organization_id": "org_contract",
+        "payload_version": 0,
+        "sequence": "0",
+        "task_id": "task_contract",
+        "type": "historical.unknown"
+      },
+      "name": "sequence.zero",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "id": "evt_legacy",
+        "legacy_data_json": "{\"fence\":9223372036854775807,\"amount\":9007199254740993}",
+        "organization_id": "org_contract",
+        "payload_version": 0,
+        "sequence": "01",
+        "task_id": "task_contract",
+        "type": "historical.unknown"
+      },
+      "name": "sequence.leading_zero",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "id": "evt_legacy",
+        "legacy_data_json": "{\"fence\":9223372036854775807,\"amount\":9007199254740993}",
+        "organization_id": "org_contract",
+        "payload_version": 0,
+        "sequence": "9223372036854775808",
+        "task_id": "task_contract",
+        "type": "historical.unknown"
+      },
+      "name": "sequence.overflow",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "fence": 1
+        },
+        "id": "evt_legacy",
+        "legacy_data_json": "{\"fence\":9223372036854775807,\"amount\":9007199254740993}",
+        "organization_id": "org_contract",
+        "payload_version": 0,
+        "sequence": "9223372036854775807",
+        "task_id": "task_contract",
+        "type": "historical.unknown"
+      },
+      "name": "legacy.not_typed",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "reason": "contract"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 2,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.blocked"
+      },
+      "name": "version.unknown",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "reason": "contract"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "future.event"
+      },
+      "name": "type.unknown",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "extra": true,
+          "reason": "contract"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.blocked"
+      },
+      "name": "field.unknown",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {},
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.blocked"
+      },
+      "name": "field.missing",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "reason": null
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.blocked"
+      },
+      "name": "field.null",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "reason": " \t"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.blocked"
+      },
+      "name": "field.blank",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "actual_microusd": 1,
+          "reservation_id": "res_contract",
+          "synthetic_cost": true
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.settled"
+      },
+      "name": "decimal.numeric",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "actual_microusd": "01",
+          "reservation_id": "res_contract",
+          "synthetic_cost": true
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.settled"
+      },
+      "name": "decimal.noncanonical",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "actual_microusd": "1",
+          "reservation_id": "res_contract",
+          "synthetic_cost": false
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "cost.settled"
+      },
+      "name": "constant.false_truth",
+      "valid": false
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
+          "adapter": "model",
+          "attempt": 1,
+          "fencing_token": "1",
+          "operation_id": "op_contract"
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "operation.claimed"
+      },
+      "name": "variant.missing_model_pin",
+      "valid": false
+    }
+  ],
+  "contract_version": "0.14.0",
+  "license": "Apache-2.0"
+}

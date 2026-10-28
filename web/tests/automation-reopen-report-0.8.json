@@ -1,0 +1,28 @@
+{
+  "contract": "0.8.0",
+  "result": "pass",
+  "scope": "read-only actual browser/API reopen after responsive status layout and capture-timing fix; original mutation-flow report/build evidence retained separately",
+  "task_id": "tsk_19432ca3b4ba0da9325279ea85404803",
+  "grant_id": "aut_4c646760783d1d3fe12b1a99557d1dc4",
+  "grant_status": "revoked",
+  "grant_version": 2,
+  "usage": {
+    "model_turns": 0,
+    "tool_executions": 1,
+    "allocated_microusd": "17"
+  },
+  "business_mutations": 0,
+  "browser_errors": 0,
+  "source_changes": [
+    "responsive status uses separate rows at narrow width",
+    "mobile captures await navigation transition; business control code unchanged"
+  ],
+  "build_hashes": {
+    "web/dist/assets/index-C6HQwmGt.css": "1cfdcaf38f825acbd9a9040ad04def8eaf9eae22dfaf60ec56b4bdaf24b33435",
+    "web/dist/assets/index-gIt_rmDv.js": "56701ca2e18b1b954fefa2e3efe7100b328ab1e1d52469269a3aad66f3ea4de9"
+  },
+  "screenshots": [
+    "automation-live-0.8-reopened-desktop.png",
+    "automation-live-0.8-reopened-mobile.png"
+  ]
+}

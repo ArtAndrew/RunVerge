@@ -1,0 +1,24 @@
+{
+  "name": "@agent-platform/sdk",
+  "version": "0.14.0",
+  "description": "Dependency-free TypeScript client for the Agent Platform API",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src", "LICENSE", "README.md"],
+  "sideEffects": false,
+  "engines": {"node": ">=24"},
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && tsc --noEmit --strict --exactOptionalPropertyTypes --target ES2022 --module NodeNext --moduleResolution NodeNext tests/public-types.ts && node --test tests/*.test.mjs",
+    "prepack": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {"typescript": "~5.9.3"}
+}

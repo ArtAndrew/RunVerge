@@ -1,0 +1,118 @@
+{
+  "contract_version": "0.6.0",
+  "result": "pass",
+  "executed_at": "2026-10-24T05:55:36.472Z",
+  "scope": "Built UI -> actual local API -> PostgreSQL -> worker -> explicitly installed local TLS fixture; no business responses intercepted",
+  "fixture_tool_id": "tool_local_action_fixture",
+  "real_model_call": false,
+  "billing_settlement": false,
+  "results": [
+    {
+      "mode": "success",
+      "task_id": "tsk_f88e332ba5507bf070ab8d0ca441ebc0",
+      "execution_id": "tex_39e3c4417f27933c2459b32f7f49359a",
+      "task_status": "waiting_input",
+      "execution_status": "succeeded",
+      "receipt_method": "registered_tool_response",
+      "spent_microusd": "2000",
+      "reserved_microusd": "17",
+      "source_run_preserved": true,
+      "candidate_not_accepted": true,
+      "dispatch_requests": 1
+    },
+    {
+      "mode": "unknown",
+      "task_id": "tsk_fbf5c920ded2d80297b9dd1ce27cc965",
+      "execution_id": "tex_6c7230f90b5751c26924b630007789e3",
+      "task_status": "waiting_input",
+      "execution_status": "rejected",
+      "receipt_method": "operator_assertion",
+      "spent_microusd": "2000",
+      "reserved_microusd": "17",
+      "source_run_preserved": true,
+      "candidate_not_accepted": true,
+      "dispatch_requests": 1
+    }
+  ],
+  "requests": [
+    {
+      "path": "/api/v1/tasks/tsk_f88e332ba5507bf070ab8d0ca441ebc0/tool-executions",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/tasks/tsk_f88e332ba5507bf070ab8d0ca441ebc0/tool-executions/tex_39e3c4417f27933c2459b32f7f49359a/decide",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_f88e332ba5507bf070ab8d0ca441ebc0/tool-executions/tex_39e3c4417f27933c2459b32f7f49359a/dispatch",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_fbf5c920ded2d80297b9dd1ce27cc965/tool-executions",
+      "status": 201
+    },
+    {
+      "path": "/api/v1/tasks/tsk_fbf5c920ded2d80297b9dd1ce27cc965/tool-executions/tex_6c7230f90b5751c26924b630007789e3/decide",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_fbf5c920ded2d80297b9dd1ce27cc965/tool-executions/tex_6c7230f90b5751c26924b630007789e3/dispatch",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/tasks/tsk_fbf5c920ded2d80297b9dd1ce27cc965/tool-executions/tex_6c7230f90b5751c26924b630007789e3/reconcile",
+      "status": 200
+    }
+  ],
+  "browser_errors": 0,
+  "token_persisted": false,
+  "screenshots": [
+    "tools-live-0.6-desktop.png",
+    "tools-live-0.6-mobile.png"
+  ],
+  "limits": [
+    "Tool fixture effects are synthetic",
+    "Operator assertion tests faithfully recording a claim, not verifying its truth",
+    "No corporate SSO or human-presence assertion"
+  ],
+  "source_sha256": {
+    "web/dist/assets/index-CdvPHs-d.css": "65b77ff912f4c4c6fbe192adcd1562f21f8ac7c1a3bcd1abef4caa568cf28fee",
+    "web/dist/assets/index-lcKYisrJ.js": "1af1112012fe91e3f13969d7b408898ec68cfd2f828a57179c0c3b6ae1453bc8",
+    "web/dist/index.html": "006e0f91d93cf021cd91387bf1a7f506ba007696f940130461b0678933c113b7",
+    "web/package.json": "f94e66a9c8681945dcbe4a39c55d7fd31a7167137fedcd0b0c77744456735401",
+    "web/scripts/smoke-tools-live.mjs": "6555389d1d43e01d699bea5f5e64febdb25c25114283120d5f9c40461d8b914c",
+    "web/scripts/smoke-tools.mjs": "b3045fa5a462108da5589719a8fd364b01b4cc89f12e4fad11e089bfec801e9e",
+    "web/src/App.tsx": "8256c59c2ad186487badb2defba293a47277df1d790674dfaad24f87e5d7b511",
+    "web/src/AuthPanel.tsx": "9c12ca0d894b324f7528ab5e764cb1f39d2c9038cde931394444d77ade7b0384",
+    "web/src/MaterialWorkspace.css": "8c2b038b0b0ccd52af5ef6a12cc25698a984f0e18e97ce01bb8919d3c6959d4a",
+    "web/src/MaterialWorkspace.tsx": "cb957e0b131bb2775215f6f264b7ecdf87eacdef693d7bf923858fc7137d26fd",
+    "web/src/ResultReview.tsx": "0a8bfe49a829bd3a8306a05f8b45aef0ac9b0e053e41e9303dac6b902296f3e0",
+    "web/src/TaskDetails.tsx": "97e0f7a47f7b8fab61d9f4a870e11b0f5d2cf553ce8b96187f7eafac002e5a22",
+    "web/src/TeamFields.tsx": "f1bf3f476a55877c8bf7c6f0abf8ad72f0606000eddf90e162136cd7b9287071",
+    "web/src/TeamResult.css": "e279a24d41d2fe5dd6b0badcee2bb4c6a26ef5df70e8311abae3921c30243395",
+    "web/src/TeamResult.tsx": "b2eca9ba800f80b962534b22b6c5af9af8772050d4b42cc577b007033477d3c5",
+    "web/src/ToolActions.tsx": "26a44775fa698464055c4820a850b8e12ad0c0b293c6b5ec541f812524fd5901",
+    "web/src/api.ts": "07b94cf6d6a372eb6510ca426ff6414631c148baf724025d944a461dd52175a3",
+    "web/src/draftVault.ts": "5bdfe91e23690421776ef89b2a87f992b5b5babc2c3d4a56d04e3c54df14fea3",
+    "web/src/format.ts": "b2b919b38bbfab239d7bf43502a068cb0196a90193a5cdb4db167e6fcc9eb6c8",
+    "web/src/forms.tsx": "84e91095d8773c43278bb0ede06d54b5c45164f370f89b2d65c1745e5a6393a4",
+    "web/src/main.tsx": "2bc54fe67eda67fa309bea876a6dfb186fe6fc0e7a302507714fca1bcfda4247",
+    "web/src/materials.ts": "6c79656f8e0c153b0476d8f858389a999e062f071cc400bb0856c649c9b3762c",
+    "web/src/review.ts": "c3c2a98853c2bdb09eb1a6216a7b978d61f941bbcf56571a8ae3924760ea58b5",
+    "web/src/styles.css": "f14fb7e459262d858fcb1a261bbd2aff521fec7bf1186c2b005f5df1a6af89b7",
+    "web/src/teamManifest.ts": "57aa5c3bd71cadeb806a261f9f393dd6aa0dd9d2a12981fd0c866532d689bb3f",
+    "web/src/toolIntent.ts": "4accb3b7b5b628f143ab34c1b6dfb38d8a83979015478460f151308d8fa7bb2c",
+    "web/src/ui.tsx": "92c8c2df7f4814da2fd25c7d6f56d22e9eea008459ab0db27d0ca8a80cb628b6",
+    "web/src/vite-env.d.ts": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
+    "web/tests/api.test.mjs": "e61c2095107014fbd0f9827c051e260c55b8dc88a8f91441037ef2070f4da5a8",
+    "web/tests/browser-smoke.mjs": "cb4eaf4db7fcc8bb938f1548bde0adb4bfbbbd409da4bb5496fa18cfbdba1742",
+    "web/tests/draftVault.test.mjs": "69e9525e8c00853d85ff60d4aafc9ace4b15007fe01f1657ac1def0c6043d973",
+    "web/tests/materials.test.mjs": "3f2144410cd7df1a8a10dc2de22bc15c3e6ebaffdbc2acdb788df894e3545621",
+    "web/tests/review.test.mjs": "0aef209ddee80d6aa7b048f3d1217d813e10192ca34201d2b223f8a004ed7b1d",
+    "web/tests/teamManifest.test.mjs": "5975f4798af68684300d58a891219b551287eb61fff5f7d989a126c2a94b20b5",
+    "web/tests/tool-api.test.mjs": "f0898ef6b137c393c26d28a570b7d556b0002e444eaeeeada31735d14e404e0b",
+    "web/tests/tool-intent.test.mjs": "4d9409541750859db3f69db9cce7936077c69cdd305c7f21cd3bd169c54c9f8a"
+  },
+  "source_fingerprint_origin": "Frozen pre-caption source/build captured by web/tests/tools-report-0.6.json; the initial actual live commands ran before the label-only App.tsx change",
+  "later_inspection": "web/tests/tools-live-reopen-report-0.6.json"
+}

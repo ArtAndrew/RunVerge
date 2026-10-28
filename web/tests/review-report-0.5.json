@@ -1,0 +1,27 @@
+{
+  "contract": "0.5.0",
+  "result": "pass",
+  "executed_at": "2026-10-23T19:18:42.896Z",
+  "scope": "built UI with intercepted API fixtures; no live API/PG/provider",
+  "checks": [
+    "exact rendered digest",
+    "request_changes without implicit retry",
+    "explicit cost acknowledgment and feedback",
+    "stale modal snapshot blocked",
+    "accept preserves unknown holds",
+    "decision history",
+    "managed child cannot retry",
+    "tampered artifact blocked",
+    "team member version pins",
+    "390px no overflow"
+  ],
+  "review_requests": 2,
+  "retry_requests": 1,
+  "team_creations": 1,
+  "browser_errors": 0,
+  "real_provider_call": false,
+  "screenshots": [
+    "review-0.5-desktop.png",
+    "review-0.5-mobile.png"
+  ]
+}

@@ -1,0 +1,10 @@
+# Isolated test environment, pinned from the verified Python 3.12 installation.
+# These packages are not SDK runtime dependencies and are not distributed with SDKs.
+attrs==26.1.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+referencing==0.37.0
+rfc3339-validator==0.1.4
+rpds-py==2026.9.1
+six==1.17.0
+typing-extensions==4.16.0

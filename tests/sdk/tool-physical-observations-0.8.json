@@ -1,0 +1,127 @@
+{
+  "contract_version": "0.8.0",
+  "result": "pass",
+  "scope": "read-only independent SQLite inspection of current SDK/UI execution IDs; synthetic local peers only",
+  "read_only": {
+    "execution_count": 4,
+    "physical_requests": 4,
+    "business_effects": 0,
+    "unknown_execution_ids": [
+      "tex_d16f976f501ac327bb42be5d5e39286c",
+      "tex_0e47b63437557357350263d764e2751a"
+    ],
+    "observations": [
+      {
+        "execution_id": "tex_0e47b63437557357350263d764e2751a",
+        "action_id": "act_641a951f7ef8bbf4b43535af26fc6162",
+        "mode": "unknown",
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_43561d6717dd89551ce518651b5a6bf6",
+        "action_id": "act_0c7a0b5c509c103bceedbe0b3ec29f45",
+        "mode": "success",
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_d16f976f501ac327bb42be5d5e39286c",
+        "action_id": "act_e831bd0d9d17df3f729734ea74a66284",
+        "mode": "unknown",
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_daf06616d834efa62ac88d422605d00e",
+        "action_id": "act_90e19602a0ae88d43953f8e34b72b9af",
+        "mode": "success",
+        "physical_requests": 1
+      }
+    ]
+  },
+  "synthetic_write": {
+    "execution_count": 10,
+    "physical_requests": 10,
+    "synthetic_effect_records": 10,
+    "observations": [
+      {
+        "execution_id": "tex_10cd3effe050e0270c13ad14765878c8",
+        "action_id": "act_56beb62a437643b93a62b03f42421cdb",
+        "mode": "unknown",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_560dc29887c448a554103996aa2a5e33",
+        "action_id": "act_0de8ec5fa8d190c1a3760f397ffe84a0",
+        "mode": "unknown",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_76a7d29d8195cf5ac41db0b124ec092a",
+        "action_id": "act_e66e745585fa32e6c5cd5dd247a8ebaf",
+        "mode": "unknown",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_856bea7b646edc4acc899a998096b68c",
+        "action_id": "act_09edeec5dc82239eb7a012ba6c936b21",
+        "mode": "success",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_85dbb20147264989c8226c8c063c9142",
+        "action_id": "act_5eb0507dadb76bf54e3c6483b18d6d93",
+        "mode": "success",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_ab2fbabbf7f16d2b1ed088399c9116d3",
+        "action_id": "act_674a0df14fd7381b193fa22ecddf28de",
+        "mode": "success",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_b0b82a8c361262c1df97de9f77cc5a60",
+        "action_id": "act_5665b175e6b7580f5488b79b50c3cfd2",
+        "mode": "unknown",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_c5ae9be0cb0d69d792de5a4b49b48649",
+        "action_id": "act_4d2977f370dcb497bf7a62e7f74f2657",
+        "mode": "success",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_c811129e69c17621b7a5e9ba3feb0ce0",
+        "action_id": "act_e7a9e3b659731c1e79bbd2f545603981",
+        "mode": "success",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      },
+      {
+        "execution_id": "tex_d59aee6db93290bdabe675338c439525",
+        "action_id": "act_864d8a0f3605f43024b7c0f20470ed7a",
+        "mode": "success",
+        "synthetic_effect_records": 1,
+        "physical_requests": 1
+      }
+    ]
+  },
+  "ui_prepared_revoked": {
+    "execution_id": "tex_bf470d8624f73284e04d9f752d0250ea",
+    "action_id": "act_4981e623e491cfcd8eb18b9a0016fbf2",
+    "physical_requests": 0
+  },
+  "limitations": [
+    "Fixed read-only fixture has no mutable business data; its ledger records observations only.",
+    "Legacy action fixture effects are synthetic records, not real external business actions.",
+    "This bounded observation is not a universal exactly-once guarantee."
+  ]
+}

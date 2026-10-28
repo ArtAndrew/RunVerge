@@ -1,0 +1,138 @@
+{
+  "runs": {
+    "id": "run-1",
+    "organization_id": "org-1",
+    "task_id": "task-1",
+    "created_at": "2026-10-23T10:00:00Z",
+    "principal_id": "principal-1",
+    "agent_id": "agent-1",
+    "agent_version": 2,
+    "status": "succeeded"
+  },
+  "operations": {
+    "id": "operation-1",
+    "organization_id": "org-1",
+    "task_id": "task-1",
+    "created_at": "2026-10-23T10:00:00Z",
+    "run_id": "run-1",
+    "status": "succeeded",
+    "fencing_token": 7,
+    "attempts": 2,
+    "max_attempts": 3
+  },
+  "actions": {
+    "id": "action-1",
+    "organization_id": "org-1",
+    "task_id": "task-1",
+    "created_at": "2026-10-23T10:00:00Z",
+    "operation_id": "operation-1",
+    "intent_hash": "intent-1",
+    "idempotency_key": "physical-attempt-1",
+    "status": "unknown"
+  },
+  "approvals": {
+    "id": "approval-1",
+    "organization_id": "org-1",
+    "task_id": "task-1",
+    "created_at": "2026-10-23T10:00:00Z",
+    "action_id": "action-1",
+    "intent_hash": "intent-1",
+    "status": "pending",
+    "version": 2,
+    "expires_at": "2026-10-23T11:00:00Z"
+  },
+  "costs": {
+    "reservations": [
+      {
+        "id": "reservation-1",
+        "organization_id": "org-1",
+        "task_id": "task-1",
+        "created_at": "2026-10-23T10:00:00Z",
+        "operation_id": "operation-1",
+        "root_id": "task-1",
+        "scope_task_ids": [
+          "task-1"
+        ],
+        "charge_key": "physical-attempt-1",
+        "category": "model",
+        "provider": "fixture:echo",
+        "price_version": "fixture-v1",
+        "amount_microusd": "3000",
+        "status": "unknown",
+        "revision": 1,
+        "pending_quarantine_id": "quarantine-1"
+      }
+    ],
+    "entries": [
+      {
+        "id": "entry-1",
+        "organization_id": "org-1",
+        "task_id": "task-1",
+        "created_at": "2026-10-23T10:00:00Z",
+        "reservation_id": "reservation-2",
+        "root_id": "task-1",
+        "kind": "adjustment",
+        "delta_reserved_microusd": "-1000",
+        "delta_spent_microusd": "-100",
+        "synthetic": true
+      }
+    ],
+    "incidents": [
+      {
+        "id": "incident-1",
+        "organization_id": "org-1",
+        "task_id": "task-1",
+        "created_at": "2026-10-23T10:00:00Z",
+        "reservation_id": "reservation-1",
+        "kind": "overage",
+        "amount_microusd": "9223372036854775807"
+      }
+    ],
+    "budget_microusd": 10000,
+    "reserved_microusd": "3000",
+    "spent_microusd": "9007199254740993",
+    "unknown_microusd": "3000",
+    "financial_hold": true,
+    "next_reservation_cursor": "r:123+456/789==",
+    "next_entry_cursor": "e:123+456/789==",
+    "next_incident_cursor": "i:123+456/789==",
+    "future_field": {
+      "retained": true
+    },
+    "quarantines": [
+      {
+        "id": "quarantine-1",
+        "organization_id": "org-1",
+        "reservation_id": "reservation-1",
+        "evidence_id": "evidence-1",
+        "task_id": "task-1",
+        "actual_microusd": "9223372036854775807",
+        "status": "pending",
+        "reason": "projection_overflow",
+        "requested_kind": "settle",
+        "base_revision": 1,
+        "revision": 1,
+        "created_at": "2026-10-23T10:00:00Z"
+      }
+    ],
+    "pending_quarantine_count": 1,
+    "incomplete": true,
+    "next_quarantine_cursor": "q:123+456/789==",
+    "unknown_reservation_count": "1"
+  },
+  "models": {
+    "id": "mdl_fixture",
+    "model": "test-http-text",
+    "version": 1,
+    "price_version": "bounded-v1",
+    "max_charge_microusd": 10000,
+    "max_input_bytes": 4096,
+    "max_output_tokens": 128,
+    "bound_assumptions": "Test profile only; no real-provider billing claim",
+    "created_at": "2026-10-23T12:00:00Z",
+    "accounting_mode": "metered",
+    "max_input_tokens": 10000,
+    "max_output_bytes": 16384,
+    "timeout_milliseconds": 60000
+  }
+}

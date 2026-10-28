@@ -1,0 +1,30 @@
+{
+  "contract": "0.6.0",
+  "result": "pass",
+  "executed_at": "2026-10-24T05:43:54.911Z",
+  "scope": "built UI with intercepted API fixtures; no live API/PG/provider",
+  "checks": [
+    "prepare preview exact UTF8 args with large number",
+    "reserve uses returned task version increment of two",
+    "stale frozen command blocked",
+    "approve does not dispatch",
+    "explicit cost acknowledgment",
+    "unknown never resend",
+    "operator assertion empty result",
+    "preserves reservation and unaccepted candidate",
+    "tampered arguments blocked",
+    "inert markup",
+    "390px no horizontal overflow"
+  ],
+  "mutation_count": 4,
+  "prepare": 1,
+  "decide": 1,
+  "dispatch": 1,
+  "reconcile": 1,
+  "browser_errors": 0,
+  "real_provider_call": false,
+  "screenshots": [
+    "tools-0.6-desktop.png",
+    "tools-0.6-mobile.png"
+  ]
+}

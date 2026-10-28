@@ -1,0 +1,190 @@
+{
+  "contract_version": "0.14.0",
+  "guards": "See EXECUTION.md and COSTS.md. A listed transition never replaces authorization, fencing, evidence or optimistic concurrency.",
+  "transitions": {
+    "action": {
+      "confirmed": [],
+      "pending": [
+        "sent",
+        "rejected",
+        "confirmed"
+      ],
+      "rejected": [
+        "confirmed"
+      ],
+      "sent": [
+        "confirmed",
+        "unknown",
+        "rejected"
+      ],
+      "unknown": [
+        "confirmed",
+        "rejected"
+      ]
+    },
+    "approval": {
+      "approved": [],
+      "denied": [],
+      "expired": [],
+      "pending": [
+        "approved",
+        "denied",
+        "expired"
+      ]
+    },
+    "operation": {
+      "blocked": [
+        "queued",
+        "cancelled",
+        "succeeded",
+        "failed"
+      ],
+      "cancelled": [],
+      "failed": [],
+      "leased": [
+        "leased",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "blocked"
+      ],
+      "queued": [
+        "leased",
+        "cancelled",
+        "blocked"
+      ],
+      "succeeded": []
+    },
+    "reservation": {
+      "released": [
+        "settled"
+      ],
+      "reserved": [
+        "unknown",
+        "settled",
+        "released"
+      ],
+      "settled": [
+        "settled"
+      ],
+      "unknown": [
+        "settled",
+        "released"
+      ]
+    },
+    "run": {
+      "blocked": [
+        "queued",
+        "cancelled",
+        "waiting_input"
+      ],
+      "cancelled": [],
+      "failed": [],
+      "queued": [
+        "running",
+        "cancelled",
+        "blocked"
+      ],
+      "running": [
+        "succeeded",
+        "failed",
+        "cancelled",
+        "blocked",
+        "waiting_input",
+        "waiting_approval"
+      ],
+      "succeeded": [],
+      "waiting_approval": [
+        "queued",
+        "cancelled",
+        "waiting_input",
+        "blocked"
+      ],
+      "waiting_input": [
+        "queued",
+        "cancelled",
+        "succeeded",
+        "failed",
+        "waiting_approval"
+      ]
+    },
+    "task": {
+      "blocked": [
+        "queued",
+        "cancelled",
+        "waiting_input"
+      ],
+      "cancelled": [],
+      "failed": [],
+      "queued": [
+        "running",
+        "cancelled",
+        "blocked",
+        "failed"
+      ],
+      "running": [
+        "succeeded",
+        "failed",
+        "waiting_input",
+        "waiting_approval",
+        "blocked",
+        "cancelled"
+      ],
+      "succeeded": [],
+      "waiting_approval": [
+        "queued",
+        "cancelled",
+        "waiting_input",
+        "blocked"
+      ],
+      "waiting_input": [
+        "queued",
+        "cancelled",
+        "succeeded",
+        "failed",
+        "blocked",
+        "waiting_approval"
+      ]
+    },
+    "tool_execution": {
+      "approved": [
+        "queued",
+        "expired",
+        "cancelled"
+      ],
+      "awaiting_approval": [
+        "approved",
+        "denied",
+        "expired",
+        "cancelled"
+      ],
+      "cancelled": [],
+      "denied": [],
+      "expired": [],
+      "leased": [
+        "leased",
+        "sent",
+        "expired",
+        "cancelled",
+        "rejected"
+      ],
+      "queued": [
+        "leased",
+        "expired",
+        "cancelled",
+        "rejected"
+      ],
+      "rejected": [],
+      "sent": [
+        "unknown",
+        "succeeded",
+        "rejected"
+      ],
+      "succeeded": [],
+      "unknown": [
+        "succeeded",
+        "rejected"
+      ]
+    }
+  }
+}

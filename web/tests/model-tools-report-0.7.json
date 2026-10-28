@@ -1,0 +1,35 @@
+{
+  "contract": "0.7.0",
+  "result": "pass",
+  "executed_at": "2026-10-24T06:29:14.209Z",
+  "scope": "built browser with intercepted API contract fixtures; no real API/PG/model/tool call",
+  "checks": [
+    "native source cannot be accepted or published as final prose",
+    "no automatic prepare/approval/dispatch/continuation",
+    "exact large integer and whitespace preserved from proposal",
+    "stable proposal occurrence binding",
+    "separate approve and cost acknowledged dispatch",
+    "batch serial preparation retains both calls",
+    "second proposal explicitly denied without dispatch",
+    "all exact terminal observations bound before continuing",
+    "separate new model cost acknowledgment",
+    "same Run and attempt, final prose awaiting review",
+    "tool result markup inert",
+    "390px no horizontal overflow",
+    "native package change/reject available while accept stays hidden",
+    "delayed action A poll cannot replace selected action B or its receipt",
+    "continuation uses continue-specific permission",
+    "390px modal scroll reaches checkbox and footer with disabled/enabled cost acknowledgment"
+  ],
+  "mutation_count": 6,
+  "prepare": 2,
+  "decide": 2,
+  "dispatch": 1,
+  "continue_model": 1,
+  "browser_errors": 0,
+  "screenshots": [
+    "model-tools-0.7-desktop.png",
+    "model-tools-0.7-mobile.png",
+    "model-tools-0.7-mobile-footer.png"
+  ]
+}

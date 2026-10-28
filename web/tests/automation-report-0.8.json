@@ -1,0 +1,31 @@
+{
+  "contract": "0.8.0",
+  "result": "pass",
+  "executed_at": "2026-10-24T06:55:38.233Z",
+  "scope": "built browser with intercepted API contract fixtures; no real API/database/model/tool effects",
+  "checks": [
+    "opening and refreshing only reads",
+    "read mode requires explicit opt-in and excludes distinct/write",
+    "exact pinned subset and canonical string money",
+    "cost acknowledgment and reason required",
+    "stale task version disables creation",
+    "stale grant version disables revoke",
+    "explicit revoke independent of logout",
+    "cumulative usage preserved and lower renewal limits denied locally",
+    "prepare mode explains separate manual approval and dispatch",
+    "unknown stop signal distinct from budget facts",
+    "opaque signal pagination and old-run evidence",
+    "markup in evidence and reasons remains inert",
+    "390px no horizontal overflow and modal footer reachable",
+    "fresh permission loss hides mutation controls"
+  ],
+  "mutation_count": 3,
+  "create": 2,
+  "revoke": 1,
+  "browser_errors": 0,
+  "screenshots": [
+    "automation-0.8-desktop.png",
+    "automation-0.8-mobile.png",
+    "automation-0.8-mobile-form.png"
+  ]
+}

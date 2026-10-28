@@ -1,0 +1,1150 @@
+{
+  "GET /api/v1/agents": {
+    "python": {
+      "status": "available",
+      "name": "list_agents"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "listAgents"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Агенты · список"
+    }
+  },
+  "POST /api/v1/agents": {
+    "python": {
+      "status": "available",
+      "name": "create_agent"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "createAgent"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Агенты · Сохранить черновик"
+    }
+  },
+  "POST /api/v1/agents/{id}/publish": {
+    "python": {
+      "status": "available",
+      "name": "publish_agent"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "publishAgent"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Агенты · Опубликовать"
+    }
+  },
+  "GET /api/v1/capabilities": {
+    "python": {
+      "status": "available",
+      "name": "capabilities"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "capabilities"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Возможности · каталог и пути начала работы"
+    }
+  },
+  "GET /api/v1/compatibility": {
+    "python": {
+      "status": "not_exposed",
+      "name": ""
+    },
+    "typescript": {
+      "status": "not_exposed",
+      "name": ""
+    },
+    "workspace": {
+      "status": "not_exposed",
+      "name": ""
+    }
+  },
+  "GET /api/v1/configuration/audit": {
+    "python": {
+      "status": "available",
+      "name": "configuration_audit"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationAudit"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · История настройки"
+    }
+  },
+  "GET /api/v1/configuration/catalog": {
+    "python": {
+      "status": "available",
+      "name": "configuration_catalog"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationCatalog"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Что доступно"
+    }
+  },
+  "GET /api/v1/configuration/destinations": {
+    "python": {
+      "status": "available",
+      "name": "configuration_destinations"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationDestinations"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Места подключения и версии"
+    }
+  },
+  "GET /api/v1/configuration/grants": {
+    "python": {
+      "status": "available",
+      "name": "configuration_grants"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationGrants"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Разрешения агентам и участникам"
+    }
+  },
+  "POST /api/v1/configuration/grants": {
+    "python": {
+      "status": "available",
+      "name": "create_configuration_grant"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "createConfigurationGrant"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Выдать разрешение / Передать часть прав"
+    }
+  },
+  "GET /api/v1/configuration/grants/{grant_id}": {
+    "python": {
+      "status": "available",
+      "name": "configuration_grant"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationGrant"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Проверка актуального разрешения перед действием"
+    }
+  },
+  "POST /api/v1/configuration/grants/{grant_id}/revoke": {
+    "python": {
+      "status": "available",
+      "name": "revoke_configuration_grant"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "revokeConfigurationGrant"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Подтвердить отзыв"
+    }
+  },
+  "GET /api/v1/configuration/plans": {
+    "python": {
+      "status": "available",
+      "name": "configuration_plans"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationPlans"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Планы изменений"
+    }
+  },
+  "POST /api/v1/configuration/plans": {
+    "python": {
+      "status": "available",
+      "name": "create_configuration_plan"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "createConfigurationPlan"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Сохранить план"
+    }
+  },
+  "GET /api/v1/configuration/plans/{plan_id}": {
+    "python": {
+      "status": "available",
+      "name": "configuration_plan"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationPlan"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Проверка актуального плана перед действием"
+    }
+  },
+  "POST /api/v1/configuration/plans/{plan_id}/apply": {
+    "python": {
+      "status": "available",
+      "name": "apply_configuration_plan"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "applyConfigurationPlan"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Подтвердить применение"
+    }
+  },
+  "POST /api/v1/configuration/plans/{plan_id}/approve": {
+    "python": {
+      "status": "available",
+      "name": "approve_configuration_plan"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "approveConfigurationPlan"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Подтвердить согласование"
+    }
+  },
+  "POST /api/v1/configuration/plans/{plan_id}/validate": {
+    "python": {
+      "status": "available",
+      "name": "validate_configuration_plan"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "validateConfigurationPlan"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Сохранить проверку плана"
+    }
+  },
+  "POST /api/v1/configuration/plans/{plan_id}/verify": {
+    "python": {
+      "status": "available",
+      "name": "start_configuration_verification"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "startConfigurationVerification"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Запустить одну проверку"
+    }
+  },
+  "GET /api/v1/configuration/resources": {
+    "python": {
+      "status": "available",
+      "name": "configuration_resources"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationResources"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Сохранённые версии настроек"
+    }
+  },
+  "GET /api/v1/configuration/verifications": {
+    "python": {
+      "status": "available",
+      "name": "configuration_verifications"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationVerifications"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Настройки подключений · Проверки соединений"
+    }
+  },
+  "GET /api/v1/configuration/verifications/{verification_id}": {
+    "python": {
+      "status": "available",
+      "name": "configuration_verification"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "configurationVerification"
+    },
+    "workspace": {
+      "status": "not_exposed",
+      "name": ""
+    }
+  },
+  "GET /api/v1/login-policy": {
+    "python": {
+      "status": "available",
+      "name": "get_login_policy"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getLoginPolicy"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · Политика входа"
+    }
+  },
+  "POST /api/v1/login-policy/update": {
+    "python": {
+      "status": "available",
+      "name": "update_login_policy"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "updateLoginPolicy"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · Изменить политику входа"
+    }
+  },
+  "GET /api/v1/me": {
+    "python": {
+      "status": "available",
+      "name": "get_current_identity"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getCurrentIdentity"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Подключение и текущая учётная запись · подтверждение доступа"
+    }
+  },
+  "GET /api/v1/members": {
+    "python": {
+      "status": "available",
+      "name": "list_members"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "listMembers"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Участники · список"
+    }
+  },
+  "POST /api/v1/members": {
+    "python": {
+      "status": "available",
+      "name": "create_member"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "createMember"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Участники · Добавить участника"
+    }
+  },
+  "GET /api/v1/members/capabilities": {
+    "python": {
+      "status": "available",
+      "name": "membership_capabilities"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "membershipCapabilities"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Участники · Доступные действия управления"
+    }
+  },
+  "GET /api/v1/members/{principal_id}": {
+    "python": {
+      "status": "available",
+      "name": "get_member"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getMember"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Участники · актуальная карточка участника"
+    }
+  },
+  "POST /api/v1/members/{principal_id}/revoke-credentials": {
+    "python": {
+      "status": "available",
+      "name": "revoke_member_credentials"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "revokeMemberCredentials"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Участники · Отозвать учётные данные"
+    }
+  },
+  "POST /api/v1/members/{principal_id}/update": {
+    "python": {
+      "status": "available",
+      "name": "update_member"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "updateMember"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Участники · Изменить участника"
+    }
+  },
+  "GET /api/v1/membership-audit": {
+    "python": {
+      "status": "available",
+      "name": "list_membership_audit"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "listMembershipAudit"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Участники · История изменений доступа"
+    }
+  },
+  "GET /api/v1/models": {
+    "python": {
+      "status": "available",
+      "name": "list_models"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "models"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Агенты · Выбор установленной модели"
+    }
+  },
+  "GET /api/v1/security-audit": {
+    "python": {
+      "status": "available",
+      "name": "list_security_audit"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "listSecurityAudit"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · История безопасности"
+    }
+  },
+  "GET /api/v1/service-accounts": {
+    "python": {
+      "status": "available",
+      "name": "list_service_accounts"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "listServiceAccounts"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · Служебные аккаунты"
+    }
+  },
+  "POST /api/v1/service-accounts": {
+    "python": {
+      "status": "available",
+      "name": "create_service_account"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "createServiceAccount"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · Создать служебный аккаунт"
+    }
+  },
+  "GET /api/v1/service-accounts/{principal_id}": {
+    "python": {
+      "status": "available",
+      "name": "get_service_account"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getServiceAccount"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · Карточка служебного аккаунта"
+    }
+  },
+  "GET /api/v1/service-accounts/{principal_id}/keys": {
+    "python": {
+      "status": "available",
+      "name": "list_service_keys"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "listServiceKeys"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · Метаданные ключей аккаунта"
+    }
+  },
+  "GET /api/v1/service-accounts/{principal_id}/keys/{key_id}": {
+    "python": {
+      "status": "available",
+      "name": "get_service_key"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getServiceKey"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · Проверка ключа перед отзывом"
+    }
+  },
+  "POST /api/v1/service-accounts/{principal_id}/keys/{key_id}/revoke": {
+    "python": {
+      "status": "available",
+      "name": "revoke_service_key"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "revokeServiceKey"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · Отозвать ключ"
+    }
+  },
+  "POST /api/v1/service-accounts/{principal_id}/update": {
+    "python": {
+      "status": "available",
+      "name": "update_service_account"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "updateServiceAccount"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Безопасность · Изменить служебный аккаунт"
+    }
+  },
+  "GET /api/v1/tasks": {
+    "python": {
+      "status": "available",
+      "name": "list_tasks"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "listTasks"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задачи · список"
+    }
+  },
+  "POST /api/v1/tasks": {
+    "python": {
+      "status": "available",
+      "name": "create_task"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "createTask"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задачи · Создать задачу"
+    }
+  },
+  "GET /api/v1/tasks/{id}": {
+    "python": {
+      "status": "available",
+      "name": "get_task"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getTask"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задачи · Карточка задачи"
+    }
+  },
+  "GET /api/v1/tasks/{id}/actions": {
+    "python": {
+      "status": "available",
+      "name": "actions"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "actions"
+    },
+    "workspace": {
+      "status": "not_exposed",
+      "name": ""
+    }
+  },
+  "GET /api/v1/tasks/{id}/approvals": {
+    "python": {
+      "status": "available",
+      "name": "approvals"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "approvals"
+    },
+    "workspace": {
+      "status": "not_exposed",
+      "name": ""
+    }
+  },
+  "GET /api/v1/tasks/{id}/artifacts": {
+    "python": {
+      "status": "available",
+      "name": "artifacts"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "artifacts"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Материалы и результаты"
+    }
+  },
+  "GET /api/v1/tasks/{id}/artifacts/{artifact_id}": {
+    "python": {
+      "status": "available",
+      "name": "get_artifact"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getArtifact"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Точная версия результата или квитанции"
+    }
+  },
+  "GET /api/v1/tasks/{id}/automation": {
+    "python": {
+      "status": "available",
+      "name": "automation"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "automation"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Автоматическая работа"
+    }
+  },
+  "POST /api/v1/tasks/{id}/automation": {
+    "python": {
+      "status": "available",
+      "name": "create_automation"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "createAutomation"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Выдать разрешение на автоматическую работу"
+    }
+  },
+  "POST /api/v1/tasks/{id}/automation/revoke": {
+    "python": {
+      "status": "available",
+      "name": "revoke_automation"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "revokeAutomation"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Отозвать автоматическое разрешение"
+    }
+  },
+  "POST /api/v1/tasks/{id}/cancel": {
+    "python": {
+      "status": "available",
+      "name": "cancel_task"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "cancelTask"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Отменить задачу"
+    }
+  },
+  "GET /api/v1/tasks/{id}/candidates": {
+    "python": {
+      "status": "available",
+      "name": "candidates"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "candidates"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Результат для проверки"
+    }
+  },
+  "GET /api/v1/tasks/{id}/children": {
+    "python": {
+      "status": "available",
+      "name": "children"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "children"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Работа участников команды"
+    }
+  },
+  "POST /api/v1/tasks/{id}/continue-model": {
+    "python": {
+      "status": "available",
+      "name": "continue_model"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "continueModel"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Действия · Продолжить модель с результатами"
+    }
+  },
+  "GET /api/v1/tasks/{id}/costs": {
+    "python": {
+      "status": "available",
+      "name": "costs"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "costs"
+    },
+    "workspace": {
+      "status": "not_exposed",
+      "name": ""
+    }
+  },
+  "GET /api/v1/tasks/{id}/decisions": {
+    "python": {
+      "status": "available",
+      "name": "decisions"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "decisions"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · История решений по результату"
+    }
+  },
+  "GET /api/v1/tasks/{id}/event-feed": {
+    "python": {
+      "status": "available",
+      "name": "task_event_feed"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "taskEventFeed"
+    },
+    "workspace": {
+      "status": "not_exposed",
+      "name": ""
+    }
+  },
+  "GET /api/v1/tasks/{id}/event-snapshot": {
+    "python": {
+      "status": "available",
+      "name": "get_task_event_snapshot"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getTaskEventSnapshot"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Начальное состояние хода работы"
+    }
+  },
+  "GET /api/v1/tasks/{id}/event-stream": {
+    "python": {
+      "status": "available",
+      "name": "stream_task_events"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "streamTaskEvents"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Ход работы в реальном времени"
+    }
+  },
+  "GET /api/v1/tasks/{id}/events": {
+    "python": {
+      "status": "available",
+      "name": "events"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "events"
+    },
+    "workspace": {
+      "status": "not_exposed",
+      "name": ""
+    }
+  },
+  "GET /api/v1/tasks/{id}/materials": {
+    "python": {
+      "status": "available",
+      "name": "materials"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "materials"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Рабочие материалы"
+    }
+  },
+  "POST /api/v1/tasks/{id}/materials": {
+    "python": {
+      "status": "available",
+      "name": "create_material"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "createMaterial"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Создать рабочий материал"
+    }
+  },
+  "GET /api/v1/tasks/{id}/materials/{material_id}": {
+    "python": {
+      "status": "available",
+      "name": "get_material"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getMaterial"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Открыть рабочий материал"
+    }
+  },
+  "POST /api/v1/tasks/{id}/materials/{material_id}/publish": {
+    "python": {
+      "status": "available",
+      "name": "publish_material"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "publishMaterial"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Предложить материал на проверку"
+    }
+  },
+  "GET /api/v1/tasks/{id}/materials/{material_id}/revisions": {
+    "python": {
+      "status": "available",
+      "name": "material_revisions"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "materialRevisions"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · История версий рабочего материала"
+    }
+  },
+  "POST /api/v1/tasks/{id}/materials/{material_id}/revisions": {
+    "python": {
+      "status": "available",
+      "name": "revise_material"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "reviseMaterial"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Сохранить новую версию рабочего материала"
+    }
+  },
+  "GET /api/v1/tasks/{id}/materials/{material_id}/revisions/{version}": {
+    "python": {
+      "status": "available",
+      "name": "get_material_version"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getMaterialVersion"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Точная версия рабочего материала"
+    }
+  },
+  "GET /api/v1/tasks/{id}/model-tool-proposals": {
+    "python": {
+      "status": "available",
+      "name": "model_proposals"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "modelProposals"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Предложения модели по инструментам"
+    }
+  },
+  "GET /api/v1/tasks/{id}/model-tool-proposals/{proposal_id}": {
+    "python": {
+      "status": "available",
+      "name": "get_model_proposal"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getModelProposal"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Точные аргументы предложения модели"
+    }
+  },
+  "GET /api/v1/tasks/{id}/operations": {
+    "python": {
+      "status": "available",
+      "name": "operations"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "operations"
+    },
+    "workspace": {
+      "status": "not_exposed",
+      "name": ""
+    }
+  },
+  "GET /api/v1/tasks/{id}/progress-signals": {
+    "python": {
+      "status": "available",
+      "name": "progress_signals"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "progressSignals"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Сигналы автоматической работы"
+    }
+  },
+  "POST /api/v1/tasks/{id}/retry": {
+    "python": {
+      "status": "available",
+      "name": "retry_task"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "retryTask"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Новая попытка с подтверждением расходов"
+    }
+  },
+  "POST /api/v1/tasks/{id}/review": {
+    "python": {
+      "status": "available",
+      "name": "review_task"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "reviewTask"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Сохранить решение по точному результату"
+    }
+  },
+  "GET /api/v1/tasks/{id}/runs": {
+    "python": {
+      "status": "available",
+      "name": "runs"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "runs"
+    },
+    "workspace": {
+      "status": "not_exposed",
+      "name": ""
+    }
+  },
+  "GET /api/v1/tasks/{id}/tool-executions": {
+    "python": {
+      "status": "available",
+      "name": "tool_executions"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "toolExecutions"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Действия · Список внешних действий"
+    }
+  },
+  "POST /api/v1/tasks/{id}/tool-executions": {
+    "python": {
+      "status": "available",
+      "name": "prepare_tool_execution"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "prepareToolExecution"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Действия · Подготовить внешнее действие"
+    }
+  },
+  "GET /api/v1/tasks/{id}/tool-executions/{execution_id}": {
+    "python": {
+      "status": "available",
+      "name": "get_tool_execution"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "getToolExecution"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Действия · Точное внешнее действие"
+    }
+  },
+  "POST /api/v1/tasks/{id}/tool-executions/{execution_id}/decide": {
+    "python": {
+      "status": "available",
+      "name": "decide_tool_execution"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "decideToolExecution"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Действия · Разрешить или отклонить действие"
+    }
+  },
+  "POST /api/v1/tasks/{id}/tool-executions/{execution_id}/dispatch": {
+    "python": {
+      "status": "available",
+      "name": "dispatch_tool_execution"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "dispatchToolExecution"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Действия · Отправить с подтверждением расходов"
+    }
+  },
+  "POST /api/v1/tasks/{id}/tool-executions/{execution_id}/reconcile": {
+    "python": {
+      "status": "available",
+      "name": "reconcile_tool_execution"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "reconcileToolExecution"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Задача · Действия · Сверить неизвестный исход"
+    }
+  },
+  "GET /api/v1/tools": {
+    "python": {
+      "status": "available",
+      "name": "tools"
+    },
+    "typescript": {
+      "status": "available",
+      "name": "tools"
+    },
+    "workspace": {
+      "status": "available",
+      "name": "Агенты и действия задачи · Выбор установленных инструментов"
+    }
+  }
+}

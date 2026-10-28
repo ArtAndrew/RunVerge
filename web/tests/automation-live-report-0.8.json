@@ -1,0 +1,49 @@
+{
+  "contract": "0.8.0",
+  "result": "pass",
+  "executed_at": "2026-10-24T06:58:32.920Z",
+  "scope": "actual built browser -> local API/PostgreSQL/worker; synthetic model; prepared write was never approved or dispatched; no business-response interception",
+  "task_id": "tsk_19432ca3b4ba0da9325279ea85404803",
+  "agent_id": "agt_4f90cdb489ee0c06d8784c342ee323ec",
+  "grant_id": "aut_4c646760783d1d3fe12b1a99557d1dc4",
+  "execution_id": "tex_bf470d8624f73284e04d9f752d0250ea",
+  "action_id": "act_4981e623e491cfcd8eb18b9a0016fbf2",
+  "model": "native-local-fixture",
+  "tool_id": "tool_local_action_fixture",
+  "grant_status": "revoked",
+  "usage": {
+    "model_turns": 0,
+    "tool_executions": 1,
+    "allocated_microusd": "17"
+  },
+  "maximum_charge_microusd": "10000",
+  "spent_microusd": "0",
+  "reserved_microusd": "1017",
+  "browser_mutations": [
+    {
+      "path": "/api/v1/tasks/tsk_19432ca3b4ba0da9325279ea85404803/automation",
+      "body_digest": "a8d5390934e8d39b896e6bed7ae29c236ba130766b283381c41d09353ef1921a"
+    },
+    {
+      "path": "/api/v1/tasks/tsk_19432ca3b4ba0da9325279ea85404803/automation/revoke",
+      "body_digest": "018920f75f2c24f19086dd1eb0e977d1f50e300d976c57a3b5cc36cce8d4838e"
+    }
+  ],
+  "checks": [
+    "opening reads only",
+    "write unavailable in read-only mode",
+    "exact pinned subset",
+    "explicit reason and cost acknowledgment",
+    "prepare mode stops before human approval and dispatch",
+    "current usage and cost ceilings shown",
+    "explicit revoke independent of logout",
+    "revoke preserves unsent prepared action without automatic dispatch",
+    "same Run and one model operation",
+    "390px no horizontal overflow and reachable revoke footer"
+  ],
+  "browser_errors": 0,
+  "screenshots": [
+    "automation-live-0.8-desktop.png",
+    "automation-live-0.8-mobile.png"
+  ]
+}

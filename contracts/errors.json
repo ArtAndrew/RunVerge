@@ -1,0 +1,50 @@
+{
+  "contract_version": "0.14.0",
+  "errors": {
+    "budget_exceeded": {
+      "http_status": 409,
+      "meaning": "Admission would exceed a scope budget or a financial hold is active."
+    },
+    "conflict": {
+      "http_status": 409,
+      "meaning": "A version, intent, idempotency key or recorded outcome conflicts."
+    },
+    "forbidden": {
+      "http_status": 403,
+      "meaning": "The authenticated subject lacks current authority."
+    },
+    "incompatible_client": {
+      "http_status": 409,
+      "meaning": "The client must explicitly select the supported API contract before a command or read is admitted."
+    },
+    "internal_error": {
+      "http_status": 500,
+      "meaning": "An unexpected internal failure occurred; details are not exposed."
+    },
+    "invalid_request": {
+      "http_status": 400,
+      "meaning": "Input is malformed, unsupported or outside the supported bounds."
+    },
+    "invalid_transition": {
+      "http_status": 409,
+      "meaning": "The requested change is not allowed in the current state."
+    },
+    "not_found": {
+      "http_status": 404,
+      "meaning": "The object is absent or outside the selected organization."
+    },
+    "stale_lease": {
+      "http_status": 409,
+      "meaning": "Execution authority or its fencing token is no longer valid."
+    },
+    "unauthenticated": {
+      "http_status": 401,
+      "meaning": "Credentials are missing, invalid, expired or revoked."
+    },
+    "unavailable": {
+      "http_status": 503,
+      "meaning": "A dependency or admission capacity is currently unavailable."
+    }
+  },
+  "retry": "Read retryable from the response. Never blindly repeat an unknown external effect. SDKs do not automatically retry mutations."
+}
