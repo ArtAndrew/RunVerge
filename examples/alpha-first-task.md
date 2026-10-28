@@ -6,7 +6,7 @@ Use this short example after the [quickstart](../docs/QUICKSTART-ALPHA.md). It n
 
 ## From an agent draft to a task
 
-The **published alpha.3 package** can use the manual example below. The **current alpha.4 source candidate** adds a first-task guide and seven interface languages; it is not yet a published or accepted release.
+Alpha.4 includes a first-task guide and seven interface languages. For the older alpha.3 package, use the manual example below.
 
 1. **Create an agent draft.** For a single agent with empty name and instructions, you can choose **Use suggested agent instructions**. This fills editable instructions for working only from supplied text: preserve facts, flag missing information and produce a draft for review. It is optional. Choose a configured model and a budget yourself, then save.
 2. **Publish a version.** Check the agent card before publishing. Publication makes that version available for tasks; it does not call the model.

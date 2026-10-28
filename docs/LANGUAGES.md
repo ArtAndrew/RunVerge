@@ -1,8 +1,8 @@
 # Interface languages
 
-The **published alpha.3 package** includes English and Russian. The **current alpha.4 source candidate** adds Spanish, Brazilian Portuguese, German, French and Simplified Chinese, for seven interface languages. Alpha.4 has not yet been published or accepted as a release. Existing alpha.3 download links remain valid for that older package.
+Alpha.4 supports English, Russian, Spanish, Brazilian Portuguese, German, French and Simplified Chinese. The older alpha.3 download includes English and Russian only.
 
-## Choosing a language in the alpha.4 candidate
+## Choosing a language
 
 Use **Interface language** in the top bar. A supported saved choice takes precedence; otherwise Workspace checks browser language preferences and falls back to English. Portuguese preferences use Brazilian Portuguese (`pt-BR`). Chinese support is **Simplified Chinese only**: generic Chinese and `zh-CN`, `zh-SG` or `zh-Hans` preferences select it. Traditional Chinese preferences are skipped in favor of another supported browser preference, or English.
 
