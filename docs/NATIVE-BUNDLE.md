@@ -1,6 +1,6 @@
 # RunVerge native bundle
 
-Experimental 0.14.0-alpha.4 targets macOS arm64. Published packages are listed
+Experimental 0.14.0-alpha.5 targets macOS arm64. Published packages are listed
 on GitHub Releases. A separate Linux amd64/arm64 source/Compose preview is
 described in docs/LINUX-SERVER.md. A service supervisor, automatic updates,
 full backup/restore and release signing remain outside the supported alpha
@@ -110,3 +110,14 @@ binary, compiled web, source hashes, instructions, inventory and license
 notices enter the bundle. Private settings, fixtures, working data and test
 evidence are excluded. This is a component inventory, not yet a standard
 SPDX/CycloneDX SBOM or signed supply-chain provenance.
+
+## Repeat work in Workspace
+
+On a completed top-level task, choose **Use for a new task**, replace the source
+text, check the currently published agent and limits, then confirm creation.
+This starts a separate task; the original results, feedback and accounting stay
+unchanged. Opening the form does not call a model.
+
+Use **Compare results** to read two saved versions and their exact feedback.
+The view verifies artifact identity and content digests; it does not check facts,
+accept a result or run a model. The panels stack on narrow screens.
