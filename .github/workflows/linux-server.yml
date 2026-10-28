@@ -22,8 +22,46 @@ jobs:
           python3 -m unittest discover -s tests/development -p test_model_key.py -v
       - name: Build and verify a native Linux installation
         run: docker build --target runtime --tag runverge:linux-preview .
+      - name: Verify private runtime directory metadata
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, tarfile, tempfile
+          from pathlib import Path
+          container = subprocess.check_output(['docker', 'create', 'runverge:linux-preview', 'version'], text=True).strip()
+          try:
+              with tempfile.TemporaryDirectory() as root:
+                  archive = Path(root) / 'runtime.tar'
+                  subprocess.run(['docker', 'export', '--output', str(archive), container], check=True, capture_output=True)
+                  with tarfile.open(archive) as tar:
+                      state = next(item for item in tar if item.name.rstrip('/') == 'state')
+                  print(json.dumps({'state_directory_mode': oct(state.mode), 'state_uid': state.uid, 'state_gid': state.gid}))
+                  assert state.isdir() and state.uid == 10001 and state.gid == 10001 and state.mode & 0o077 == 0
+          finally:
+              subprocess.run(['docker', 'rm', '-f', container], check=True, capture_output=True)
+          PY
       - name: Check Compose, separate worker and restart
         run: python3 scripts/verify_server_container.py --evidence "$RUNNER_TEMP/runverge-evidence/compose.json"
+      - name: Classify deployment errors without exposing private logs
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          labels = {
+              'private_profile_directory': 'output requires a new file in an existing private directory owned by you',
+              'profile_rate_or_limit': 'profile limits are invalid',
+              'profile_command_arguments': 'usage: platform prepare-model',
+              'private_profile_parse': 'invalid private model configuration',
+              'profile_installation': 'model installation rejected',
+              'profile_catalogue': 'offline openrouter profile installation changed limits',
+          }
+          found = set()
+          for root in Path('/tmp').glob('runverge-compose-check-*'):
+              for log in root.glob('command-*.log'):
+                  body = log.read_text(errors='replace').lower()
+                  found.update(label for label, text in labels.items() if text in body)
+          print(json.dumps({'fixed_error_classifications': sorted(found)}))
+          PY
       - name: Export native verification evidence
         if: always()
         run: docker build --target evidence --output "type=local,dest=$RUNNER_TEMP/runverge-evidence/native" .
