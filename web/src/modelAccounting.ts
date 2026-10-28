@@ -3,6 +3,18 @@ import type {AvailableModel} from './api'
 import {money} from './format.ts'
 import {t} from './i18n.ts'
 
+// Suggest only an explicitly declared local profile. Metered profiles and
+// synthetic executors are never auto-selected; later pages preserve a choice.
+export function chooseModelSelection(current:string, explicitlySelected:boolean, profiles:AvailableModel[]):string {
+  if (explicitlySelected || current) return current
+  for (const profile of profiles) {
+    if (profile.accounting_mode !== 'operator_unmetered_local' || typeof profile.model !== 'string' || !profile.model || profile.model !== profile.model.trim() || /^(fixture|team):/.test(profile.model)) continue
+    validateModelProfile(profile)
+    return profile.model
+  }
+  return ''
+}
+
 export function validateModelProfile(value:AvailableModel):void {
   const within=(n:unknown,max:number)=>typeof n==='number'&&Number.isSafeInteger(n)&&n>=1&&n<=max
   if(!within(value.max_input_tokens,1_000_000_000)||!within(value.max_input_bytes,1_048_576)||

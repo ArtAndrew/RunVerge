@@ -1,10 +1,10 @@
 import {t} from './i18n'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { type Agent, type AvailableModel, type ApiClient, type Connection, type TeamDefinition, type ToolInfo, normalizeBaseUrl } from './api'
 import { byteLength, money, parseBudget } from './format'
 import { ErrorNotice, Icon, Modal } from './ui'
 import TeamFields, {validateTeamForm} from './TeamFields'
-import {modelTariffLabel,modelResourceLabel,validateModelProfile} from './modelAccounting'
+import {modelTariffLabel,modelResourceLabel,validateModelProfile,chooseModelSelection} from './modelAccounting'
 
 export function ConnectionForm({ initial, busy, error, onConnect }: { initial: Connection; busy: boolean; error: unknown; onConnect: (connection: Connection) => void }) {
   const [url, setUrl] = useState(initial.baseUrl)
@@ -75,7 +75,8 @@ export function AgentForm({ api, onClose, onCreated }: { api: ApiClient; onClose
   const [mode,setMode]=useState<'single'|'team'>('single')
   const [team,setTeam]=useState<TeamDefinition>({pattern:'sequence',members:[{id:'member-1',agent_id:'',agent_version:1},{id:'member-2',agent_id:'',agent_version:1}],join_policy:'all',max_depth:1,max_children:2,max_parallel:1})
   const [instructions, setInstructions] = useState('')
-  const [model, setModel] = useState('fixture:echo')
+  const [model, setModel] = useState('')
+  const modelExplicitlySelected = useRef(false)
   const [models, setModels] = useState<AvailableModel[]>([])
   const [modelCursor, setModelCursor] = useState<string | undefined>()
   const [modelError, setModelError] = useState<unknown>(null)
@@ -83,12 +84,17 @@ export function AgentForm({ api, onClose, onCreated }: { api: ApiClient; onClose
   useEffect(() => {
     const controller = new AbortController()
     setModelLoading(true)
-    void api.models(undefined, controller.signal).then(page => {page.data.forEach(validateModelProfile); setModels(page.data); setModelCursor(page.next_cursor); setModelError(null) }).catch(cause => { if (!controller.signal.aborted) setModelError(cause) }).finally(() => setModelLoading(false))
+    void api.models(undefined, controller.signal).then(page => {
+      if (controller.signal.aborted) return
+      page.data.forEach(validateModelProfile)
+      setModels(page.data); setModelCursor(page.next_cursor); setModelError(null)
+      setModel(current => chooseModelSelection(current, modelExplicitlySelected.current, page.data))
+    }).catch(cause => { if (!controller.signal.aborted) setModelError(cause) }).finally(() => { if (!controller.signal.aborted) setModelLoading(false) })
     return () => controller.abort()
   }, [api])
   async function loadModels() {
     setModelLoading(true)
-    try { const page = await api.models(modelCursor);page.data.forEach(validateModelProfile); setModels(current => [...new Map([...current, ...page.data].map(item => [item.id, item])).values()]); setModelCursor(page.next_cursor); setModelError(null) }
+    try { const page = await api.models(modelCursor);page.data.forEach(validateModelProfile); setModels(current => [...new Map([...current, ...page.data].map(item => [item.id, item])).values()]); setModelCursor(page.next_cursor); setModelError(null); setModel(current => chooseModelSelection(current, modelExplicitlySelected.current, page.data)) }
     catch (cause) { setModelError(cause) } finally { setModelLoading(false) }
   }
   const selectedModel = models.find(item => item.model === model)
@@ -102,7 +108,7 @@ export function AgentForm({ api, onClose, onCreated }: { api: ApiClient; onClose
   async function submit(event: FormEvent) {
     event.preventDefault()
     try {
-      if (!name.trim() || !instructions.trim() || !model.trim()) throw new Error('Заполните название, инструкции и модель.')
+      if (!name.trim() || !instructions.trim() || (mode === 'single' && !model.trim())) throw new Error('Заполните название, инструкции и модель.')
       if (byteLength(name.trim()) > 120) throw new Error('Название слишком длинное: максимум 120 байт.')
       if (byteLength(instructions.trim()) > 32 * 1024) throw new Error('Инструкции слишком большие: максимум 32 КиБ.')
       const amount = parseBudget(budget)
@@ -118,7 +124,7 @@ export function AgentForm({ api, onClose, onCreated }: { api: ApiClient; onClose
       <label className="field">{t("Тип исполнителя")}<select aria-label={t("Тип исполнителя")} value={mode} onChange={event=>setMode(event.target.value as 'single'|'team')} disabled={busy}><option value="single">{t("Один агент")}</option><option value="team">{t("Команда агентов")}</option></select></label>
       <label className="field">{t("Название")}<input value={name} onChange={event => setName(event.target.value)} placeholder={t("Например, редактор отчётов")} required disabled={busy} autoFocus /></label>
       <label className="field">{t("Инструкции")}<textarea value={instructions} onChange={event => setInstructions(event.target.value)} rows={5} placeholder={t("Опишите роль, порядок работы и требования к результату…")} required disabled={busy} /></label>
-      <div className="form-columns">{mode==='single'?<label className="field">{t("Модель")}<select aria-label={t("Модель")} value={model} onChange={event => setModel(event.target.value)} required disabled={busy}><option value="fixture:echo">{t("Тестовый исполнитель · fixture:echo")}</option>{models.map(item => <option key={item.id} value={item.model}>{item.model} · v{item.version}</option>)}</select><small>{t("Доступные подключения задаёт администратор.")}</small></label>:<div className="field"><span>{t("Исполнение")}</span><strong>{t("Координатор команды")}</strong><small>{t("Модели вызывают выбранные участники.")}</small></div>}<label className="field">{t("Лимит задачи, USD")}<div className="currency-input"><span>$</span><input aria-label={t("Лимит задачи, USD")} inputMode="decimal" value={budget} onChange={event => setBudget(event.target.value)} required disabled={busy} /></div></label></div>
+      <div className="form-columns">{mode==='single'?<label className="field">{t("Модель")}<select aria-label={t("Модель")} value={model} onChange={event => { modelExplicitlySelected.current = true; setModel(event.target.value) }} required disabled={busy}><option value="" disabled>{t("Выберите модель")}</option><option value="fixture:echo">{t("Тестовый исполнитель · fixture:echo")}</option>{models.map(item => <option key={item.id} value={item.model}>{item.model} · v{item.version}</option>)}</select><small>{t("Доступные подключения задаёт администратор.")}</small></label>:<div className="field"><span>{t("Исполнение")}</span><strong>{t("Координатор команды")}</strong><small>{t("Модели вызывают выбранные участники.")}</small></div>}<label className="field">{t("Лимит задачи, USD")}<div className="currency-input"><span>$</span><input aria-label={t("Лимит задачи, USD")} inputMode="decimal" value={budget} onChange={event => setBudget(event.target.value)} required disabled={busy} /></div></label></div>
       <ErrorNotice error={modelError} onRetry={() => void loadModels()} />
       {modelCursor && <button type="button" className="button button-secondary" disabled={modelLoading} onClick={() => void loadModels()}>{t("Загрузить ещё модели")}</button>}
       {mode==='single' && selectedModel && <div className="muted"><p>{modelTariffLabel(selectedModel)}</p><details><summary>{t("Ограничения модели")}</summary><p>{modelResourceLabel(selectedModel)}</p><p>{selectedModel.bound_assumptions}</p></details><p>{t("Денежный бюджет также ограничивает платные инструменты и подзадачи. Число попыток и срок всей работы задаются отдельно при создании задачи.")}</p></div>}

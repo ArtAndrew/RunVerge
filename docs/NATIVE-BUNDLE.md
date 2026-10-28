@@ -1,6 +1,6 @@
 # RunVerge native bundle
 
-Status: alpha.1 release candidate, not yet published. The first supported
+Status: experimental 0.14.0-alpha.1 is published. The first supported
 test target is macOS arm64. Linux, Compose, Helm, a service supervisor,
 automatic updates, backup/restore and release signing still require work.
 

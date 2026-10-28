@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Elastic-2.0
 export const enCommon: Record<string, string> = {
+  "Выберите модель": "Select a model",
   " · Запрос {value0}": " · Request {value0}",
   " · тестовый": " · test",
   ". Общие ограничения организации также действуют.": ". Organization limits also apply.",
