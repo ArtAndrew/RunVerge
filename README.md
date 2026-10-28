@@ -1,65 +1,94 @@
 # RunVerge
 
-**A local workspace for reviewing and revising AI-generated drafts.**
+**AI work you can review: a local workspace for tasks, drafts, human decisions and retained attempts.**
 
-RunVerge connects a task, its generated result, human feedback, a separately approved new attempt and the retained history. The first alpha is for developers and technical leads who want to try that workflow with a local model.
+[English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)
 
-**Status: experimental alpha.1.** The release workflow is checked by an agent; independent user testing is still to follow.
+![RunVerge: task and limits → model draft → human review → optional approved revision → decision. Keep attempts, track budgets, use a local model.](docs/images/workflow.svg)
 
-**0.14.0-alpha.1 is experimental: macOS arm64, one local owner, test data only.** PostgreSQL 18 and Ollama are separate prerequisites. Keep important results outside the platform. This release has no supported backup/restore or upgrade path, and must not be exposed as a public multi-user service.
+**Give an agent a task. Check its draft. Request a correction. Keep both versions. Decide what to accept.** RunVerge packages that workflow with a browser Workspace, durable task records and execution controls, so you can try it without first building your own review application.
+
+[**Try alpha.1 →**](docs/QUICKSTART-ALPHA.md) · [**Download →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.1) · [**First task →**](examples/alpha-first-task.md) · [**Give feedback →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
+
+> **Experimental alpha.1:** macOS arm64 · one local owner · test data only. PostgreSQL 18 and a local model server such as Ollama are configured separately. Full restore, upgrades and production organization-wide deployment are not supported by this release. [Supported scope](docs/SUPPORT.md).
+
+## Who should try it?
+
+| You are… | You want… | What you can try today |
+|---|---|---|
+| A developer prototyping an AI application | A review workflow around generated work | Create an agent and task; inspect its draft, feedback and attempts through the UI, API or SDKs |
+| A technical lead evaluating an agent workflow | A clear record of what was produced and decided | Follow the task, original artifacts, human decisions and accounting state in one local workspace |
+| An early user working with a developer | Help drafting short documents from supplied facts | Summarize a text, draft an instruction or compare two supplied options, then review and revise |
+
+The supported alpha installation has **one owner**. The audience above does not imply a shared team service or a production deployment.
+
+## What you get out of the box
+
+| A common problem | RunVerge includes | Practical benefit |
+|---|---|---|
+| A model replies, but you still need an application for reviewing its work | Task page, candidate result, feedback and accept/reject actions | Try the complete draft-and-review loop in one application |
+| A correction loses the connection to the original answer | Separate attempts and retained artifacts | Inspect both results and keep the original |
+| Feedback accidentally becomes another model run | Feedback pauses the task; a new attempt needs explicit consent | Decide when to spend another attempt |
+| A failed or uncertain request makes the cost hard to interpret | Reservations, confirmed costs and unresolved outcomes are separate | See what needs reconciliation instead of treating an uncertain result as free |
+| You want to start with your own local model | A configured local-model path and a native application package | Try the workflow without a paid model API; hardware costs still apply |
+| The UI and your integration need the same behavior | Public contracts, CLI, Python SDK and TypeScript SDK | Use the same task-and-review operations from an application or script |
+
+**The advantage is an assembled workflow for this use case.** RunVerge is useful when the task, review, decision and accounting record matter together. It is an early product with a narrower supported scope than established agent ecosystems.
+
+## How it compares with other agent tools
+
+![Different starting points: compose agent behavior with LangChain, LangGraph, Deep Agents or DeepSeek Harness; try RunVerge's assembled task-and-review application. Capabilities overlap.](docs/images/starting-points.svg)
+
+| Project | Its main starting point | Choose it when… | RunVerge's different emphasis |
+|---|---|---|---|
+| [LangChain](https://docs.langchain.com/oss/python/langchain/overview) | Configurable agent loops, model/tool integrations and middleware | You want to compose agent behavior inside your application | A supplied local application for the task → draft → review → decision loop |
+| [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) | Stateful orchestration, durable execution and human intervention | You need custom graphs mixing deterministic and model-driven steps | An assembled task model, Workspace and review/accounting records |
+| [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) | A harness for planning, subagents, filesystem context and memory | You need those capabilities as agent-building primitives | The user's review and revision workflow around a retained result |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Extensible plugin-based harness with a Web UI | You want to customize the harness through its plugin architecture | An opinionated task, human decision, attempt and budget workflow |
+| **RunVerge alpha.1** | **A local task-and-review application** | **You want to evaluate that workflow with one owner and test data** | **UI + durable records + explicit revision consent + accounting controls** |
+
+Comparison describes the linked projects' public overviews, reviewed on 28 October 2026. It compares starting points, not features other projects lack. LangGraph and Deep Agents also support persistence and human intervention; the LangChain ecosystem offers managed deployment products. RunVerge has no comparative evidence of better model quality, speed, security or total cost.
+
+## How work stays under control
+
+![Before: check access and limits. During: reserve the configured cost ceiling. After: confirm costs or reconcile unknown outcomes. Unknown sent outcomes are not automatically resent.](docs/images/execution-controls.svg)
+
+- **Review and execution are separate.** Requesting changes records feedback; starting another attempt is a separate action with cost consent.
+- **Attempts have bounds.** Task budgets, attempt counts and deadlines constrain admission to more work. These controls do not guarantee factual accuracy or a provider's final bill.
+- **Uncertain outcomes stay visible.** An uncertain sent operation keeps its reservation and is not blindly resent.
+- **Local zero API tariff is explicit.** It does not meter CPU/GPU, electricity or hardware depreciation, and does not make paid tools free.
+- **MCP is included in a bounded form.** The alpha offers a trusted, explicitly configured [text-reading example](docs/MCP-READ.md), with separate permissions and execution approval. Arbitrary servers, OAuth and a general connector marketplace are outside this release.
 
 ## Try one useful task
 
-1. Follow the [quickstart](docs/QUICKSTART-ALPHA.md) to install the native package and configure a local model.
-2. Use the [small first task](examples/alpha-first-task.md): summarize supplied facts, review the output and request one correction.
-3. Keep both attempts, then decide whether the result is useful. The model's response is a candidate for human review.
+1. Follow the [quickstart](docs/QUICKSTART-ALPHA.md): install the native package and configure PostgreSQL and a local model.
+2. Use the [first task](examples/alpha-first-task.md): summarize five supplied facts into a short draft.
+3. Check the facts. Record a correction, then explicitly approve a new attempt.
+4. Inspect both artifacts and choose what to accept. Tell us whether you would return with a second task.
 
-Download candidates from [GitHub Releases](https://github.com/ArtAndrew/runverge/releases). Check the release's exact platform, limitations and archive SHA-256 before running it. The alpha has no publisher signature; a checksum verifies consistency with the published value, not publisher identity.
+The browser UI supports **English and Russian**, selectable in the top bar. The seven README languages do not imply seven interface translations. Changing the interface language preserves the connection and current work; task text and model output remain in their original language. [Language behavior](docs/LANGUAGES.md).
 
-## What this alpha focuses on
+Downloads and exact SHA-256 values are on [GitHub Releases](https://github.com/ArtAndrew/RunVerge/releases). The alpha has no publisher signature; a checksum checks consistency with the published value, not publisher identity.
 
-- A browser Workspace with tasks, generated artifacts, explicit feedback and a new attempt with separate cost consent.
-- Durable PostgreSQL state and retained attempts across ordinary restarts.
-- Budget reservations and separate tracking of uncertain outcomes, including a declared local zero API tariff. Hardware cost is not measured.
-- API, CLI and Python/TypeScript SDK interfaces using the same contracts.
-- An optional, narrowly configured [MCP text-reading example](docs/MCP-READ.md).
+## Know the current limits
 
-RunVerge packages the task-and-review workflow as an application with persistent state and operator controls. The broader organizational platform is a roadmap: this alpha does not establish better model quality, speed, security or cost than other frameworks. There are no comparative benchmarks.
+Alpha.1's release workflow was checked by an agent; independent new-user testing is still to follow. A small local model can omit facts or truncate an answer. Keep important results outside the platform.
 
-## How it relates to other tools
+Full recovery, upgrades, team usability, enterprise SSO lifecycle, provider deployment, arbitrary MCP integrations and production performance are outside alpha.1 acceptance. Do not expose this installation as a public multi-user service. Source components for additional features do not make them supported.
 
-| Project | Main focus | RunVerge alpha focus |
-|---|---|---|
-| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Extensible plugin-based harness and Web UI | A packaged task, review and retained-result workflow |
-| [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) | Planning, subagents and context management | Human feedback, explicit new attempts and operator controls |
-| [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) | Stateful orchestration runtime | An application with a Workspace, API and durable task records |
+Two attempts are separate artifacts and may share the name `model-candidate.txt` and artifact version 1. Use their IDs and creation times to distinguish them. A side-by-side comparison view is not available.
 
-These are overlapping layers, not interchangeable products. The LangChain ecosystem also offers managed platform products. RunVerge does not claim feature, quality, speed or security superiority over those ecosystems.
+## Feedback and documentation
 
-## Interface languages
-
-Russian and English are available from the top-bar language selector. The choice persists locally without signing out; user and model content remains in its original language. See [language behavior](docs/LANGUAGES.md).
-
-## Current limits
-
-The supported first scenario is one owner reviewing a document draft. A small local model can omit facts or truncate an answer. Full recovery, upgrades, team usability, enterprise SSO lifecycle, provider deployment, arbitrary MCP servers/OAuth, and production performance are outside alpha.1 acceptance. Existing internal components for later features do not make those features supported.
-
-Two generated attempts are separate artifacts. They can both be named `model-candidate.txt` and each have artifact version 1; use their IDs and creation times to distinguish them. There is no side-by-side comparison view.
-
-## Feedback
-
-[Open an issue](https://github.com/ArtAndrew/runverge/issues/new) with your operating system, release version, the step that failed and a small sanitized example. Never attach tokens, private configuration, database URLs or private documents. Tell us whether you reached a useful result, what you had to correct and whether you would use it for a second task.
-
-## Documentation
+[Open a feedback or bug report](https://github.com/ArtAndrew/RunVerge/issues/new/choose) with your OS, release version, the difficult step and a small sanitized example. Do not attach tokens, private configuration, database URLs or private documents.
 
 - [Quickstart](docs/QUICKSTART-ALPHA.md) · [first task](examples/alpha-first-task.md)
-- [Native installation](docs/NATIVE-BUNDLE.md) · [local model configuration](docs/LOCAL-MODELS.md)
-- [Release notes](docs/RELEASE-NOTES-alpha.1.md) · [supported profile](docs/SUPPORT.md)
-- [Development](docs/DEVELOPMENT.md) · [API contracts](contracts/README.md)
-- [Public source contents](docs/PUBLIC-SOURCE.md) · [license boundaries](docs/LICENSING.md)
+- [Native installation](docs/NATIVE-BUNDLE.md) · [local models](docs/LOCAL-MODELS.md) · [MCP reading](docs/MCP-READ.md)
+- [Release notes](docs/RELEASE-NOTES-alpha.1.md) · [supported profile](docs/SUPPORT.md) · [validation](docs/VALIDATION-alpha.1.md)
+- [Development](docs/DEVELOPMENT.md) · [API contracts](contracts/README.md) · [source contents](docs/PUBLIC-SOURCE.md)
 
 ## Technology and licenses
 
-Go server and workers, PostgreSQL durable state, React/TypeScript Workspace, Python and TypeScript SDKs. The command remains `platform` and internal module names remain `agent-platform` for compatibility.
+Go server and workers, PostgreSQL durable state, React/TypeScript Workspace, Python and TypeScript SDKs. The CLI command remains `platform` and internal module names remain `agent-platform` for compatibility.
 
-Original server, CLI, web application and repository documentation use [Elastic License 2.0](LICENSE). Client SDKs and examples use Apache-2.0 under their included license files. Dependencies retain their own licenses. ELv2 is source-available and is not presented as an OSI open-source license.
+Original server, CLI, web application, documentation and diagrams use [Elastic License 2.0](LICENSE). Client SDKs and examples use Apache-2.0 under their included license files. Dependencies retain their own licenses. ELv2 is source-available, not an OSI open-source license. [License boundaries](docs/LICENSING.md).

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="670" viewBox="0 0 1200 670" role="img" aria-labelledby="title desc">
+<title id="title">Different starting points for agent work</title><desc id="desc">LangChain, LangGraph, Deep Agents and DeepSeek Harness help construct or customize agents. RunVerge alpha.1 packages a local task, draft, review, revision and budget workflow. Capabilities overlap; this is not a feature scorecard or a claim of compatibility.</desc>
+<rect x="1" y="1" width="1198" height="668" rx="22" fill="#f5f8f6" stroke="#d8e4dd"/>
+<g font-family="Arial, Helvetica, sans-serif">
+<text x="42" y="59" font-size="34" font-weight="700" fill="#18352c">Choose the starting point that fits your work</text>
+<text x="42" y="98" font-size="22" fill="#536c61">Customize the agent, or try an assembled task-and-review workflow.</text>
+<rect x="42" y="135" width="540" height="441" rx="16" fill="#ffffff" stroke="#d8e4dd"/><rect x="608" y="135" width="550" height="441" rx="16" fill="#153d32"/>
+<text x="68" y="175" font-size="17" letter-spacing="1" font-weight="700" fill="#64776d">BUILD / CUSTOMIZE AGENTS</text><text x="68" y="216" font-size="29" font-weight="700" fill="#18352c">Compose agent behavior</text>
+<g fill="#18352c" font-size="23" font-weight="700"><text x="68" y="272">LangChain</text><text x="68" y="346">LangGraph</text><text x="68" y="420">Deep Agents</text><text x="68" y="494">DeepSeek Harness</text></g>
+<g fill="#536c61" font-size="20"><text x="68" y="302">Models, tools, middleware, agent loops</text><text x="68" y="376">Stateful workflows and durable execution</text><text x="68" y="450">Planning, subagents, files and context</text><text x="68" y="524">Plugin-based harness with a Web UI</text></g>
+<text x="636" y="175" font-size="17" letter-spacing="1" font-weight="700" fill="#9cddbd">RUN / REVIEW A TASK</text><text x="636" y="216" font-size="29" font-weight="700" fill="#ffffff">RunVerge alpha.1</text>
+<text x="636" y="264" font-size="22" fill="#c3e0d1">Browser Workspace + API + CLI + SDKs</text>
+<g fill="#235744" stroke="#4b826a"><rect x="636" y="295" width="230" height="74" rx="10"/><rect x="884" y="295" width="246" height="74" rx="10"/><rect x="636" y="386" width="230" height="74" rx="10"/><rect x="884" y="386" width="246" height="74" rx="10"/></g>
+<g fill="#ffffff" font-size="23" font-weight="700" text-anchor="middle"><text x="751" y="340">Task + results</text><text x="1007" y="340">Human decisions</text><text x="751" y="431">Retained attempts</text><text x="1007" y="431">Budget controls</text></g>
+<text x="636" y="502" font-size="21" fill="#c3e0d1">Local model + PostgreSQL durable state</text><text x="636" y="539" font-size="19" fill="#9cddbd">One owner · test data · native macOS arm64</text>
+<text x="42" y="615" font-size="19" fill="#536c61">These capabilities overlap. Other ecosystems also offer managed deployment products.</text>
+<text x="42" y="644" font-size="17" fill="#64776d">Starting points, not a claim of missing features, integration or benchmark superiority.</text>
+</g></svg>

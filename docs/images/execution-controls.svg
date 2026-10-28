@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+<title id="title">RunVerge execution and accounting controls</title><desc id="desc">Check access and limits before work. Reserve a declared cost ceiling. Record confirmed costs and uncertain outcomes separately. An unknown sent outcome keeps its reservation and is not automatically resent. A zero local API tariff does not measure hardware costs.</desc>
+<rect x="1" y="1" width="1198" height="518" rx="22" fill="#f5f8f6" stroke="#d8e4dd"/>
+<g font-family="Arial, Helvetica, sans-serif">
+<text x="42" y="59" font-size="34" font-weight="700" fill="#18352c">Execution has limits. Uncertainty stays visible.</text><text x="42" y="99" font-size="22" fill="#536c61">Controls around the work, alongside the generated text.</text>
+<g fill="#ffffff" stroke="#d8e4dd"><rect x="42" y="140" width="350" height="185" rx="14"/><rect x="425" y="140" width="350" height="185" rx="14"/><rect x="808" y="140" width="350" height="185" rx="14"/></g>
+<g fill="#478469" font-size="17" font-weight="700" letter-spacing="1"><text x="65" y="174">BEFORE</text><text x="448" y="174">DURING</text><text x="831" y="174">AFTER</text></g>
+<g fill="#18352c" font-size="26" font-weight="700"><text x="65" y="219">Check access + limits</text><text x="448" y="219">Reserve the ceiling</text><text x="831" y="219">Confirm or reconcile</text></g>
+<g fill="#536c61" font-size="20"><text x="65" y="260">Task budget, attempt count</text><text x="65" y="292">and execution deadline</text><text x="448" y="260">Use the configured tariff</text><text x="448" y="292">and operation cost bounds</text><text x="831" y="260">Confirmed charges and</text><text x="831" y="292">unknown outcomes differ</text></g>
+<rect x="42" y="357" width="1116" height="78" rx="12" fill="#fff3db" stroke="#e7d4a8"/><text x="65" y="389" font-size="22" font-weight="700" fill="#725321">Unknown sent outcome? Keep the reservation.</text><text x="65" y="418" font-size="20" fill="#725321">No automatic resend. Review and reconciliation remain separate actions.</text>
+<text x="42" y="480" font-size="19" fill="#536c61">A declared local API tariff of zero does not measure hardware cost or prove an operation finished.</text>
+</g></svg>
