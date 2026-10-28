@@ -1,16 +1,24 @@
 # RunVerge
 
-**Un espacio de trabajo local para tareas de IA, borradores, decisiones humanas e historial de intentos.**
+**Asigna tareas a agentes, revisa sus respuestas y conserva el historial de cambios.**
 
 [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)
 
-![Tarea y límites → borrador del modelo → revisión humana → revisión opcional autorizada por separado → decisión.](docs/images/workflow.svg)
+![Describe una tarea, obtén un borrador, revísalo y acéptalo o autoriza una revisión. Las respuestas originales y los comentarios se conservan en el historial.](docs/images/es/workflow.svg)
 
-**Asigna una tarea. Comprueba el borrador. Pide una corrección. Conserva ambas versiones. Decide qué aceptar.** RunVerge reúne ese proceso en una aplicación con interfaz web, registros persistentes y controles de ejecución, sin tener que crear primero tu propia aplicación de revisión.
+RunVerge es una aplicación para trabajar con agentes de IA. Describe la tarea y su presupuesto, recibe un borrador, deja comentarios y decide si aceptas la respuesta o autorizas otro intento. La respuesta original sigue disponible después de las correcciones.
 
-[**Empezar →**](docs/QUICKSTART-ALPHA.md) · [**Descargar alpha.1 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.1) · [**Primera tarea →**](examples/alpha-first-task.md) · [**Comentarios →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
+[**Empezar →**](docs/QUICKSTART-ALPHA.md) · [**Descargar alpha.2 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.2) · [**Primera tarea →**](examples/alpha-first-task.md) · [**Comentarios →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
 
 > **Alpha.1 experimental:** macOS arm64, un único propietario local y solo datos de prueba. PostgreSQL 18 y el servidor local del modelo, como Ollama, se configuran por separado. Esta versión no admite restauración completa, actualizaciones de instalaciones existentes ni despliegue de producción para toda una organización. [Alcance compatible](docs/SUPPORT.md).
+
+## Dónde funciona RunVerge y qué modelo utiliza
+
+RunVerge y el modelo son servicios separados. RunVerge guarda tareas y resultados; el modelo recibe una petición y genera una respuesta. El motor incluye una conexión HTTPS Chat Completions configurable por el administrador.
+
+El paquete alpha.2 publicado y la guía están comprobados en macOS arm64 con un modelo local. No incluyen paquetes para Windows/Linux ni configuraciones listas y verificadas para OpenRouter, DeepSeek, Nebius Token Factory y Z.ai. Una conexión API configurable no demuestra por sí sola compatibilidad con todos los proveedores.
+
+El equipo donde se instala la aplicación y el proveedor del modelo se eligen por separado. El paquete actual para Mac no significa que el producto deba usar solo modelos locales.
 
 ## ¿Para quién es?
 
@@ -31,11 +39,11 @@ La instalación alpha admite **un propietario**; estos perfiles no implican un s
 - **Modelo local:** puedes probar el flujo sin una API de modelo de pago; el equipo y la energía siguen teniendo coste.
 - **Integración:** API, CLI y SDK de Python y TypeScript comparten contratos públicos.
 
-La ventaja de RunVerge es la combinación preparada para este caso de uso. Su alcance compatible sigue siendo más limitado que el de los ecosistemas consolidados.
+Usa RunVerge si necesitas páginas de tareas con borradores guardados, decisiones de revisión y registros de costes. Un harness general es otro punto de partida: ofrece más control sobre el comportamiento del propio agente.
 
 ## Comparación con otros instrumentos
 
-![Distintos puntos de partida: componer el comportamiento del agente o utilizar el flujo de tareas y revisión de RunVerge. Las capacidades se solapan.](docs/images/starting-points.svg)
+![LangChain, LangGraph, Deep Agents y DeepSeek Harness ayudan a crear o personalizar agentes. RunVerge ofrece tareas, revisión, resultados guardados y presupuestos. Las capacidades se solapan.](docs/images/es/starting-points.svg)
 
 | Proyecto | Enfoque principal | Cuándo elegirlo |
 |---|---|---|
@@ -43,17 +51,17 @@ La ventaja de RunVerge es la combinación preparada para este caso de uso. Su al
 | [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) | Orquestación con estado, ejecución duradera e intervención humana | Necesitas grafos personalizados con pasos programados y pasos del modelo |
 | [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) | Planificación, subagentes, contexto de archivos y memoria | Necesitas esas capacidades como base del agente |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Harness extensible con plugins e interfaz web | Quieres personalizar el harness mediante plugins |
-| **RunVerge alpha.1** | **Aplicación local de tareas y revisión** | **Quieres evaluar el flujo con un propietario y datos de prueba** |
+| **RunVerge alpha.2** | **Aplicación local de tareas y revisión** | **Quieres evaluar el flujo con un propietario y datos de prueba** |
 
 Las descripciones oficiales enlazadas se revisaron el 28 de octubre de 2026. Esta comparación explica distintos puntos de partida, no funciones ausentes en otros proyectos. LangGraph y Deep Agents también ofrecen persistencia e intervención humana; el ecosistema LangChain dispone de productos de despliegue gestionado. No hay pruebas comparativas de que RunVerge sea superior en calidad, velocidad, seguridad o coste total.
 
 ## Límites de ejecución y costes
 
-![Antes: comprobar acceso y límites. Durante: reservar el coste máximo configurado. Después: confirmar o conciliar. Los resultados inciertos no se reenvían automáticamente.](docs/images/execution-controls.svg)
+![Antes de ejecutar se comprueban permisos, presupuesto y límites. Se reserva presupuesto según los precios configurados. El coste se confirma por separado; si el resultado es incierto, la reserva se mantiene. Es un registro interno, no una retención bancaria.](docs/images/es/execution-controls.svg)
 
 El presupuesto, el número de intentos y el plazo restringen la admisión de trabajo nuevo. No garantizan la exactitud del texto ni la factura final del proveedor. Una operación enviada con resultado incierto conserva su reserva y no se repite a ciegas. La tarifa local de API de cero no mide CPU/GPU, electricidad ni amortización, y no convierte en gratuitas las herramientas de pago.
 
-**MCP:** hay un [ejemplo limitado de lectura de texto](docs/MCP-READ.md) con configuración de confianza, permisos y aprobación de ejecución. Servidores arbitrarios, OAuth y un catálogo general de conectores quedan fuera de alpha.1.
+**MCP:** hay un [ejemplo limitado de lectura de texto](docs/MCP-READ.md) con configuración de confianza, permisos y aprobación de ejecución. Servidores arbitrarios, OAuth y un catálogo general de conectores quedan fuera de alpha.2.
 
 ## Probar el flujo
 
@@ -62,18 +70,18 @@ El presupuesto, el número de intentos y el plazo restringen la admisión de tra
 3. Comprueba el borrador, registra una corrección y autoriza otro intento por separado.
 4. Inspecciona ambos materiales y decide qué aceptar. Cuéntanos si volverías con otra tarea.
 
-**La interfaz de alpha.1 solo está en inglés y ruso.** Los siete idiomas del README no son siete traducciones de la interfaz. Cambiar el idioma de la interfaz conserva la conexión y el trabajo actual; no traduce tareas ni respuestas. [Idiomas](docs/LANGUAGES.md).
+**La interfaz de alpha.2 solo está en inglés y ruso.** Los siete idiomas del README no son siete traducciones de la interfaz. Cambiar el idioma de la interfaz conserva la conexión y el trabajo actual; no traduce tareas ni respuestas. [Idiomas](docs/LANGUAGES.md).
 
 ## Límites actuales y documentación
 
 Un agente comprobó el flujo de publicación; aún falta la evaluación independiente por nuevos usuarios. Un modelo local pequeño puede omitir hechos o truncar respuestas. Guarda los resultados importantes fuera de la plataforma.
 
-Restauración completa, actualizaciones, uso en equipo, ciclo empresarial de SSO, despliegue para proveedores cloud, MCP arbitrario y rendimiento de producción no forman parte de la aceptación de alpha.1. No expongas la instalación como servicio público multiusuario. No hay comparación de versiones en paralelo; distingue los artefactos por ID y fecha.
+Restauración completa, actualizaciones, uso en equipo, ciclo empresarial de SSO, despliegue para proveedores cloud, MCP arbitrario y rendimiento de producción no forman parte de la aceptación de alpha.2. No expongas la instalación como servicio público multiusuario. No hay comparación de versiones en paralelo; distingue los artefactos por ID y fecha.
 
 [Releases](https://github.com/ArtAndrew/RunVerge/releases) contiene paquetes y SHA-256. No hay firma del editor; el checksum comprueba coincidencia con el valor publicado, no la identidad del editor.
 
 - [Instalación](docs/NATIVE-BUNDLE.md) · [modelos](docs/LOCAL-MODELS.md) · [MCP](docs/MCP-READ.md)
-- [Notas](docs/RELEASE-NOTES-alpha.1.md) · [soporte](docs/SUPPORT.md) · [validación](docs/VALIDATION-alpha.1.md)
+- [Notas](docs/RELEASE-NOTES-alpha.2.md) · [soporte](docs/SUPPORT.md) · [validación](docs/VALIDATION-alpha.1.md)
 - [Desarrollo](docs/DEVELOPMENT.md) · [API](contracts/README.md) · [contenido público](docs/PUBLIC-SOURCE.md)
 
 [Envía comentarios](https://github.com/ArtAndrew/RunVerge/issues/new/choose) con sistema operativo, versión y paso problemático. No adjuntes tokens, configuración privada, cadenas de conexión ni documentos privados. Las guías detalladas enlazadas pueden estar en inglés o ruso.

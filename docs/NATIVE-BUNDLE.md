@@ -1,6 +1,6 @@
 # RunVerge native bundle
 
-Status: experimental 0.14.0-alpha.1 is published. The first supported
+Status: experimental 0.14.0-alpha.2 is published. The current supported
 test target is macOS arm64. Linux, Compose, Helm, a service supervisor,
 automatic updates, backup/restore and release signing still require work.
 
@@ -98,7 +98,7 @@ reconciled; copying a database backwards in time is not a safe retry mechanism.
 With the documented developer dependencies already installed, run:
 
 ```sh
-python3 scripts/build_native_bundle.py --output /absolute/new-bundle --version 0.14.0-alpha.1
+python3 scripts/build_native_bundle.py --output /absolute/new-bundle --version 0.14.0-alpha.2
 ```
 
 The output directory must be new and outside the checkout. Builds use pinned

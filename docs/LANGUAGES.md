@@ -2,7 +2,7 @@
 
 ## README translations
 
-The project overview is available in [English](../README.md), [Russian](../README.ru.md), [Spanish](../README.es.md), [Brazilian Portuguese](../README.pt-BR.md), [German](../README.de.md), [French](../README.fr.md) and [Simplified Chinese](../README.zh-CN.md). These are documentation translations. They do not add interface languages. The shared infographics use English labels and translated descriptions in each README; linked detailed guides may be in English or Russian.
+The project overview and all three diagrams are available in [English](../README.md), [Russian](../README.ru.md), [Spanish](../README.es.md), [Brazilian Portuguese](../README.pt-BR.md), [German](../README.de.md), [French](../README.fr.md) and [Simplified Chinese](../README.zh-CN.md). Each README uses diagrams with labels and descriptions in its language. Brand names and technical identifiers stay unchanged. These are documentation translations; the Workspace interface still supports Russian and English. Linked detailed guides may be in English or Russian. See [diagram editing instructions](images/README.md).
 
 ## Workspace interface
 
