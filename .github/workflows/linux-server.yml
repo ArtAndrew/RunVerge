@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Elastic-2.0
+name: Linux server preview
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux-amd64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Private settings helper checks
+        run: python3 -m unittest discover -s tests/development -p test_server_setup.py -v
+      - name: Build and verify a native Linux installation
+        run: docker build --target runtime --tag runverge:linux-preview .
+      - name: Check Compose, separate worker and restart
+        run: python3 scripts/verify_server_container.py --evidence "$RUNNER_TEMP/runverge-evidence/compose.json"
+      - name: Export native verification evidence
+        run: docker build --target evidence --output "type=local,dest=$RUNNER_TEMP/runverge-evidence/native" .
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: linux-amd64-verification
+          path: ${{ runner.temp }}/runverge-evidence
+          if-no-files-found: ignore
+          retention-days: 3
