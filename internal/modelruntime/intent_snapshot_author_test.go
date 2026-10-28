@@ -24,6 +24,13 @@ func TestHistoricalIntentSnapshotAuthorWireCompatibility(t *testing.T) {
 	assert(wire)
 	s.Price.AccountingMode = "metered_api"
 	assert(strings.Replace(wire, `"Price":{`, `"Price":{"accounting_mode":"metered_api",`, 1))
+	// Current provider fields are ordered before RunInput. Keep this as a
+	// literal wire vector so struct-tag/order changes are visible.
+	s.Price.AccountingMode = ""
+	s.WireProfile = "openrouter_text_v1"
+	s.OpenRouterDataCollection = "deny"
+	s.RunInput = "new input"
+	assert(strings.TrimSuffix(wire, "}") + `,"WireProfile":"openrouter_text_v1","OpenRouterDataCollection":"deny","RunInput":"new input"}`)
 	s.Version = "unknown-v2"
 	if _, err := HistoricalIntentDigest(s); err == nil {
 		t.Fatal("unknown intent protocol accepted")
