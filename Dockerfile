@@ -18,7 +18,7 @@ RUN go test -mod=readonly ./internal/modelgateway ./internal/modelruntime -count
 ARG RUNVERGE_VERSION=0.14.0-dev.linux1
 RUN mkdir -m 0755 /out && python3 scripts/build_native_bundle.py --output /out/bundle --version "$RUNVERGE_VERSION" > /out/build-report.json
 RUN hash="$(sha256sum /out/bundle/bundle.json | cut -d ' ' -f 1)" && /out/bundle/bin/platform bundle install --source /out/bundle --destination /out/installed --manifest-sha256 "$hash"
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/healthcheck ./cmd/healthcheck && mkdir -m 0700 /out/state
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/healthcheck ./cmd/healthcheck && mkdir -m 0755 /out/runtime-root && mkdir -m 0700 /out/runtime-root/state
 
 # Verify on the target Linux system, with a fresh owned PostgreSQL cluster.
 # The final image depends on this stage; a cross-build alone is insufficient.
@@ -38,7 +38,8 @@ FROM scratch AS runtime
 COPY --from=native-check --chown=10001:10001 /opt/installed /app
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /out/healthcheck /usr/local/bin/runverge-healthcheck
-COPY --from=build --chown=10001:10001 --chmod=0700 /out/state /state
+# Copy state as a child directory; COPY otherwise creates its destination as 0755.
+COPY --from=build --chown=10001:10001 /out/runtime-root/ /
 USER 10001:10001
 WORKDIR /app
 ENV HOME=/tmp TZ=UTC
