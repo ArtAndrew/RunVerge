@@ -4,4 +4,4 @@ This repository contains product source, API contracts, SDKs, examples, user/ope
 
 Two non-secret schema fixtures are retained under docs/evidence for existing source tests. They describe the trusted database schema and contain no application data. Other retained JSON test fixtures are synthetic or historical test inputs; personal path prefixes have been removed.
 
-Release assets identify their exact source inventory and checksums. Validation distinguishes a previously verified PostgreSQL baseline from later targeted interface/documentation checks, agent-led browser verification and independent user testing. See VALIDATION-alpha.1.md for the actual checks and limits.
+Release assets identify their exact source inventory and checksums. Validation distinguishes installed workflow checks, targeted interface/documentation checks, agent-led browser verification and independent user testing. See VALIDATION-alpha.1.md and VALIDATION-alpha.3.md for the actual checks and limits.

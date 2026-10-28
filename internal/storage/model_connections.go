@@ -20,7 +20,7 @@ var modelCredentialReference = regexp.MustCompile(`^PLATFORM_MODEL_KEY_[A-Z0-9_]
 // RuntimeModelConfig never persists key. Its formatter is deliberately redacted.
 func RuntimeModelConfig(c domain.ModelConnection, key string) modelruntime.Config {
 	return modelruntime.Config{
-		Gateway:        modelgateway.Config{Endpoint: c.Endpoint, APIKey: key, Model: c.Model, MaxOutputTokens: c.MaxOutputTokens, MaxInputBytes: c.MaxInputBytes, Timeout: time.Duration(c.TimeoutMilliseconds) * time.Millisecond, AllowInsecureLoopback: c.AllowInsecureLoopback, TokenLimitField: c.TokenLimitField},
+		Gateway:        modelgateway.Config{WireProfile: c.WireProfile, OpenRouterDataCollection: c.OpenRouterDataCollection, Endpoint: c.Endpoint, APIKey: key, Model: c.Model, MaxOutputTokens: c.MaxOutputTokens, MaxInputBytes: c.MaxInputBytes, Timeout: time.Duration(c.TimeoutMilliseconds) * time.Millisecond, AllowInsecureLoopback: c.AllowInsecureLoopback, TokenLimitField: c.TokenLimitField},
 		Price:          modelruntime.PriceProfile{AccountingMode: c.AccountingMode, ProviderAccount: c.ProviderAccount, Version: c.PriceVersion, Model: c.Model, BoundAssumptions: c.BoundAssumptions, MaxChargeMicroUSD: c.MaxChargeMicroUSD, MaxInputTokens: c.MaxInputTokens, InputMicroUSDPerMillion: c.InputMicroUSDPerMillion, OutputMicroUSDPerMillion: c.OutputMicroUSDPerMillion, FixedMicroUSD: c.FixedMicroUSD},
 		MaxOutputBytes: c.MaxOutputBytes, PersistenceTimeout: 5 * time.Second,
 	}

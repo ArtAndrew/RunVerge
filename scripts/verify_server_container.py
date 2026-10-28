@@ -122,6 +122,18 @@ def verify(evidence, image):
         if state['HostConfig'].get('PortBindings'):
             raise RuntimeError('Database must not expose a host port')
         step('non_root_read_only_application_and_private_database')
+        phase = 'install_offline_openrouter_profile'
+        command([*compose, '--profile', 'admin', 'run', '--rm', '--no-deps', 'admin', 'prepare-model',
+                 '--provider', 'openrouter', '--organization-id', credentials['organization_id'],
+                 '--model', 'example/fixed-model:free', '--provider-account', 'ci-no-credential',
+                 '--price-version', 'zero-filter-v1', '--input-usd-per-million', '0',
+                 '--output-usd-per-million', '0', '--max-call-usd', '0.000001', '--out', '/state/openrouter.json'])
+        command([*compose, '--profile', 'admin', 'run', '--rm', '--no-deps', 'admin', 'install-model', '--file', '/state/openrouter.json'])
+        models = request('/api/v1/models')
+        selected = [model for model in models if model['id'] == 'openrouter_text']
+        if len(selected) != 1 or selected[0]['model'] != 'example/fixed-model:free' or selected[0]['accounting_mode'] != 'metered' or selected[0]['max_charge_microusd'] != 1:
+            raise RuntimeError('Offline OpenRouter profile installation changed limits')
+        step('offline_openrouter_profile_install_and_catalogue_without_model_request')
         phase = 'execute_synthetic_task'
         draft = request('/api/v1/agents', {'name': 'Container fixture', 'instructions': 'Synthetic echo fixture.',
                         'model': 'fixture:echo', 'tools': [], 'budget_microusd': 10000})
@@ -146,6 +158,8 @@ def verify(evidence, image):
         wait_ready()
         if request(route) != task or request(route + '/artifacts') != artifacts or request(route + '/costs') != costs:
             raise RuntimeError('Restart changed completed task, artifact or cost record')
+        if request('/api/v1/models') != models:
+            raise RuntimeError('Restart changed installed model configuration')
         step('database_api_worker_restart_retains_result_and_costs')
         report['passed'] = True
     except Exception as error:

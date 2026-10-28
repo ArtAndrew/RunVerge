@@ -18,16 +18,18 @@ import (
 )
 
 type Runtime struct {
-	store              Store
-	gateway            *modelgateway.Gateway
-	price              PriceProfile
-	endpoint           string
-	maxInputBytes      int
-	maxOutputTokens    int
-	maxOutputBytes     int
-	tokenLimitField    string
-	requestTimeout     time.Duration
-	persistenceTimeout time.Duration
+	store                    Store
+	gateway                  *modelgateway.Gateway
+	price                    PriceProfile
+	endpoint                 string
+	maxInputBytes            int
+	maxOutputTokens          int
+	maxOutputBytes           int
+	tokenLimitField          string
+	wireProfile              string
+	openRouterDataCollection string
+	requestTimeout           time.Duration
+	persistenceTimeout       time.Duration
 }
 
 func (*Runtime) String() string   { return "modelruntime.Runtime{redacted}" }
@@ -37,6 +39,16 @@ func New(store Store, config Config) (*Runtime, error) {
 	if store == nil || config.MaxOutputBytes < 1 || config.MaxOutputBytes > 2<<20 ||
 		config.PersistenceTimeout <= 0 || config.PersistenceTimeout > 30*time.Second {
 		return nil, runtimeError("invalid_runtime_config", false)
+	}
+	if config.Gateway.WireProfile == domain.ModelWireOpenRouterTextV1 {
+		if domain.EffectiveModelAccountingMode(config.Price.AccountingMode) != domain.ModelAccountingMetered {
+			return nil, runtimeError("invalid_openrouter_accounting_mode", false)
+		}
+		config.Gateway.OpenRouterPrice = modelgateway.OpenRouterPrice{
+			InputMicroUSDPerMillion:  config.Price.InputMicroUSDPerMillion,
+			OutputMicroUSDPerMillion: config.Price.OutputMicroUSDPerMillion,
+			FixedMicroUSD:            config.Price.FixedMicroUSD,
+		}
 	}
 	gw, err := modelgateway.New(config.Gateway)
 	if err != nil {
@@ -63,7 +75,9 @@ func New(store Store, config Config) (*Runtime, error) {
 		store: store, gateway: gw, price: config.Price,
 		endpoint: config.Gateway.Endpoint, maxInputBytes: config.Gateway.MaxInputBytes,
 		maxOutputTokens: config.Gateway.MaxOutputTokens, tokenLimitField: config.Gateway.TokenLimitField,
-		requestTimeout: config.Gateway.Timeout, maxOutputBytes: config.MaxOutputBytes,
+		wireProfile:              config.Gateway.WireProfile,
+		openRouterDataCollection: config.Gateway.OpenRouterDataCollection,
+		requestTimeout:           config.Gateway.Timeout, maxOutputBytes: config.MaxOutputBytes,
 		persistenceTimeout: config.PersistenceTimeout,
 	}, nil
 }
@@ -101,6 +115,23 @@ func (r *Runtime) Execute(ctx context.Context, lease *domain.Lease) (Outcome, er
 		out.Status = AlreadyAttempted
 		return out, nil
 	}
+	var prepared *modelgateway.PreparedConnection
+	if r.wireProfile == domain.ModelWireOpenRouterTextV1 {
+		// DNS/TCP/TLS can outlast the short dispatch-start permit. Prepare only
+		// the socket first, then obtain fresh authority before any HTTP bytes.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, r.requestTimeout)
+		defer cancel()
+		prepared, err = r.gateway.PrepareConnection(ctx)
+		if err != nil {
+			failure := &ExecutionError{Code: "connection_not_prepared"}
+			if gatewayFailure, ok := err.(*modelgateway.OutcomeError); ok {
+				failure.GatewayCode = gatewayFailure.Code
+			}
+			return out, failure
+		}
+		defer prepared.Close()
+	}
 	admissionStarted := time.Now()
 	permit, err := r.store.PrepareModelDispatch(ctx, &l, reservation.ID)
 	if err != nil {
@@ -121,12 +152,19 @@ func (r *Runtime) Execute(ctx context.Context, lease *domain.Lease) (Outcome, er
 		return out, runtimeError("dispatch_permit_rejected", true)
 	}
 
-	// This is the only external call in the lifecycle. Gateway has no automatic
+	// This is the only inference request in the lifecycle. Gateway has no automatic
 	// redirects, retries, proxy discovery or provider fallback.
-	result, executionErr := r.gateway.Execute(ctx, modelgateway.Request{
+	request := modelgateway.Request{
 		ID: chargeKey, Instructions: l.Agent.Instructions, Goal: domain.ExecutionInput(l), DispatchDeadline: dispatchDeadline,
 		Tools: l.ModelTools, Messages: l.ModelMessages,
-	})
+	}
+	var result modelgateway.Result
+	var executionErr error
+	if prepared != nil {
+		result, executionErr = r.gateway.ExecutePrepared(ctx, request, prepared)
+	} else {
+		result, executionErr = r.gateway.Execute(ctx, request)
+	}
 	out.Status = OutcomeUnknown
 	if !r.markUnknown(l.OrganizationID, reservation.ID) {
 		// A durable sent action still prevents redispatch if accounting cannot
@@ -140,7 +178,11 @@ func (r *Runtime) Execute(ctx context.Context, lease *domain.Lease) (Outcome, er
 		if !r.pause(l, reservation.ID, PauseOutcomeUnknown) {
 			return out, runtimeError("pause_record_failed", true)
 		}
-		return out, runtimeError("provider_outcome_unknown", true)
+		failure := &ExecutionError{Code: "provider_outcome_unknown", Unknown: true}
+		if gatewayFailure, ok := executionErr.(*modelgateway.OutcomeError); ok {
+			failure.GatewayCode, failure.ProviderStatus = gatewayFailure.Code, gatewayFailure.HTTPStatus
+		}
+		return out, failure
 	}
 	if !r.validResult(l, result) || result.InputTokens > r.price.MaxInputTokens {
 		if !r.pause(l, reservation.ID, PauseOutputRejected) {
@@ -265,6 +307,8 @@ func (r *Runtime) intent(l domain.Lease) (string, string, error) {
 		MaxInputBytes, MaxOutputBytes, MaxOutputTokens                            int
 		RequestTimeoutNanos                                                       int64
 		Price                                                                     PriceProfile
+		WireProfile                                                               string                       `json:"WireProfile,omitempty"`
+		OpenRouterDataCollection                                                  string                       `json:"OpenRouterDataCollection,omitempty"`
 		RunInput                                                                  string                       `json:"RunInput,omitempty"`
 		ModelTools                                                                []domain.ModelToolDefinition `json:"ModelTools,omitempty"`
 		ModelMessages                                                             []domain.ModelMessage        `json:"ModelMessages,omitempty"`
@@ -275,7 +319,9 @@ func (r *Runtime) intent(l domain.Lease) (string, string, error) {
 		Endpoint: r.endpoint, TokenLimitField: r.tokenLimitField, MaxInputBytes: r.maxInputBytes,
 		MaxOutputBytes: r.maxOutputBytes, MaxOutputTokens: r.maxOutputTokens,
 		RequestTimeoutNanos: int64(r.requestTimeout), Price: r.price, RunInput: l.RunInput,
-		ModelTools: l.ModelTools, ModelMessages: l.ModelMessages,
+		WireProfile:              r.wireProfile,
+		OpenRouterDataCollection: r.openRouterDataCollection,
+		ModelTools:               l.ModelTools, ModelMessages: l.ModelMessages,
 	}
 	if len(l.ModelTools) != 0 || len(l.ModelMessages) != 0 {
 		pinned.Version = "model-turn-v1"

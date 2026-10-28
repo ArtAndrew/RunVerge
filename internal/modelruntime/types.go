@@ -86,8 +86,10 @@ const (
 // Errors deliberately do not wrap provider or storage errors, which can contain
 // credentials, customer text, endpoint addresses, or database details.
 type ExecutionError struct {
-	Code    string
-	Unknown bool
+	Code           string
+	Unknown        bool
+	GatewayCode    string
+	ProviderStatus int
 }
 
 func (e *ExecutionError) Error() string { return "model runtime: " + e.Code }

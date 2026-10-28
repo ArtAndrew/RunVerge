@@ -24,6 +24,8 @@ type ModelCandidate struct {
 // ModelConnection is an immutable administrator-installed connection version.
 // CredentialEnvironment is a restricted secret reference, never the secret.
 type ModelConnection struct {
+	WireProfile              string    `json:"wire_profile,omitempty"`
+	OpenRouterDataCollection string    `json:"openrouter_data_collection,omitempty"`
 	AccountingMode           string    `json:"accounting_mode,omitempty"`
 	ID                       string    `json:"id"`
 	OrganizationID           string    `json:"organization_id"`

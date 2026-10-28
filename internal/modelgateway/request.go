@@ -45,6 +45,9 @@ func (g *Gateway) BuildRequest(input Request) ([]byte, error) {
 	if len(tools) != 0 {
 		payload["tools"], payload["tool_choice"], payload["parallel_tool_calls"] = tools, "auto", true
 	}
+	if err := g.applyWireProfile(payload, input); err != nil {
+		return nil, err
+	}
 	body, err := json.Marshal(payload)
 	if err != nil || len(body) > g.config.MaxInputBytes {
 		return nil, rejected("request_too_large")

@@ -242,6 +242,10 @@ func TestExternalErrorStatusesNeverProveZeroCost(t *testing.T) {
 				code = "provider_rejected"
 			}
 			assertOutcome(t, err, code, true)
+			var outcome *OutcomeError
+			if !errors.As(err, &outcome) || outcome.HTTPStatus != status {
+				t.Fatal("safe provider status lost")
+			}
 		})
 	}
 }
