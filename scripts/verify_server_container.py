@@ -41,6 +41,7 @@ def verify(evidence, image):
     env.update(RUNVERGE_PRIVATE_DIR=str(root / 'private'), RUNVERGE_PORT=str(port), RUNVERGE_IMAGE=image)
     compose = ['docker', 'compose', '--project-name', project, '--file', str(ROOT / 'deploy/compose.yaml')]
     attempted = False
+    phase = 'reserve_disposable_project'
 
     def command(args, timeout=180):
         result = subprocess.run(args, env=env, capture_output=True, text=True, timeout=timeout)
@@ -63,10 +64,13 @@ def verify(evidence, image):
                 raise RuntimeError('Disposable project collision: ' + resource)
         server_setup.initialize(root / 'private')
         attempted = True
+        phase = 'start_compose_services'
         command([*compose, 'up', '--no-build', '-d'])
+        phase = 'bootstrap_disposable_owner'
         command([*compose, '--profile', 'admin', 'run', '--no-deps', '--name', container,
                  'admin', 'bootstrap', '--name', 'Container synthetic check', '--out', '/state/bootstrap.json'])
         credentials_path = root / 'bootstrap.json'
+        phase = 'copy_disposable_credentials'
         command(['docker', 'cp', container + ':/state/bootstrap.json', str(credentials_path)])
         credentials_path.chmod(0o600)
         credentials = json.loads(credentials_path.read_text())
@@ -97,6 +101,7 @@ def verify(evidence, image):
                 time.sleep(0.5)
             raise RuntimeError('Container API readiness timeout')
 
+        phase = 'verify_workspace_and_isolation'
         wait_ready()
         page = request('/')
         if b'<html' not in page.lower() or b'<script' not in page.lower():
@@ -117,6 +122,7 @@ def verify(evidence, image):
         if state['HostConfig'].get('PortBindings'):
             raise RuntimeError('Database must not expose a host port')
         step('non_root_read_only_application_and_private_database')
+        phase = 'execute_synthetic_task'
         draft = request('/api/v1/agents', {'name': 'Container fixture', 'instructions': 'Synthetic echo fixture.',
                         'model': 'fixture:echo', 'tools': [], 'budget_microusd': 10000})
         agent = request('/api/v1/agents/' + draft['id'] + '/publish', {'expected_version': draft['version']})
@@ -134,6 +140,7 @@ def verify(evidence, image):
             raise RuntimeError('Separate worker fixture execution failed')
         step('separate_worker_result_and_synthetic_cost')
         # Stop applications before PostgreSQL; restart without re-running a task.
+        phase = 'restart_and_compare'
         command([*compose, 'stop', 'worker', 'api', 'db'])
         command([*compose, 'start', 'db', 'api', 'worker'])
         wait_ready()
@@ -143,7 +150,29 @@ def verify(evidence, image):
         report['passed'] = True
     except Exception as error:
         report['failure_type'] = type(error).__name__
+        report['failure_phase'] = phase
         # Error text is intentionally omitted: external tool messages can contain secrets.
+        if attempted:
+            try:
+                report['service_failures'] = []
+                identifiers = command(['docker', 'ps', '-aq', '--filter', 'label=com.docker.compose.project=' + project]).split()
+                for identifier in identifiers:
+                    state = json.loads(command(['docker', 'inspect', identifier]))[0]
+                    service = state['Config']['Labels'].get('com.docker.compose.service')
+                    if service not in ('db', 'migrate', 'api', 'worker', 'admin'):
+                        continue
+                    logs = command(['docker', 'logs', identifier])
+                    # Publish only fixed classifications, never log excerpts, names,
+                    # environment values, arguments or other free-form container data.
+                    report['service_failures'].append({'service': service,
+                        'exit_code': state['State']['ExitCode'],
+                        'classifications': [label for label in (
+                            'permission denied', 'read-only file system', 'native installation',
+                            'connection refused', 'password authentication failed',
+                            'bootstrap output must be a new private file', 'exec format error'
+                        ) if label in logs.lower()]})
+            except Exception:
+                pass
     finally:
         if attempted:
             try:
