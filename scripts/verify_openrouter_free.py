@@ -116,12 +116,17 @@ class FreeProbe:
 
             task, first = candidate(1)
             old_runs = request(route + '/runs')
+            run_ids_before = [item['id'] for item in old_runs]
+            old_costs = request(route + '/costs')
             phase = 'request_changes'
             changed = request(route + '/review', {'expected_version': task['version'], 'candidate_id': first['id'],
                 'artifact_id': first['artifact_id'], 'artifact_version': first['artifact_version'],
                 'content_digest': first['content_digest'], 'decision': 'request_changes', 'reason': 'Scripted integration review: require a named human reviewer.'})
-            if changed['status'] != 'blocked' or request(route + '/runs') != old_runs:
-                raise RuntimeError('Feedback triggered an unapproved model attempt')
+            self.last_task = changed
+            # A review closes the existing Run (waiting_input -> failed).
+            # Its identity and the ledger must remain; its status may change.
+            if changed['status'] != 'blocked' or [item['id'] for item in request(route + '/runs')] != run_ids_before or request(route + '/costs') != old_costs:
+                raise RuntimeError('Feedback created a new run or changed accounting')
             retry = {'expected_version': changed['version'], 'reason': 'Explicit second free integration attempt.',
                 'feedback': 'Keep three short steps. Explicitly require a designated human reviewer to check answers, reject errors and request revision.', 'acknowledge_new_cost': False}
             try:
@@ -131,8 +136,8 @@ class FreeProbe:
                     raise RuntimeError('Unexpected new-attempt refusal') from None
             else:
                 raise RuntimeError('Attempt without consent was admitted')
-            if request(route + '/runs') != old_runs:
-                raise RuntimeError('Denied attempt changed run history')
+            if [item['id'] for item in request(route + '/runs')] != run_ids_before or request(route + '/costs') != old_costs:
+                raise RuntimeError('Denied attempt changed execution or accounting')
             retry['acknowledge_new_cost'] = True
             phase = 'explicit_second_attempt'
             request(route + '/retry', retry)
@@ -177,7 +182,7 @@ class FreeProbe:
 
 def failure_details(task, log_path):
     statuses = {'queued', 'running', 'waiting_input', 'blocked', 'failed', 'cancelled', 'succeeded'}
-    reasons = {'model_outcome_unknown', 'model_output_rejected', 'model_input_rejected',
+    reasons = {'candidate_changes_requested', 'model_outcome_unknown', 'model_output_rejected', 'model_input_rejected',
                'model_accounting_pending', 'model_attempt_requires_attention',
                'model_credentials_unavailable', 'model_profile_unavailable',
                'configuration_profile_unavailable', 'authorization_revoked',

@@ -1,8 +1,9 @@
 # OpenRouter text profile preview
 
 This profile connects a single RunVerge agent to one explicitly selected OpenRouter
-text model. This source-build preview is not included in
-the alpha.2 download. A successful HTTP compatibility probe is not an installed
+text model. The native package contains the setup guide and key helper described
+below. The older alpha.2 download does not include this profile.
+A successful HTTP compatibility probe is not an installed
 application, user workflow or final-billing acceptance test.
 
 The `openrouter_text_v1` profile uses the fixed HTTPS Chat Completions endpoint,
