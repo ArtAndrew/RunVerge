@@ -33,11 +33,11 @@ func TestRecoveryConfigurationHistoryAuthorLifecycle(t *testing.T) {
 		t.Fatal("valid configuration history rejected", err)
 	}
 	cases := map[string]string{
-		"grant_original_reason":        `UPDATE pg_temp.configuration_grants SET body=jsonb_set(body,'{reason}','"Changed original reason"')`,
-		"plan_original_reason":         `UPDATE pg_temp.configuration_plans SET body=jsonb_set(body,'{reason}','"Changed plan reason"')`,
-		"approval_original_reason":     `UPDATE pg_temp.configuration_approvals SET body=jsonb_set(body,'{reason}','"Changed approval reason"')`,
-		"verification_original_reason": `UPDATE pg_temp.configuration_verifications SET body=jsonb_set(body,'{reason}','"Changed verification reason"')`,
-		"creation_audit_digest":        `UPDATE pg_temp.configuration_audit SET digest=repeat('a',64) WHERE action='plan.created'`,
+		"grant_original_actions":     `UPDATE pg_temp.configuration_grants SET body=jsonb_set(body,'{actions}','["plan"]')`,
+		"plan_original_reason":       `UPDATE pg_temp.configuration_plans SET body=jsonb_set(body,'{reason}','"Changed plan reason"')`,
+		"approval_original_reason":   `UPDATE pg_temp.configuration_approvals SET body=jsonb_set(body,'{reason}','"Changed approval reason"')`,
+		"verification_unknown_field": `UPDATE pg_temp.configuration_verifications SET body=jsonb_set(body,'{reason}','"Changed verification reason"')`,
+		"creation_audit_digest":      `UPDATE pg_temp.configuration_audit SET digest=repeat('a',64) WHERE action='plan.created'`,
 	}
 	for name, query := range cases {
 		t.Run(name, func(t *testing.T) {
