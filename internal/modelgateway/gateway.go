@@ -68,6 +68,7 @@ type OutcomeError struct {
 	Code                string
 	Unknown             bool
 	DefinitiveRejection bool
+	HTTPStatus          int
 }
 
 func (e *OutcomeError) Error() string {
@@ -123,6 +124,20 @@ func New(config Config) (*Gateway, error) {
 // Execute performs at most one HTTP request. A successful result has validated
 // usage counts, not a verified currency cost or a claim of task acceptance.
 func (g *Gateway) Execute(ctx context.Context, input Request) (Result, error) {
+	return g.execute(ctx, input, nil)
+}
+
+// ExecutePrepared consumes a TLS connection prepared by this gateway exactly
+// once. It still requires a fresh dispatch permit before any HTTP bytes leave.
+func (g *Gateway) ExecutePrepared(ctx context.Context, input Request, connection *PreparedConnection) (Result, error) {
+	if connection == nil || !connection.claim(g) {
+		return Result{}, rejected("invalid_prepared_connection")
+	}
+	defer connection.Close()
+	return g.execute(ctx, input, connection)
+}
+
+func (g *Gateway) execute(ctx context.Context, input Request, prepared *PreparedConnection) (Result, error) {
 	if g == nil || g.client == nil || ctx == nil {
 		return Result{}, rejected("invalid_request")
 	}
@@ -167,6 +182,9 @@ func (g *Gateway) Execute(ctx context.Context, input Request) (Result, error) {
 	// not reset after a stalled caller, DNS lookup or TLS handshake, and it does
 	// not shorten the independently bounded response timeout after sending.
 	client, cleanup := g.dispatchClient(input.DispatchDeadline)
+	if prepared != nil {
+		client, cleanup = g.preparedDispatchClient(input.DispatchDeadline, prepared)
+	}
 	defer cleanup()
 	response, err := client.Do(request)
 	if err != nil {
@@ -182,16 +200,17 @@ func (g *Gateway) Execute(ctx context.Context, input Request) (Result, error) {
 	if response.StatusCode != http.StatusOK {
 		// Status alone cannot establish provider-specific billing semantics.
 		// Do not parse or expose a provider error body.
+		outcome := unknown("provider_status_unknown")
 		switch {
 		case response.StatusCode >= 300 && response.StatusCode <= 399:
-			return Result{}, unknown("redirect_rejected")
+			outcome.Code = "redirect_rejected"
 		case response.StatusCode == http.StatusTooManyRequests:
-			return Result{}, unknown("provider_rate_limited")
+			outcome.Code = "provider_rate_limited"
 		case response.StatusCode >= 400 && response.StatusCode <= 499:
-			return Result{}, unknown("provider_rejected")
-		default:
-			return Result{}, unknown("provider_status_unknown")
+			outcome.Code = "provider_rejected"
 		}
+		outcome.HTTPStatus = response.StatusCode
+		return Result{}, outcome
 	}
 	contentType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 	if err != nil || contentType != "application/json" ||

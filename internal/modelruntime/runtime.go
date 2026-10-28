@@ -115,6 +115,23 @@ func (r *Runtime) Execute(ctx context.Context, lease *domain.Lease) (Outcome, er
 		out.Status = AlreadyAttempted
 		return out, nil
 	}
+	var prepared *modelgateway.PreparedConnection
+	if r.wireProfile == domain.ModelWireOpenRouterTextV1 {
+		// DNS/TCP/TLS can outlast the short dispatch-start permit. Prepare only
+		// the socket first, then obtain fresh authority before any HTTP bytes.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, r.requestTimeout)
+		defer cancel()
+		prepared, err = r.gateway.PrepareConnection(ctx)
+		if err != nil {
+			failure := &ExecutionError{Code: "connection_not_prepared"}
+			if gatewayFailure, ok := err.(*modelgateway.OutcomeError); ok {
+				failure.GatewayCode = gatewayFailure.Code
+			}
+			return out, failure
+		}
+		defer prepared.Close()
+	}
 	admissionStarted := time.Now()
 	permit, err := r.store.PrepareModelDispatch(ctx, &l, reservation.ID)
 	if err != nil {
@@ -135,12 +152,19 @@ func (r *Runtime) Execute(ctx context.Context, lease *domain.Lease) (Outcome, er
 		return out, runtimeError("dispatch_permit_rejected", true)
 	}
 
-	// This is the only external call in the lifecycle. Gateway has no automatic
+	// This is the only inference request in the lifecycle. Gateway has no automatic
 	// redirects, retries, proxy discovery or provider fallback.
-	result, executionErr := r.gateway.Execute(ctx, modelgateway.Request{
+	request := modelgateway.Request{
 		ID: chargeKey, Instructions: l.Agent.Instructions, Goal: domain.ExecutionInput(l), DispatchDeadline: dispatchDeadline,
 		Tools: l.ModelTools, Messages: l.ModelMessages,
-	})
+	}
+	var result modelgateway.Result
+	var executionErr error
+	if prepared != nil {
+		result, executionErr = r.gateway.ExecutePrepared(ctx, request, prepared)
+	} else {
+		result, executionErr = r.gateway.Execute(ctx, request)
+	}
 	out.Status = OutcomeUnknown
 	if !r.markUnknown(l.OrganizationID, reservation.ID) {
 		// A durable sent action still prevents redispatch if accounting cannot
@@ -154,7 +178,11 @@ func (r *Runtime) Execute(ctx context.Context, lease *domain.Lease) (Outcome, er
 		if !r.pause(l, reservation.ID, PauseOutcomeUnknown) {
 			return out, runtimeError("pause_record_failed", true)
 		}
-		return out, runtimeError("provider_outcome_unknown", true)
+		failure := &ExecutionError{Code: "provider_outcome_unknown", Unknown: true}
+		if gatewayFailure, ok := executionErr.(*modelgateway.OutcomeError); ok {
+			failure.GatewayCode, failure.ProviderStatus = gatewayFailure.Code, gatewayFailure.HTTPStatus
+		}
+		return out, failure
 	}
 	if !r.validResult(l, result) || result.InputTokens > r.price.MaxInputTokens {
 		if !r.pause(l, reservation.ID, PauseOutputRejected) {

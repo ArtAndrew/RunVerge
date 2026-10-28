@@ -338,7 +338,7 @@ func (w *Worker) executeModel(ctx context.Context, l *domain.Lease, connection d
 	cancel()
 	<-heartbeatDone
 	if e != nil {
-		w.Log.Warn("model attempt requires attention", "operation_id", l.OperationID, "outcome", out.Status)
+		w.logModelFailure(l.OperationID, out.Status, e)
 	}
 	if out.Status == modelruntime.AlreadyAttempted {
 		persist, stop := context.WithTimeout(context.Background(), 5*time.Second)

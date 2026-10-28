@@ -8,7 +8,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from verify_openrouter_free import FreeProbe
+from verify_openrouter_free import FreeProbe, failure_details
 
 
 class ReachedTask(Exception):
@@ -16,6 +16,15 @@ class ReachedTask(Exception):
 
 
 class OpenRouterProbeContract(unittest.TestCase):
+    def test_failure_diagnostics_copy_only_fixed_codes(self):
+        with tempfile.TemporaryDirectory() as private:
+            log = Path(private) / 'worker.log'
+            log.write_text('private-key-and-body-sentinel gateway_code=provider_rejected provider_status=403\n')
+            value = failure_details({'status': 'blocked', 'waiting_reason': 'model_outcome_unknown', 'goal': 'private-key-and-body-sentinel'}, log)
+            self.assertIn('gateway_code=provider_rejected', value)
+            self.assertIn('provider_status=403', value)
+            self.assertNotIn('private-key', value)
+
     def test_task_uses_public_max_runs_and_worker_alone_receives_key(self):
         environment, task_payload, stopped = {}, [], []
         key = 'synthetic-not-a-real-key-' + 'x' * 32

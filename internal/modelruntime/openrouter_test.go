@@ -16,20 +16,20 @@ func TestOpenRouterPolicyChangesIntentWithoutDispatch(t *testing.T) {
 	c := testConfig(modelgateway.OpenRouterEndpoint)
 	c.Gateway.Model, c.Price.Model, c.Gateway.AllowInsecureLoopback = lease.Agent.Model, lease.Agent.Model, false
 	legacy := newStore()
-	legacy.prepareCommitError = true
+	legacy.reserveCommitError = true
 	router := newStore()
-	router.prepareCommitError = true
+	router.reserveCommitError = true
 	_, _ = newRuntime(t, legacy, c).Execute(context.Background(), lease)
 	c.Gateway.WireProfile = domain.ModelWireOpenRouterTextV1
 	_, _ = newRuntime(t, router, c).Execute(context.Background(), lease)
 	if legacy.intent.IntentHash == "" || router.intent.IntentHash == "" || legacy.intent.IntentHash == router.intent.IntentHash {
 		t.Fatal("wire policy was absent from immutable intent")
 	}
-	if legacy.candidate.Text != "" || router.candidate.Text != "" || legacy.action != "unknown" || router.action != "unknown" {
-		t.Fatal("prepare failure did not stop before network")
+	if legacy.candidate.Text != "" || router.candidate.Text != "" || legacy.action != "pending" || router.action != "pending" {
+		t.Fatal("reserve failure did not stop before network")
 	}
 	allowData := newStore()
-	allowData.prepareCommitError = true
+	allowData.reserveCommitError = true
 	c.Gateway.OpenRouterDataCollection = "allow"
 	_, _ = newRuntime(t, allowData, c).Execute(context.Background(), lease)
 	if allowData.intent.IntentHash == "" || router.intent.IntentHash == allowData.intent.IntentHash {

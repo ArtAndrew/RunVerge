@@ -45,8 +45,11 @@ class FreeProbe:
     def __init__(self, key, model, data_policy):
         self.key, self.model, self.data_policy = key, model, data_policy
         self.snapshots = {}
+        self.last_task = {}
 
     def __call__(self, context):
+        if context.get('register_sensitive'):
+            context['register_sensitive'](self.key)
         request, record, binary = context['request'], context['record'], context['binary']
         profile = context['private'] / 'free-model.json'
         record('prepare_free_openrouter_profile_without_key_access', [binary, 'prepare-model',
@@ -82,6 +85,7 @@ class FreeProbe:
                 deadline = time.monotonic() + 90
                 while time.monotonic() < deadline:
                     current = request(route)
+                    self.last_task = current
                     if current['status'] == 'waiting_input':
                         break
                     if current['status'] in ('blocked', 'failed', 'cancelled', 'succeeded') or worker.poll() is not None:
@@ -154,6 +158,10 @@ class FreeProbe:
         except HTTPError as error:
             # Only a fixed phase and numeric status; never the URL, body or headers.
             raise RuntimeError('Free model workflow HTTP rejection at ' + phase + ' (status ' + str(error.code) + ')') from None
+        except RuntimeError as error:
+            context['stop_child'](worker)
+            details = failure_details(self.last_task, context['private'] / 'free-openrouter-worker.log')
+            raise RuntimeError(str(error) + ' [phase=' + phase + '; ' + details + ']') from None
         finally:
             context['stop_child'](worker)
 
@@ -165,6 +173,39 @@ class FreeProbe:
             if request(route + '/' + name) != self.snapshots[name]:
                 raise RuntimeError('Restart changed immutable workflow evidence')
         return True
+
+
+def failure_details(task, log_path):
+    statuses = {'queued', 'running', 'waiting_input', 'blocked', 'failed', 'cancelled', 'succeeded'}
+    reasons = {'model_outcome_unknown', 'model_output_rejected', 'model_input_rejected',
+               'model_accounting_pending', 'model_attempt_requires_attention',
+               'model_credentials_unavailable', 'model_profile_unavailable',
+               'configuration_profile_unavailable', 'authorization_revoked',
+               'execution_deadline', 'attempt_limit', 'budget_exceeded'}
+    status = task.get('status')
+    reason = task.get('waiting_reason')
+    fields = ['status=' + (status if status in statuses else 'unknown'),
+              'waiting_reason=' + (reason if reason in reasons else 'unknown')]
+    try:
+        with log_path.open('rb') as stream:
+            stream.seek(0, 2)
+            stream.seek(max(0, stream.tell() - 8192))
+            body = stream.read(8192).decode('utf-8', errors='replace')
+        codes = {'connection_not_established', 'transport_outcome_unknown', 'dispatch_permit_expired',
+                 'provider_rejected', 'provider_rate_limited', 'provider_status_unknown',
+                 'redirect_rejected', 'invalid_response_format', 'invalid_response_json',
+                 'invalid_usage', 'invalid_completion', 'unsupported_completion',
+                 'output_token_limit_exceeded', 'openrouter_identity_unknown',
+                 'response_read_unknown', 'response_too_large'}
+        found = [code for code in re.findall(r'\bgateway_code=([a-z_]+)\b', body) if code in codes]
+        if found:
+            fields.append('gateway_code=' + found[-1])
+        statuses = re.findall(r'\bprovider_status=([1-5][0-9]{2})\b', body)
+        if statuses:
+            fields.append('provider_status=' + statuses[-1])
+    except OSError:
+        pass
+    return '; '.join(fields)
 
 
 if __name__ == '__main__':

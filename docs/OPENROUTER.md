@@ -11,12 +11,20 @@ filters from the same rates used by RunVerge's reservation. It sends text only;
 tool conversations, automatic model routers and web-search variants are excluded.
 The existing generic connection profile is unchanged.
 
+The worker reserves the call budget, prepares a TLS connection without sending
+HTTP or the key, then checks permission and the current execution lease again.
+The same connection can send one request within the existing short dispatch
+window. Connection preparation and response share one overall timeout.
+
 ## Select the model and data policy
 
 Choose an exact model ID from [OpenRouter's catalog](https://openrouter.ai/models).
 For a free test choose a specific ID ending in `:free`. Check its current pricing:
 free profiles require zero input, output and fixed request prices. Do not configure
 a paid fallback. Availability and rate limits may prevent a free request from running.
+An HTTP `429` blocks the attempt; RunVerge does not retry it automatically or
+switch models. A new attempt requires explicit consent. An HTTP rejection alone
+does not settle the internal reservation or prove a final provider charge.
 
 `--data-collection deny` is the default. It asks OpenRouter to exclude providers
 that collect data. This is not a Zero Data Retention guarantee. Some free routes

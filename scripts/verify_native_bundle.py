@@ -240,6 +240,7 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
                     'credentials': credentials, 'request': request,
                     'record': record, 'process': process,
                     'worker': worker, 'stop_child': stop_child,
+                    'register_sensitive': sensitive.append,
                 })
             stop_child(worker); stop_child(api)
             record('stop_owned_postgres', [pg_ctl, '-D', cluster, '-m', 'fast', '-w', 'stop'], pg_env)
