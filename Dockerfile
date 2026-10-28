@@ -38,7 +38,7 @@ FROM scratch AS runtime
 COPY --from=native-check --chown=10001:10001 /opt/installed /app
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /out/healthcheck /usr/local/bin/runverge-healthcheck
-COPY --from=build --chown=10001:10001 /out/state /state
+COPY --from=build --chown=10001:10001 --chmod=0700 /out/state /state
 USER 10001:10001
 WORKDIR /app
 ENV HOME=/tmp TZ=UTC
