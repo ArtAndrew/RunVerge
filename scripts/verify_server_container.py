@@ -161,7 +161,7 @@ def verify(evidence, image):
                     service = state['Config']['Labels'].get('com.docker.compose.service')
                     if service not in ('db', 'migrate', 'api', 'worker', 'admin'):
                         continue
-                    logs = command(['docker', 'logs', identifier])
+                    logs = command(['docker', 'logs', '--tail', '200', identifier])
                     # Publish only fixed classifications, never log excerpts, names,
                     # environment values, arguments or other free-form container data.
                     report['service_failures'].append({'service': service,
@@ -169,7 +169,9 @@ def verify(evidence, image):
                         'classifications': [label for label in (
                             'permission denied', 'read-only file system', 'native installation',
                             'connection refused', 'password authentication failed',
-                            'bootstrap output must be a new private file', 'exec format error'
+                            'bootstrap output must be a new private file', 'exec format error',
+                            'development auth/fixture profile requires a loopback address',
+                            'cannot connect to postgresql'
                         ) if label in logs.lower()]})
             except Exception:
                 pass

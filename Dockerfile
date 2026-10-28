@@ -13,6 +13,7 @@ COPY --from=web-dependencies /deps/web/node_modules ./web/node_modules
 ENV GOMODCACHE=/work/go-mod GOCACHE=/work/go-cache GOTOOLCHAIN=local GOENV=off GOWORK=off
 RUN go mod download
 RUN go test -mod=readonly ./cmd/healthcheck
+RUN go test -mod=readonly ./cmd/platform -run '^TestContainerPreviewDoesNotRelaxDefaultOrIdentityListeners$' -count=1
 ARG RUNVERGE_VERSION=0.14.0-dev.linux1
 RUN mkdir -m 0755 /out && python3 scripts/build_native_bundle.py --output /out/bundle --version "$RUNVERGE_VERSION" > /out/build-report.json
 RUN hash="$(sha256sum /out/bundle/bundle.json | cut -d ' ' -f 1)" && /out/bundle/bin/platform bundle install --source /out/bundle --destination /out/installed --manifest-sha256 "$hash"
@@ -42,4 +43,4 @@ WORKDIR /app
 ENV HOME=/tmp TZ=UTC
 EXPOSE 8080
 ENTRYPOINT ["/app/bin/platform"]
-CMD ["serve", "--listen", "0.0.0.0:8080"]
+CMD ["serve", "--container-preview", "--listen", "0.0.0.0:8080"]

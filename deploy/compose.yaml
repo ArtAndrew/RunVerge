@@ -47,7 +47,7 @@ services:
 
   api:
     <<: *application
-    command: [serve, --listen, "0.0.0.0:8080"]
+    command: [serve, --container-preview, --listen, "0.0.0.0:8080"]
     ports:
       - "127.0.0.1:${RUNVERGE_PORT:-8080}:8080"
     depends_on:

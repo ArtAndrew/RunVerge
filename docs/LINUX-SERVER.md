@@ -20,6 +20,10 @@ for Go/Node build dependencies, PostgreSQL and image layers. The first build nee
 internet access and takes longer than starting an existing image.
 
 The server port binds to `127.0.0.1:8080`. PostgreSQL has no published host port.
+The API uses the explicit `--container-preview` mode inside its container. Normal
+`serve` commands still require a loopback listener. This mode supports the existing
+platform-token access only; OIDC, HTTP MCP and trusted-proxy mode remain excluded.
+Do not change the published port to `0.0.0.0` or expose it to an untrusted network.
 For a remote server, use an SSH tunnel, for example
 `ssh -L 8080:127.0.0.1:8080 your-server`, then open
 [http://localhost:8080](http://localhost:8080) on your computer. Public HTTPS exposure

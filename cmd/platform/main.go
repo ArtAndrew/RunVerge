@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -220,6 +219,7 @@ func run() error {
 	case "serve":
 		f := flag.NewFlagSet("serve", flag.ContinueOnError)
 		addr := f.String("listen", "127.0.0.1:8080", "loopback listen address")
+		containerPreview := f.Bool("container-preview", false, "explicit test-data container listener at 0.0.0.0:8080; publish only on host loopback")
 		static := f.String("web", "", "explicit web assets; native packages default to their verified installed assets")
 		oidcFile := f.String("oidc-config", "", "private OIDC configuration JSON file")
 		tlsCert := f.String("tls-cert", "", "TLS certificate PEM file")
@@ -231,13 +231,8 @@ func run() error {
 		if e = f.Parse(os.Args[2:]); e != nil {
 			return e
 		}
-		host, _, e := net.SplitHostPort(*addr)
-		if e != nil {
-			return errors.New("invalid listen address")
-		}
-		ip := net.ParseIP(host)
-		if ip == nil || !ip.IsLoopback() {
-			return errors.New("development auth/fixture profile requires a loopback address")
+		if e = validateServeListener(*addr, *containerPreview, *oidcFile != "", *mcpEnabled, *tlsProxy); e != nil {
+			return e
 		}
 		if *static == "" {
 			*static, e = nativeDefaultWeb()
