@@ -39,7 +39,7 @@ func main() {
 }
 func run() error {
 	if len(os.Args) < 2 {
-		return errors.New("usage: platform version|bundle|capabilities|doctor|config|migrate|bootstrap|serve|worker|mcp-stdio|link-identity|issue-token|issue-service-token|recover-login-policy|advance-event-replay|install-model|install-tool")
+		return errors.New("usage: platform version|bundle|capabilities|doctor|config|migrate|bootstrap|serve|worker|mcp-stdio|link-identity|issue-token|issue-service-token|recover-login-policy|advance-event-replay|prepare-model|install-model|install-tool")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -51,6 +51,9 @@ func run() error {
 	}
 	if os.Args[1] == "generate-webhook-key" {
 		return runGenerateWebhookKey(os.Args[2:], os.Stdout)
+	}
+	if os.Args[1] == "prepare-model" {
+		return runPrepareModel(os.Args[2:], os.Stdout)
 	}
 	if os.Args[1] == "config" {
 		return runConfigurationClient(ctx, os.Args[2:], os.Stdout)

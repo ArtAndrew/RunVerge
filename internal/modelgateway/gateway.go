@@ -30,14 +30,17 @@ const (
 )
 
 type Config struct {
-	Endpoint              string
-	APIKey                string
-	Model                 string
-	MaxOutputTokens       int
-	MaxInputBytes         int
-	Timeout               time.Duration
-	AllowInsecureLoopback bool
-	TokenLimitField       string
+	WireProfile              string
+	OpenRouterDataCollection string
+	OpenRouterPrice          OpenRouterPrice
+	Endpoint                 string
+	APIKey                   string
+	Model                    string
+	MaxOutputTokens          int
+	MaxInputBytes            int
+	Timeout                  time.Duration
+	AllowInsecureLoopback    bool
+	TokenLimitField          string
 }
 
 type Request struct {
@@ -88,6 +91,9 @@ func New(config Config) (*Gateway, error) {
 	}
 	if !validEndpoint(config.Endpoint, config.AllowInsecureLoopback) {
 		return nil, rejected("invalid_endpoint")
+	}
+	if err := validateWireProfile(config); err != nil {
+		return nil, err
 	}
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
@@ -202,11 +208,15 @@ func (g *Gateway) Execute(ctx context.Context, input Request) (Result, error) {
 	if len(body) > maxResponseBytes {
 		return Result{}, unknown("response_too_large")
 	}
-	result, err := decodeResultWithTools(body, g.config.MaxOutputTokens, input.Tools, input.Messages)
+	expectedModel := ""
+	if g.config.WireProfile == domain.ModelWireOpenRouterTextV1 {
+		expectedModel = g.config.Model
+	}
+	result, err := decodeProfileResult(body, g.config.MaxOutputTokens, input.Tools, input.Messages, expectedModel)
 	if err != nil {
 		return Result{}, err
 	}
-	if id := response.Header.Get("X-Request-ID"); safeASCII(id, 256) {
+	if id := response.Header.Get("X-Request-ID"); expectedModel == "" && safeASCII(id, 256) {
 		result.ProviderRequestID = id
 	}
 	return result, nil

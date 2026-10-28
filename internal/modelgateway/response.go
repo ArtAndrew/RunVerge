@@ -17,6 +17,10 @@ func decodeResult(body []byte, outputLimit int) (Result, error) {
 }
 
 func decodeResultWithTools(body []byte, outputLimit int, tools []domain.ModelToolDefinition, history []domain.ModelMessage) (Result, error) {
+	return decodeProfileResult(body, outputLimit, tools, history, "")
+}
+
+func decodeProfileResult(body []byte, outputLimit int, tools []domain.ModelToolDefinition, history []domain.ModelMessage, expectedModel string) (Result, error) {
 	if !jsonwire.ValidUnicode(body) {
 		return Result{}, unknown("invalid_response_json")
 	}
@@ -32,6 +36,13 @@ func decodeResultWithTools(body []byte, outputLimit int, tools []domain.ModelToo
 	root, ok := value.(map[string]any)
 	if !ok {
 		return Result{}, unknown("invalid_response_json")
+	}
+	if expectedModel != "" {
+		id, validID := root["id"].(string)
+		_, hasError := root["error"]
+		if root["model"] != expectedModel || !validID || !safeASCII(id, 256) || hasError {
+			return Result{}, unknown("openrouter_identity_unknown")
+		}
 	}
 	usage, ok := root["usage"].(map[string]any)
 	if !ok {

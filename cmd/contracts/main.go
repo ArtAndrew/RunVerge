@@ -547,6 +547,10 @@ func describe(t reflect.Type) schema {
 			}
 		}
 		if t.Name() == "AvailableModel" || t.Name() == "ModelConnection" {
+			if t.Name() == "ModelConnection" {
+				properties["wire_profile"].(schema)["enum"] = []string{"", domain.ModelWireOpenRouterTextV1}
+				properties["openrouter_data_collection"].(schema)["enum"] = []string{"", "deny", "allow"}
+			}
 			modes := []string{domain.ModelAccountingMetered, domain.ModelAccountingLocalUnmetered}
 			if t.Name() == "ModelConnection" {
 				modes = append(modes, "")

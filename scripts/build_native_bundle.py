@@ -21,6 +21,7 @@ OPERATOR_GUIDES = {
     'QUICKSTART-ALPHA.md': 'docs/QUICKSTART-ALPHA.md',
     'LOCAL-MODELS.md': 'docs/LOCAL-MODELS.md',
     'MCP-READ.md': 'docs/MCP-READ.md',
+    'OPENROUTER.md': 'docs/OPENROUTER.md',
 }
 
 

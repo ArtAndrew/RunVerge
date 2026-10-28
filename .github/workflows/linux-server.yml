@@ -17,7 +17,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Private settings helper checks
-        run: python3 -m unittest discover -s tests/development -p test_server_setup.py -v
+        run: |
+          python3 -m unittest discover -s tests/development -p test_server_setup.py -v
+          python3 -m unittest discover -s tests/development -p test_model_key.py -v
       - name: Build and verify a native Linux installation
         run: docker build --target runtime --tag runverge:linux-preview .
       - name: Check Compose, separate worker and restart
