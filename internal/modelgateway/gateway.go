@@ -199,13 +199,19 @@ func (g *Gateway) execute(ctx context.Context, input Request, prepared *Prepared
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		// Status alone cannot establish provider-specific billing semantics.
-		// Do not parse or expose a provider error body.
+		// Only a bounded, fixed diagnostic discriminator may be read below;
+		// provider messages and bodies must never be exposed.
 		outcome := unknown("provider_status_unknown")
 		switch {
 		case response.StatusCode >= 300 && response.StatusCode <= 399:
 			outcome.Code = "redirect_rejected"
 		case response.StatusCode == http.StatusTooManyRequests:
 			outcome.Code = "provider_rate_limited"
+			if g.config.WireProfile == domain.ModelWireOpenRouterTextV1 {
+				if code := openRouterLimitCode(response.Body); code != "" {
+					outcome.Code = code
+				}
+			}
 		case response.StatusCode >= 400 && response.StatusCode <= 499:
 			outcome.Code = "provider_rejected"
 		}

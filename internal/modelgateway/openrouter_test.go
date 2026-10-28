@@ -11,6 +11,28 @@ import (
 	"agentplatform.local/platform/internal/domain"
 )
 
+func TestOpenRouterLimitsDoNotCopyPrivateProviderMessages(t *testing.T) {
+	private := `{"error":{"message":"private-key-and-body-sentinel","metadata":{"raw":"private-key-and-body-sentinel","limit_source":"upstream_provider_shared_pool"}}}`
+	if code := openRouterLimitCode(strings.NewReader(private)); code != "provider_shared_pool_limited" {
+		t.Fatal("shared provider pool was not distinguished")
+	}
+	for _, body := range []string{
+		strings.Replace(private, "upstream_provider_shared_pool", "private-key-and-body-sentinel", 1),
+		strings.Replace(private, `"limit_source":`, `"limit_source":"unexpected","limit_source":`, 1),
+		private + `{}`, strings.Repeat("x", (16<<10)+1),
+	} {
+		if code := openRouterLimitCode(strings.NewReader(body)); code != "" {
+			t.Fatal("ambiguous or private diagnostic escaped")
+		}
+	}
+}
+
+func TestOpenRouterEmptyLengthCompletionKeepsUncertainOutcome(t *testing.T) {
+	body := []byte(`{"id":"gen-test","model":"example/fixed-model:free","choices":[{"finish_reason":"length","message":{"role":"assistant","content":"","reasoning":"private-reasoning-sentinel"}}],"usage":{"prompt_tokens":10,"completion_tokens":256,"total_tokens":266}}`)
+	_, err := decodeProfileResult(body, 256, nil, nil, "example/fixed-model:free")
+	assertOutcome(t, err, "output_budget_exhausted", true)
+}
+
 func routerConfig() Config {
 	c := fixtureConfig(OpenRouterEndpoint)
 	c.WireProfile, c.Model, c.AllowInsecureLoopback = domain.ModelWireOpenRouterTextV1, "example/fixed-model", false

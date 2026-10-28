@@ -196,6 +196,7 @@ def build(output, version):
         write(package, 'LICENSE', (ROOT / 'LICENSE').read_bytes())
         for target_name, source_name in OPERATOR_GUIDES.items():
             write(package, target_name, (ROOT / source_name).read_bytes())
+        write(package, 'helpers/model_key.py', (ROOT / 'scripts/model_key.py').read_bytes())
         write(package, 'LICENSING.md', b'# RunVerge native distribution\n\n'
               b'Original server, CLI and Workspace: Elastic License 2.0; see LICENSE.\n'
               b'Dependencies retain their own licenses; see components.json and notices/.\n'

@@ -44,16 +44,20 @@ Create a private directory and prepare the profile with the newly built binary:
 mkdir -p -m 700 "$HOME/.config/runverge"
 /absolute/installation/bin/platform prepare-model \
   --provider openrouter --organization-id YOUR_ORGANIZATION_ID \
-  --model liquid/lfm-2.5-2.6b:free --provider-account my-openrouter-test \
+  --model nvidia/nemotron-3.5-lightning:free --provider-account my-openrouter-test \
   --price-version operator-free-v1 \
   --input-usd-per-million 0 --output-usd-per-million 0 \
-  --max-call-usd 0.000001 --data-collection allow \
+  --max-call-usd 0.000001 --max-output-tokens 2048 --data-collection allow \
   --out "$HOME/.config/runverge/openrouter-v1.json"
 ```
 
 This example allows provider data collection for public test text. For confidential
 data, choose a model/provider policy that meets your requirements and use `deny`.
 The model name is an example, not a promise of continued availability.
+Output tokens include the model's reasoning as well as its answer. A very small
+limit can be consumed before any answer appears. The setup default is 2,048;
+choose a different bound explicitly when needed. Increasing the bound for a paid
+model also requires a reservation large enough to cover the configured token rates.
 
 Preparation reads no API key, connects to no database, performs no inference and
 refuses to replace an existing file. Rates are USD per million tokens; the optional
@@ -66,24 +70,40 @@ installation's private database settings. This stores an immutable connection;
 it does not call the model. For a changed profile use the next `--version` and a
 new filename. Existing tasks retain their original connection and price version.
 
-Save the key using hidden input:
+Save the key using hidden input. The native package includes the helper below;
+this optional setup helper requires Python 3, while the application itself does not:
 
 ```sh
-python3 scripts/model_key.py --out "$HOME/.config/runverge/openrouter.env"
+python3 /absolute/installation/helpers/model_key.py --out "$HOME/.config/runverge/openrouter.env"
 ```
 
 Agents and deployment tools can instead supply an existing private raw-key file
 with `--key-file /absolute/private/key-file`; the key never appears in arguments.
 
-Run the worker with this private env_file loaded by your process manager. Keep the
-key out of command arguments, source files and support reports. Do not load it into
-the API process. Select the installed model when creating an agent, publish the
-agent, then create a task. The draft still requires review.
+From a source checkout, the helper is `scripts/model_key.py`. You can also create
+the private worker settings in a local editor without the helper.
+
+In the separate worker terminal, load the runtime settings created in the
+quickstart and the new key file, then start the worker:
+
+```sh
+set -a
+. /absolute/runverge-private/runtime.env
+. "$HOME/.config/runverge/openrouter.env"
+set +a
+/absolute/installation/bin/platform worker --concurrency 1
+```
+
+Load only files you created and trust: `.` executes a shell file. Keep the key out
+of command arguments, source files and support reports. The API terminal loads only
+its runtime settings. Select the installed model when creating an agent, publish
+the agent, then create a task. The draft still requires review.
 
 ## Linux Compose preview
 
 Follow [the Linux installation guide](LINUX-SERVER.md) first. Save the key to a new
-file with the helper above, then select that file for the worker:
+file using `python3 scripts/model_key.py --out "$HOME/.config/runverge/openrouter.env"`
+from the source checkout, then select that file for the worker:
 
 ```sh
 export RUNVERGE_MODEL_ENV_FILE="$HOME/.config/runverge/openrouter.env"
@@ -94,10 +114,10 @@ Create the profile inside the admin volume so its ownership matches the installe
 ```sh
 docker compose -f deploy/compose.yaml --profile admin run --rm admin prepare-model \
   --provider openrouter --organization-id YOUR_ORGANIZATION_ID \
-  --model liquid/lfm-2.5-2.6b:free --provider-account my-openrouter-test \
+  --model nvidia/nemotron-3.5-lightning:free --provider-account my-openrouter-test \
   --price-version operator-free-v1 \
   --input-usd-per-million 0 --output-usd-per-million 0 \
-  --max-call-usd 0.000001 --data-collection allow \
+  --max-call-usd 0.000001 --max-output-tokens 2048 --data-collection allow \
   --out /state/openrouter-v1.json
 docker compose -f deploy/compose.yaml --profile admin run --rm admin install-model --file /state/openrouter-v1.json
 docker compose -f deploy/compose.yaml up -d --force-recreate worker
@@ -106,6 +126,22 @@ docker compose -f deploy/compose.yaml up -d --force-recreate worker
 Keep `RUNVERGE_MODEL_ENV_FILE` set in your deployment environment for later worker
 restarts. Only the worker receives this env_file. The API and image build do not.
 Do not publish a resolved Compose configuration containing credentials.
+
+## If a model does not answer
+
+- `provider_shared_pool_limited` with HTTP `429` means the upstream provider's
+  shared pool refused the call. This does not establish that the API key's daily
+  quota is exhausted. Check the quota privately with OpenRouter's
+  [current-key endpoint](https://openrouter.ai/docs/api/api-reference/api-keys/get-current-api-key).
+- `output_budget_exhausted` means generation reached the output limit without an
+  answer. Configure an adequate limit before explicitly starting a new attempt.
+- A `404` can mean the selected model has no route matching the requested privacy
+  or price filters. Review the model and policy; RunVerge does not relax them.
+
+These fixed codes appear in worker diagnostics. Do not publish raw provider errors
+or the response from the current-key endpoint. A new model or limit requires a new
+connection version; tasks already created keep their original configuration.
+
 
 ## Results and costs
 

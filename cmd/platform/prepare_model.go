@@ -92,7 +92,7 @@ func runPrepareModel(args []string, out io.Writer) error {
 	fixedRate := f.String("fixed-usd-per-request", "0", "maximum fixed USD per request")
 	callBudget := f.String("max-call-usd", "", "reservation ceiling for one request")
 	inputTokens := f.Int64("max-input-tokens", 4096, "operator-assumed input token ceiling")
-	outputTokens := f.Int("max-output-tokens", 256, "requested output token ceiling")
+	outputTokens := f.Int("max-output-tokens", 2048, "requested output token ceiling, including model reasoning")
 	path := f.String("out", "", "new JSON file in an existing private directory")
 	if f.Parse(args) != nil || f.NArg() != 0 || *provider != "openrouter" || *path == "" ||
 		!configurationCLIIdentifier.MatchString(*organization) || !configurationCLIIdentifier.MatchString(*id) ||

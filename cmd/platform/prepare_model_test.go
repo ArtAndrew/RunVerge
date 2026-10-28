@@ -30,7 +30,7 @@ func TestPrepareModelIsOfflinePrivateAndNeverOverwrites(t *testing.T) {
 	if err := readPrivateJSON(path, &profile); err != nil {
 		t.Fatal(err)
 	}
-	if profile.WireProfile != domain.ModelWireOpenRouterTextV1 || profile.MaxChargeMicroUSD != 1 || profile.AccountingMode != domain.ModelAccountingMetered {
+	if profile.WireProfile != domain.ModelWireOpenRouterTextV1 || profile.MaxChargeMicroUSD != 1 || profile.AccountingMode != domain.ModelAccountingMetered || profile.MaxOutputTokens != 2048 {
 		t.Fatal("prepared profile changed policy")
 	}
 	before, _ := os.ReadFile(path)

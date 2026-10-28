@@ -56,7 +56,7 @@ class FreeProbe:
                '--provider', 'openrouter', '--organization-id', context['credentials']['organization_id'],
                '--model', self.model, '--provider-account', 'operator-free-test', '--price-version', 'zero-filter-v1',
                '--input-usd-per-million', '0', '--output-usd-per-million', '0', '--max-call-usd', '0.000001',
-               '--max-output-tokens', '256', '--data-collection', self.data_policy, '--out', profile])
+               '--max-output-tokens', '2048', '--data-collection', self.data_policy, '--out', profile])
         record('install_free_openrouter_profile', [binary, 'install-model', '--file', profile])
         context['stop_child'](context['worker'])
         # Popen receives its own environment. Remove the key immediately after
@@ -192,6 +192,7 @@ def failure_details(task, log_path):
             stream.seek(max(0, stream.tell() - 8192))
             body = stream.read(8192).decode('utf-8', errors='replace')
         codes = {'connection_not_established', 'transport_outcome_unknown', 'dispatch_permit_expired',
+                 'provider_shared_pool_limited', 'output_budget_exhausted',
                  'provider_rejected', 'provider_rate_limited', 'provider_status_unknown',
                  'redirect_rejected', 'invalid_response_format', 'invalid_response_json',
                  'invalid_usage', 'invalid_completion', 'unsupported_completion',
