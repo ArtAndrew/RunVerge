@@ -52,7 +52,7 @@ def verify(evidence, image):
                 os.chmod(path, 0o600)
                 stream.write(result.stdout + result.stderr)
             raise RuntimeError('Container command failed; private diagnostic retained')
-        return result.stdout
+        return result.stdout + result.stderr if args[:2] == ['docker', 'logs'] else result.stdout
 
     def step(name):
         report['steps'].append({'name': name, 'passed': True})

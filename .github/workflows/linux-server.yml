@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: linux-preview-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-amd64:
     runs-on: ubuntu-24.04
