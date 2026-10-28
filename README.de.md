@@ -20,7 +20,7 @@ Das Alpha.3-Paket läuft auf macOS arm64 und enthält die Einrichtung lokaler Mo
 
 [OpenRouter ausprobieren](https://openrouter.ai/) · [Mit RunVerge verbinden](docs/OPENROUTER.md).
 
-Auf `main` gibt es eine [aus dem Quellcode gebaute Vorschau für Linux-Server](docs/LINUX-SERVER.md), für neue Installationen mit Testdaten. Installation, separater Worker und Erhalt der Ergebnisse nach einem Neustart wurden auf Linux amd64 geprüft. Die Vorschau ist vom Alpha.3-Download getrennt. Die Anleitung ist derzeit auf Englisch.
+Auf `main` gibt es eine [aus dem Quellcode gebaute Vorschau für Linux-Server](docs/LINUX-SERVER.md), für neue Installationen mit Testdaten. Installation, separater Worker und Erhalt der Ergebnisse nach einem Neustart wurden auf Linux amd64 und arm64 geprüft. Die Vorschau ist vom Alpha.3-Download getrennt. Die Anleitung ist derzeit auf Englisch.
 
 Anwendungshost und Modellanbieter sind getrennte Entscheidungen. Das aktuelle Mac-Paket bedeutet nicht, dass das Produkt nur lokale Modelle nutzen muss.
 

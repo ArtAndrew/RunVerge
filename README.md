@@ -20,7 +20,7 @@ The alpha.3 package runs on macOS arm64 and includes local-model setup plus an e
 
 [Try OpenRouter](https://openrouter.ai/) · [Connect it to RunVerge](docs/OPENROUTER.md).
 
-A [Linux server source-build preview](docs/LINUX-SERVER.md) is now available on `main` for fresh installations with test data. It has passed Linux amd64 installation, separate-worker execution and restart checks. It is separate from the alpha.3 download. The preview guide is currently in English.
+A [Linux server source-build preview](docs/LINUX-SERVER.md) is now available on `main` for fresh installations with test data. It has passed Linux amd64 and arm64 installation, separate-worker execution and restart checks. It is separate from the alpha.3 download. The preview guide is currently in English.
 
 The application host and model provider are separate choices. The current macOS package does not mean that the product must only use local models.
 

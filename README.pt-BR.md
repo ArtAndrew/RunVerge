@@ -20,7 +20,7 @@ O pacote alpha.3 roda no macOS arm64 e inclui configuração de modelos locais e
 
 [Experimentar o OpenRouter](https://openrouter.ai/) · [Conectar ao RunVerge](docs/OPENROUTER.md).
 
-A branch `main` inclui uma [prévia para servidores Linux com compilação do código-fonte](docs/LINUX-SERVER.md), para instalações novas com dados de teste. A instalação, o worker separado e a preservação do resultado após reiniciar foram verificados no Linux amd64. É uma opção separada do pacote alpha.3. O guia está, por enquanto, em inglês.
+A branch `main` inclui uma [prévia para servidores Linux com compilação do código-fonte](docs/LINUX-SERVER.md), para instalações novas com dados de teste. A instalação, o worker separado e a preservação do resultado após reiniciar foram verificados no Linux amd64 e arm64. É uma opção separada do pacote alpha.3. O guia está, por enquanto, em inglês.
 
 O computador da aplicação e o provedor do modelo são escolhas separadas. O pacote atual para Mac não significa que o produto deva usar apenas modelos locais.
 
