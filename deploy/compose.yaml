@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: Elastic-2.0
+name: runverge
+
+x-application: &application
+  image: ${RUNVERGE_IMAGE:-runverge:linux-preview}
+  build:
+    context: ..
+    dockerfile: Dockerfile
+    target: runtime
+  user: "10001:10001"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16m"]
+  pids_limit: 128
+  stop_grace_period: 30s
+  env_file:
+    - ${RUNVERGE_PRIVATE_DIR:-./private}/runtime.env
+
+services:
+  db:
+    image: postgres:18.6-bookworm@sha256:5c4783a8cc3f0074912164f94dfa1be4e043438f0f707cf968d7af9a0d31a2c8
+    environment:
+      POSTGRES_USER: runverge
+      POSTGRES_DB: runverge
+      POSTGRES_INITDB_ARGS: "--auth=scram-sha-256 --encoding=UTF8 --locale=C"
+    env_file:
+      - ${RUNVERGE_PRIVATE_DIR:-./private}/db.env
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: [CMD, pg_isready, -U, runverge, -d, runverge]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    shm_size: 128mb
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  migrate:
+    <<: *application
+    command: [migrate]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *application
+    command: [serve, --container-preview, --listen, "0.0.0.0:8080"]
+    ports:
+      - "127.0.0.1:${RUNVERGE_PORT:-8080}:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, /usr/local/bin/runverge-healthcheck]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
+    restart: unless-stopped
+
+  worker:
+    <<: *application
+    command: [worker, --concurrency, "1"]
+    env_file:
+      - ${RUNVERGE_PRIVATE_DIR:-./private}/runtime.env
+      - ${RUNVERGE_PRIVATE_DIR:-./private}/model.env
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  admin:
+    <<: *application
+    command: [version]
+    profiles: [admin]
+    volumes:
+      - admin:/state
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+volumes:
+  postgres:
+  admin:
