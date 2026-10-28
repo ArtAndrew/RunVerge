@@ -1,11 +1,10 @@
 # RunVerge native bundle
 
-Status: experimental 0.14.0-alpha.3 is published for macOS arm64. The
-alpha.4 candidate adds first-task guidance and seven interface languages;
-it is not published yet. A separate Linux amd64/arm64 source/Compose
-preview is described in docs/LINUX-SERVER.md. A service supervisor,
-automatic updates, full backup/restore and release signing remain outside
-the supported alpha profile.
+Experimental 0.14.0-alpha.4 targets macOS arm64. Published packages are listed
+on GitHub Releases. A separate Linux amd64/arm64 source/Compose preview is
+described in docs/LINUX-SERVER.md. A service supervisor, automatic updates,
+full backup/restore and release signing remain outside the supported alpha
+profile.
 
 The bundle contains a prebuilt Go server/worker/CLI, compiled Workspace, exact
 schema identity, component inventory and dependency license notices. Running

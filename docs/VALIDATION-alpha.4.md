@@ -1,6 +1,6 @@
-# Alpha.4 candidate validation
+# Alpha.4 validation
 
-Status: source candidate validation, not a published release. The checked
+The checked
 feature revision is `8a3a7e7bf4989179fbf0c627e2b01ec51b4ac51b` in
 [PR #4](https://github.com/ArtAndrew/RunVerge/pull/4).
 
@@ -27,8 +27,12 @@ The native macOS candidate and both Linux reports bind to source digest
 `c80343165fd6e1236d14dd3a8d5646fb7f42af3a775d95dce8e404ca0920292c`.
 The macOS candidate bundle manifest digest is
 `2251f1c16ac6e6539b0156dbd0422221a9a2834f06c43d6d2c9dc2a298cb0e60`.
-A final release build must be separately identified; these hashes identify
-this candidate only. Private configuration and raw local reports are excluded.
+These hashes identify the runtime candidate only. The final alpha.4 package
+was separately built, installed and file-verified. Its source inventory differs
+only in two operator guides; runtime source, Workspace assets, helpers and
+notices match the checked candidate. See the release source-binding and
+verification-summary assets for final hashes. Private configuration and raw
+local reports are excluded.
 
 This UI change did not alter provider execution, migrations or API contracts.
 No new real-model call or macOS database restart was performed for alpha.4.
