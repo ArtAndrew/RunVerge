@@ -74,7 +74,11 @@ El presupuesto, el número de intentos y el plazo restringen la admisión de tra
 3. Comprueba el borrador, registra una corrección y autoriza otro intento por separado.
 4. Inspecciona ambos materiales y decide qué aceptar. Cuéntanos si volverías con otra tarea.
 
-**La interfaz de alpha.3 solo está en inglés y ruso.** Los siete idiomas del README no son siete traducciones de la interfaz. Cambiar el idioma de la interfaz conserva la conexión y el trabajo actual; no traduce tareas ni respuestas. [Idiomas](docs/LANGUAGES.md).
+El **paquete alpha.3 publicado** tiene una interfaz en inglés y ruso. El **candidato actual alpha.4 en el código fuente** añade siete idiomas de interfaz: inglés, ruso, español, portugués de Brasil, alemán, francés y chino simplificado. Alpha.4 aún no se ha publicado ni aceptado como versión; los enlaces de descarga anteriores siguen apuntando a alpha.3.
+
+En el candidato alpha.4, la guía inicial recorre **guardar un borrador de agente → publicar una versión → crear una tarea y revisar la respuesta**. Las instrucciones opcionales para trabajar con un texto fuente y los ejemplos de tareas solo rellenan campos editables cuando los eliges. No seleccionan un modelo, publican un agente ni inician trabajo automáticamente.
+
+El idioma se elige en la barra superior y se guarda en este dispositivo. Cambiarlo conserva la conexión y el trabajo actual; los textos ya introducidos, las respuestas del modelo y los materiales no se traducen. Los importes siguen siendo valores exactos en USD, sin conversión de moneda. [Selección de idioma, recursos locales e idioma de reserva](docs/LANGUAGES.md).
 
 ## Límites actuales y documentación
 

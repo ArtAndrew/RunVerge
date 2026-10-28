@@ -74,7 +74,11 @@ Orçamento, número de tentativas e prazo restringem a admissão de novo trabalh
 3. Confira o rascunho, registre uma correção e autorize outra tentativa separadamente.
 4. Examine os dois materiais e decida o que aceitar. Conte se voltaria com uma segunda tarefa.
 
-**A interface da alpha.3 está apenas em inglês e russo.** Os sete idiomas do README não são sete traduções da interface. A mudança de idioma da interface mantém a conexão e o trabalho atual; não traduz tarefas nem respostas. [Idiomas](docs/LANGUAGES.md).
+O **pacote alpha.3 publicado** tem interface em inglês e russo. O **candidato atual alpha.4 no código-fonte** adiciona sete idiomas à interface: inglês, russo, espanhol, português do Brasil, alemão, francês e chinês simplificado. A alpha.4 ainda não foi publicada nem aceita como versão; os links de download acima continuam apontando para a alpha.3.
+
+No candidato alpha.4, o guia inicial percorre **salvar um rascunho de agente → publicar uma versão → criar uma tarefa e revisar a resposta**. As instruções opcionais para trabalhar com um texto fornecido e os exemplos de tarefas só preenchem campos editáveis após sua escolha. Não selecionam um modelo, publicam um agente nem iniciam trabalho automaticamente.
+
+O idioma é escolhido na barra superior e salvo neste dispositivo. A troca mantém a conexão e o trabalho atual; os textos já inseridos, as respostas do modelo e os materiais não são traduzidos. Os valores continuam exatos em USD, sem conversão de moeda. [Seleção de idioma, arquivos locais e idioma de fallback](docs/LANGUAGES.md).
 
 ## Limites atuais e documentação
 

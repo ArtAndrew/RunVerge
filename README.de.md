@@ -74,7 +74,11 @@ Budget, Versuchslimit und Frist begrenzen die Zulassung weiterer Arbeit. Sie gar
 3. Prüfen Sie den Entwurf, erfassen Sie eine Korrektur und genehmigen Sie einen weiteren Versuch separat.
 4. Prüfen Sie beide Materialien und entscheiden Sie über die Annahme. Würden Sie mit einer zweiten Aufgabe zurückkommen?
 
-**Die Oberfläche von Alpha.3 unterstützt nur Englisch und Russisch.** Sieben README-Sprachen bedeuten nicht sieben Oberflächensprachen. Ein Sprachwechsel erhält Verbindung und aktuelle Arbeit; Aufgaben und Modellantworten werden nicht übersetzt. [Sprachverhalten](docs/LANGUAGES.md).
+Das **veröffentlichte Alpha.3-Paket** bietet eine englische und russische Oberfläche. Der **aktuelle Alpha.4-Quellcodekandidat** ergänzt sieben Oberflächensprachen: Englisch, Russisch, Spanisch, brasilianisches Portugiesisch, Deutsch, Französisch und vereinfachtes Chinesisch. Alpha.4 ist noch nicht veröffentlicht oder als Release abgenommen; die Downloadlinks oben führen weiterhin zu Alpha.3.
+
+Im Alpha.4-Kandidaten führt der Einstiegsleitfaden durch **Agentenentwurf speichern → Version veröffentlichen → Aufgabe erstellen und Antwort prüfen**. Optionale Anweisungen zur Arbeit mit bereitgestellten Texten und Aufgabenbeispiele füllen erst nach Ihrer Auswahl bearbeitbare Felder. Sie wählen kein Modell aus, veröffentlichen keinen Agenten und starten keine Arbeit automatisch.
+
+Die Sprache wird in der oberen Leiste gewählt und auf diesem Gerät gespeichert. Ein Wechsel erhält Verbindung und laufende Arbeit; bereits eingegebene Aufgaben, Modellantworten und Materialien bleiben unverändert. Beträge bleiben exakte USD-Werte ohne Währungsumrechnung. [Sprachauswahl, lokale Dateien und Rückfallsprache](docs/LANGUAGES.md).
 
 ## Aktuelle Grenzen und Dokumentation
 

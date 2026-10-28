@@ -6,6 +6,7 @@ import { ErrorNotice, Icon, Modal } from './ui'
 import TeamFields, {validateTeamForm} from './TeamFields'
 import {modelTariffLabel,modelResourceLabel,validateModelProfile,chooseModelSelection} from './modelAccounting'
 import {taskExamples} from './taskExamples'
+import {sourceTextStarter} from './agentStarter'
 
 export function ConnectionForm({ initial, busy, error, onConnect }: { initial: Connection; busy: boolean; error: unknown; onConnect: (connection: Connection) => void }) {
   const [url, setUrl] = useState(initial.baseUrl)
@@ -132,11 +133,20 @@ export function AgentForm({ api, onClose, onCreated }: { api: ApiClient; onClose
   return <Modal title={t("Создать агента")} description={t("Сначала сохраните черновик, затем опубликуйте версию для запуска задач.")} onClose={onClose} busy={busy}>
     <form onSubmit={submit} className="modal-form">
       <ErrorNotice error={error} />
+      {mode === 'single' && name === '' && instructions === '' && <div className="agent-starter">
+        <p>{t('Для резюме, инструкций и разбора заявок можно начать с готовых инструкций. Их можно изменить перед сохранением.')}</p>
+        <button type="button" className="button button-secondary" disabled={busy} onClick={() => {setName(t(sourceTextStarter.name));setInstructions(t(sourceTextStarter.instructions))}}>{t('Использовать заготовку агента')}</button>
+      </div>}
       <label className="field">{t("Тип исполнителя")}<select aria-label={t("Тип исполнителя")} value={mode} onChange={event=>setMode(event.target.value as 'single'|'team')} disabled={busy}><option value="single">{t("Один агент")}</option><option value="team">{t("Команда агентов")}</option></select></label>
       <label className="field">{t("Название")}<input value={name} onChange={event => setName(event.target.value)} placeholder={t("Например, редактор отчётов")} required disabled={busy} autoFocus /></label>
       <label className="field">{t("Инструкции")}<textarea value={instructions} onChange={event => setInstructions(event.target.value)} rows={5} placeholder={t("Опишите роль, порядок работы и требования к результату…")} required disabled={busy} /></label>
       <div className="form-columns">{mode==='single'?<label className="field">{t("Модель")}<select aria-label={t("Модель")} value={model} onChange={event => { modelExplicitlySelected.current = true; setModel(event.target.value) }} required disabled={busy}><option value="" disabled>{t("Выберите модель")}</option><option value="fixture:echo">{t("Тестовый исполнитель · fixture:echo")}</option>{models.map(item => <option key={item.id} value={item.model}>{item.model} · v{item.version}</option>)}</select><small>{t("Доступные подключения задаёт администратор.")}</small></label>:<div className="field"><span>{t("Исполнение")}</span><strong>{t("Координатор команды")}</strong><small>{t("Модели вызывают выбранные участники.")}</small></div>}<label className="field">{t("Лимит задачи, USD")}<div className="currency-input"><span>$</span><input aria-label={t("Лимит задачи, USD")} inputMode="decimal" value={budget} onChange={event => setBudget(event.target.value)} required disabled={busy} /></div></label></div>
       <ErrorNotice error={modelError} onRetry={() => void loadModels()} />
+      {mode === 'single' && !modelLoading && !modelError && models.length === 0 && !modelCursor && <div className="notice notice-info"><div>
+        <strong>{t('Для полезного ответа подключите модель')}</strong>
+        <p>{t('В каталоге пока нет подключённых моделей. Тестовый исполнитель только проверяет платформу. Администратор может подключить локальную модель или OpenRouter по инструкции.')}</p>
+        <a href="https://github.com/ArtAndrew/RunVerge/blob/main/docs/LOCAL-MODELS.md" target="_blank" rel="noopener noreferrer">{t('Локальная модель')}</a>{' · '}<a href="https://github.com/ArtAndrew/RunVerge/blob/main/docs/OPENROUTER.md" target="_blank" rel="noopener noreferrer">OpenRouter</a>
+      </div></div>}
       {modelCursor && <button type="button" className="button button-secondary" disabled={modelLoading} onClick={() => void loadModels()}>{t("Загрузить ещё модели")}</button>}
       {mode==='single' && selectedModel && <div className="muted"><p>{modelTariffLabel(selectedModel)}</p><details><summary>{t("Ограничения модели")}</summary><p>{modelResourceLabel(selectedModel)}</p><p>{selectedModel.bound_assumptions}</p></details><p>{t("Денежный бюджет также ограничивает платные инструменты и подзадачи. Число попыток и срок всей работы задаются отдельно при создании задачи.")}</p></div>}
       {mode==='single' && model.startsWith('fixture:') && <div className="notice notice-info"><p><strong>{t("Тестовый исполнитель.")}</strong> {t("Модели fixture проверяют платформу без обращения к LLM. Доступность других моделей зависит от настроек сервера.")}</p></div>}
