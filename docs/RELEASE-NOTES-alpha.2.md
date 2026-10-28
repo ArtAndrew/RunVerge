@@ -1,6 +1,6 @@
-# RunVerge 0.14.0-alpha.2 — local candidate
+# RunVerge 0.14.0-alpha.2
 
-Candidate package: `0.14.0-alpha.2-rc.1`. This candidate is prepared locally and has not been published as a release. API contract remains 0.14.0. The supported profile remains macOS arm64, one local owner and test data only.
+Package version: `0.14.0-alpha.2`. API contract remains 0.14.0. The supported profile remains macOS arm64, one local owner and test data only.
 
 ## Easier first and second tasks
 
@@ -14,12 +14,14 @@ The project overview also has three infographics and README translations in Engl
 
 Type checking, the production web build and all 99 existing web unit tests passed. Agent-led browser checks covered local-model selection and preservation of explicit choices, editable examples without task submission, language-switch preservation, and clipboard contents matching the current and previous synthetic artifacts exactly. The clipboard check used a read-only synthetic API fixture, not a new PostgreSQL or real-model run.
 
-The native candidate was built offline, inspected, installed into a fresh directory and file-verified. Its compiled web files match the browser-checked build. Server, API, migrations and SDK source are unchanged from alpha.1. A fresh database installation/restart and another real-model attempt are not established by these candidate checks. Independent testing by new users is still outstanding.
+The native RC1 passed all 15 package checks when run by the owner outside the restricted tool environment: fresh installation, new disposable PostgreSQL database, migrations, fixture execution, server/worker/database restart, retained result and ledger, and final file verification. Cleanup completed. Earlier attempts inside the tool environment failed during database initialization and are not counted as passes.
+
+The final package uses the same source inventory and web files as RC1; only the package version label changes. It is separately inspected, installed and file-verified. Server, API, migrations and SDK source are unchanged from alpha.1. This release does not add a new real-model quality benchmark or independent new-user acceptance; the runtime check uses synthetic execution.
 
 ## Installation and limits
 
-Use a new installation and a new dedicated test database following [the quickstart](QUICKSTART-ALPHA.md). This candidate does not introduce a supported upgrade of an existing database. PostgreSQL 18, the local model server and model weights remain separate prerequisites.
+Use a new installation and a new dedicated test database following [the quickstart](QUICKSTART-ALPHA.md). This release does not introduce a supported upgrade of an existing database. PostgreSQL 18, the local model server and model weights remain separate prerequisites.
 
-The package is unsigned. Published checksums, when distributed, verify consistency with their values, not publisher identity. Keep important results outside the platform.
+The package is unsigned. Published checksums verify consistency with their values, not publisher identity. Keep important results outside the platform.
 
 No new production, multi-user, SSO, provider, recovery or general MCP support is claimed. Budgets and explicit retry consent remain in force. Unknown sent outcomes are not automatically resent. A declared zero local API tariff does not measure hardware or electricity costs. Model output still requires factual review. See [the supported profile](SUPPORT.md) and [alpha.1 verification](VALIDATION-alpha.1.md) for the retained baseline and its limits.
