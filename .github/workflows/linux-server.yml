@@ -20,6 +20,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tests/development -p test_server_setup.py -v
           python3 -m unittest discover -s tests/development -p test_model_key.py -v
+          python3 -m unittest discover -s tests/development -p test_openrouter_probe.py -v
       - name: Build and verify a native Linux installation
         run: docker build --target runtime --tag runverge:linux-preview .
       - name: Verify private runtime directory metadata

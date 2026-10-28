@@ -63,17 +63,22 @@ class FreeProbe:
             worker = context['process']('free-openrouter-worker', [binary, 'worker', '--concurrency', '1'])
         finally:
             context['env'].pop('PLATFORM_MODEL_KEY_OPENROUTER', None)
+        phase = 'create_agent'
         try:
             draft = request('/api/v1/agents', {'name': 'Free OpenRouter integration check',
                 'instructions': 'Write a short draft using only the supplied public test text. Do not execute external actions.',
                 'model': self.model, 'tools': [], 'budget_microusd': 1000})
+            phase = 'publish_agent'
             agent = request('/api/v1/agents/' + draft['id'] + '/publish', {'expected_version': draft['version']})
+            phase = 'create_task'
             task = request('/api/v1/tasks', {'agent_id': agent['id'], 'budget_microusd': 1000,
-                'max_attempts': 2, 'execution_timeout_seconds': 240,
+                'max_runs': 2, 'execution_timeout_seconds': 240,
                 'goal': 'Draft three short steps for piloting an AI assistant in a fictional team: access control, resource limits and human review. This is public synthetic test data.'})
             route = '/api/v1/tasks/' + task['id']
 
             def candidate(count):
+                nonlocal phase
+                phase = 'read_candidate_' + str(count)
                 deadline = time.monotonic() + 90
                 while time.monotonic() < deadline:
                     current = request(route)
@@ -107,6 +112,7 @@ class FreeProbe:
 
             task, first = candidate(1)
             old_runs = request(route + '/runs')
+            phase = 'request_changes'
             changed = request(route + '/review', {'expected_version': task['version'], 'candidate_id': first['id'],
                 'artifact_id': first['artifact_id'], 'artifact_version': first['artifact_version'],
                 'content_digest': first['content_digest'], 'decision': 'request_changes', 'reason': 'Scripted integration review: require a named human reviewer.'})
@@ -124,15 +130,18 @@ class FreeProbe:
             if request(route + '/runs') != old_runs:
                 raise RuntimeError('Denied attempt changed run history')
             retry['acknowledge_new_cost'] = True
+            phase = 'explicit_second_attempt'
             request(route + '/retry', retry)
             task, second = candidate(2)
             if [item for item in request(route + '/candidates') if item['id'] == first['id']] != [first]:
                 raise RuntimeError('First candidate changed during revision')
+            phase = 'accept_exact_candidate'
             accepted = request(route + '/review', {'expected_version': task['version'], 'candidate_id': second['id'],
                 'artifact_id': second['artifact_id'], 'artifact_version': second['artifact_version'],
                 'content_digest': second['content_digest'], 'decision': 'accept', 'reason': 'Scripted exact-artifact API acceptance; not an independent human quality assessment.'})
             if accepted['status'] != 'succeeded' or accepted['spent_microusd'] != '0' or accepted['reserved_microusd'] != '2':
                 raise RuntimeError('Acceptance changed financial facts')
+            phase = 'snapshot_completed_workflow'
             self.snapshots = {'route': route, 'task': request(route), 'models': request('/api/v1/models')}
             for name in ('candidates', 'artifacts', 'costs', 'decisions', 'runs'):
                 self.snapshots[name] = request(route + '/' + name)
@@ -142,6 +151,9 @@ class FreeProbe:
                 'missing_consent_rejected': True, 'prior_candidate_preserved': True,
                 'spent_microusd': '0', 'reserved_microusd': '2', 'unknown_reservation_count': '2',
                 'final_billing_asserted': False, 'independent_human_usability_proven': False}
+        except HTTPError as error:
+            # Only a fixed phase and numeric status; never the URL, body or headers.
+            raise RuntimeError('Free model workflow HTTP rejection at ' + phase + ' (status ' + str(error.code) + ')') from None
         finally:
             context['stop_child'](worker)
 
