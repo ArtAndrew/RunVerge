@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Elastic-2.0
 export const enCommon: Record<string, string> = {
+  "Начать с примера": "Start with an example",
+  "Резюме текста": "Summarize text",
+  "Короткая инструкция": "Draft instructions",
+  "Сравнение вариантов": "Compare options",
+  "Учебные данные. Измените текст под свою задачу и проверьте результат. Выбор примера не запускает агента.": "Sample data. Adapt the text to your task and review the result. Choosing an example does not start the agent.",
+  "Составь резюме из трёх пунктов, не более 60 слов. Используй только эти учебные факты: пилот библиотеки начинается 12 ноября; за него отвечает Нина; участвуют десять добровольцев; запись заканчивается 8 ноября; бюджет — 200 евро. Сохрани все пять фактов и не добавляй новых.": "Write a three-bullet summary in at most 60 words. Use only these sample facts: the library pilot starts on 12 November; Nina owns it; ten volunteers take part; registration closes on 8 November; the budget is 200 euros. Keep all five facts and add none.",
+  "Напиши инструкцию из трёх коротких пунктов, не более 60 слов. Используй только эти учебные факты: AI готовит черновик; сотрудник проверяет черновик; сотрудник принимает результат или запрашивает доработку. Не добавляй других правил.": "Write three short instructions in at most 60 words. Use only these sample facts: AI prepares a draft; an employee checks the draft; the employee accepts the result or requests revision. Add no other rules.",
+  "Кратко сравни два учебных варианта по числу участников и частоте отчётов. Вариант A: пять участников, отчёт каждую неделю. Вариант B: три участника, отчёт каждый день. Используй только эти четыре факта, не более 60 слов. Не придумывай стоимость, качество или сроки.": "Briefly compare two sample options by team size and reporting frequency. Option A: five participants, a report every week. Option B: three participants, a report every day. Use only these four facts, at most 60 words. Do not invent costs, quality or deadlines.",
   "Выберите модель": "Select a model",
   " · Запрос {value0}": " · Request {value0}",
   " · тестовый": " · test",

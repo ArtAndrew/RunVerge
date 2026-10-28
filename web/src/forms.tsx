@@ -5,6 +5,7 @@ import { byteLength, money, parseBudget } from './format'
 import { ErrorNotice, Icon, Modal } from './ui'
 import TeamFields, {validateTeamForm} from './TeamFields'
 import {modelTariffLabel,modelResourceLabel,validateModelProfile,chooseModelSelection} from './modelAccounting'
+import {taskExamples} from './taskExamples'
 
 export function ConnectionForm({ initial, busy, error, onConnect }: { initial: Connection; busy: boolean; error: unknown; onConnect: (connection: Connection) => void }) {
   const [url, setUrl] = useState(initial.baseUrl)
@@ -33,6 +34,7 @@ export function TaskForm({ api, agents, onClose, onCreated }: { api: ApiClient; 
   const published = agents.filter(agent => agent.published)
   const [agentId, setAgentId] = useState(published[0]?.id ?? '')
   const [goal, setGoal] = useState('')
+  const goalInput = useRef<HTMLTextAreaElement>(null)
   const [budget, setBudget] = useState('1.00')
   const [maxRuns,setMaxRuns]=useState('3')
   const [hours,setHours]=useState('24')
@@ -58,7 +60,16 @@ export function TaskForm({ api, agents, onClose, onCreated }: { api: ApiClient; 
   return <Modal title={t("Новая задача")} description={t("Задайте ожидаемый результат, исполнителя и предел расходов.")} onClose={onClose} busy={busy}>
     <form onSubmit={submit} className="modal-form">
       <ErrorNotice error={error} />
-      <label className="field">{t("Что нужно сделать?")}<textarea value={goal} onChange={event => setGoal(event.target.value)} rows={5} placeholder={t("Опишите задачу и критерии готового результата…")} required disabled={busy} autoFocus /></label>
+      {goal === '' && <fieldset className="task-examples" disabled={busy}>
+        <legend>{t('Начать с примера')}</legend>
+        <div className="example-choices">{taskExamples.map(example => <button key={example.id} type="button" className="button button-secondary" onClick={() => {
+          const prompt = t(example.prompt)
+          setGoal(current => current === '' ? prompt : current)
+          goalInput.current?.focus()
+        }}>{t(example.label)}</button>)}</div>
+        <small>{t('Учебные данные. Измените текст под свою задачу и проверьте результат. Выбор примера не запускает агента.')}</small>
+      </fieldset>}
+      <label className="field">{t("Что нужно сделать?")}<textarea ref={goalInput} value={goal} onChange={event => setGoal(event.target.value)} rows={5} placeholder={t("Опишите задачу и критерии готового результата…")} required disabled={busy} autoFocus /></label>
       <label className="field">{t("Исполнитель")}<select aria-label={t("Исполнитель")} value={agentId} onChange={event => setAgentId(event.target.value)} required disabled={busy}><option value="" disabled>{t("Выберите агента")}</option>{published.map(item => <option key={item.id} value={item.id}>{item.name} · v{item.version}{item.model.startsWith('fixture:') ? t(" · тестовый") : ''}</option>)}</select><small>{t("Доступны опубликованные версии. Права и лимиты проверяются сервером.")}</small></label>
       {agent?.model.startsWith('fixture:') && <div className="notice notice-info"><Icon name="agents" /><p>{t("Этот агент использует тестовую модель")} <code>{agent.model}</code>{t(". Она проверяет работу платформы и не выполняет интеллектуальную задачу.")}</p></div>}
       <label className="field">{t("Бюджет задачи, USD")}<div className="currency-input"><span>$</span><input aria-label={t("Бюджет задачи, USD")} inputMode="decimal" value={budget} onChange={event => setBudget(event.target.value)} required disabled={busy} aria-describedby="budget-hint" /></div><small id="budget-hint">{t("Лимит агента:")} {agent ? money(agent.budget_microusd) : '—'}{t(". Общие ограничения организации также действуют.")}</small></label>

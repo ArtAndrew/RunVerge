@@ -49,4 +49,9 @@ main,.panel,.task-list,.list-toolbar,.task-table-wrap{min-width:0}.task-table-wr
 .native-tools{margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid var(--border,#d9dde4)}
 .native-tools>.button{margin-top:16px}
 
+.task-examples{border:1px solid #e5eee8;border-radius:10px;margin:0;padding:12px}
+.task-examples legend{padding:0 6px;font-weight:600;font-size:12px}
+.example-choices{display:flex;flex-wrap:wrap;gap:8px}
+.task-examples small{display:block;margin-top:10px;font-size:11px;line-height:1.6;color:var(--muted)}
+
 .event-connection{font-size:11px;color:var(--muted);margin-bottom:14px}.modal [inert] .button{opacity:.5;cursor:not-allowed}

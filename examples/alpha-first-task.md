@@ -4,6 +4,8 @@
 
 Use this short example after the [quickstart](../docs/QUICKSTART-ALPHA.md). It needs no browsing, private data or external tool. Small prompts reduce the chance of hitting the local model's output limit.
 
+In source versions after `0.14.0-alpha.1`, **New task → Start with an example** offers three editable prompts: summarize text, draft instructions and compare options. They appear only while the task text is empty. Choosing one fills the text in the current interface language; it does not create a task or call the model. Edit it, select your published agent and review the limits before choosing **Create task**. Switching the interface language preserves text already entered. The released alpha.1 package uses the manual example below.
+
 ## First request
 
 > Summarize these facts in exactly three bullets, at most 60 words total: The library pilot starts on 12 November. Nina owns the pilot. Ten volunteers will test it. Registration closes on 8 November. The budget is 200 euros. Do not invent details.
