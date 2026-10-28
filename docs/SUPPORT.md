@@ -7,3 +7,5 @@ Application deployment and model hosting are separate choices. The engine includ
 There is no supported full backup/restore or upgrade path. Organization-wide deployment, provider lifecycle, production load guarantees and the complete enterprise login lifecycle have not been accepted for this alpha. These limits are also shown by the read-only capabilities catalogue. Use CAPABILITIES.md and the public API contracts to inspect supported operations.
 
 Internal plans, ADRs, development progress and private review records are not part of this public repository. Report installation or workflow problems through the GitHub issue templates without credentials or private documents.
+
+A separate [Linux amd64 server source-build preview](LINUX-SERVER.md) is available on main. Its native installation/fixture/restart check and Compose separate-worker/result-retention check passed in [CI](https://github.com/ArtAndrew/RunVerge/actions/runs/40668554059). It requires a fresh test-data installation and is not part of the alpha.2 package. ARM, Windows, named provider acceptance, upgrades and backup/restore are not covered by that check.

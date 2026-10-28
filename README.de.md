@@ -8,15 +8,17 @@
 
 RunVerge ist eine Anwendung für die Arbeit mit KI-Agenten. Beschreiben Sie Aufgabe und Budget, erhalten Sie einen Entwurf, kommentieren Sie ihn und entscheiden Sie über Annahme oder einen weiteren Versuch. Die ursprüngliche Antwort bleibt nach Änderungen verfügbar.
 
-[**Loslegen →**](docs/QUICKSTART-ALPHA.md) · [**Alpha.1 herunterladen →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.2) · [**Erste Aufgabe →**](examples/alpha-first-task.md) · [**Feedback →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
+[**Loslegen →**](docs/QUICKSTART-ALPHA.md) · [**Alpha.2 herunterladen →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.2) · [**Erste Aufgabe →**](examples/alpha-first-task.md) · [**Feedback →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
 
-> **Experimentelle Alpha.1:** macOS arm64, ein lokaler Eigentümer und ausschließlich Testdaten. PostgreSQL 18 und ein lokaler Modellserver wie Ollama werden separat eingerichtet. Vollständige Wiederherstellung, Updates bestehender Installationen und organisationsweiter Produktivbetrieb werden in dieser Version nicht unterstützt. [Unterstützter Umfang](docs/SUPPORT.md).
+> **Experimentelle Alpha.2:** macOS arm64, ein lokaler Eigentümer und ausschließlich Testdaten. PostgreSQL 18 und ein lokaler Modellserver wie Ollama werden separat eingerichtet. Vollständige Wiederherstellung, Updates bestehender Installationen und organisationsweiter Produktivbetrieb werden in dieser Version nicht unterstützt. [Unterstützter Umfang](docs/SUPPORT.md).
 
 ## Wo RunVerge läuft und welches Modell es nutzt
 
 RunVerge und das Modell sind getrennte Dienste. RunVerge speichert Aufgaben und Ergebnisse; das Modell erhält eine Anfrage und erzeugt eine Antwort. Die Engine enthält eine vom Administrator konfigurierbare HTTPS-Chat-Completions-Verbindung.
 
 Das veröffentlichte Alpha.2-Paket und die Anleitung wurden auf macOS arm64 mit einem lokalen Modell geprüft. Windows-/Linux-Pakete sowie fertige, geprüfte Konfigurationen für OpenRouter, DeepSeek, Nebius Token Factory und Z.ai sind nicht enthalten. Eine konfigurierbare API-Verbindung allein belegt keine Kompatibilität mit jedem Anbieter.
+
+Auf `main` gibt es eine [aus dem Quellcode gebaute Vorschau für Linux-Server](docs/LINUX-SERVER.md), für neue Installationen mit Testdaten. Installation, separater Worker und Erhalt der Ergebnisse nach einem Neustart wurden auf Linux amd64 geprüft. Die Vorschau ist vom Alpha.2-Download getrennt. Die Anleitung ist derzeit auf Englisch.
 
 Anwendungshost und Modellanbieter sind getrennte Entscheidungen. Das aktuelle Mac-Paket bedeutet nicht, dass das Produkt nur lokale Modelle nutzen muss.
 
@@ -61,7 +63,7 @@ Die verlinkten offiziellen Beschreibungen wurden am 28. Oktober 2026 geprüft. V
 
 Budget, Versuchslimit und Frist begrenzen die Zulassung weiterer Arbeit. Sie garantieren weder sachliche Richtigkeit noch die endgültige Anbieterrechnung. Bei ungewissem Ausgang einer gesendeten Operation bleibt die Reservierung erhalten; es erfolgt keine blinde Wiederholung. Ein lokaler API-Tarif von null misst weder CPU/GPU, Strom noch Abschreibung und macht kostenpflichtige Werkzeuge nicht kostenlos.
 
-**MCP:** Ein begrenztes [Beispiel zum Textlesen](docs/MCP-READ.md) bietet eine vertrauenswürdige Konfiguration, Berechtigungen und Ausführungsfreigabe. Beliebige Server, OAuth und ein allgemeiner Konnektorenkatalog gehören nicht zu Alpha.1.
+**MCP:** Ein begrenztes [Beispiel zum Textlesen](docs/MCP-READ.md) bietet eine vertrauenswürdige Konfiguration, Berechtigungen und Ausführungsfreigabe. Beliebige Server, OAuth und ein allgemeiner Konnektorenkatalog gehören nicht zu Alpha.2.
 
 ## Ausprobieren
 
@@ -70,13 +72,13 @@ Budget, Versuchslimit und Frist begrenzen die Zulassung weiterer Arbeit. Sie gar
 3. Prüfen Sie den Entwurf, erfassen Sie eine Korrektur und genehmigen Sie einen weiteren Versuch separat.
 4. Prüfen Sie beide Materialien und entscheiden Sie über die Annahme. Würden Sie mit einer zweiten Aufgabe zurückkommen?
 
-**Die Oberfläche von Alpha.1 unterstützt nur Englisch und Russisch.** Sieben README-Sprachen bedeuten nicht sieben Oberflächensprachen. Ein Sprachwechsel erhält Verbindung und aktuelle Arbeit; Aufgaben und Modellantworten werden nicht übersetzt. [Sprachverhalten](docs/LANGUAGES.md).
+**Die Oberfläche von Alpha.2 unterstützt nur Englisch und Russisch.** Sieben README-Sprachen bedeuten nicht sieben Oberflächensprachen. Ein Sprachwechsel erhält Verbindung und aktuelle Arbeit; Aufgaben und Modellantworten werden nicht übersetzt. [Sprachverhalten](docs/LANGUAGES.md).
 
 ## Aktuelle Grenzen und Dokumentation
 
 Ein Agent hat den Veröffentlichungsablauf geprüft; unabhängige Tests durch neue Anwender stehen noch aus. Ein kleines lokales Modell kann Fakten auslassen oder Antworten abschneiden. Bewahren Sie wichtige Ergebnisse außerhalb der Plattform auf.
 
-Vollständige Wiederherstellung, Updates, Teamnutzung, der vollständige Unternehmens-SSO-Lebenszyklus, Cloud-Provider-Betrieb, beliebige MCP-Integrationen und Produktivlast sind nicht für Alpha.1 abgenommen. Stellen Sie die Installation nicht als öffentlichen Mehrbenutzerdienst bereit. Eine Ansicht zweier Versionen nebeneinander fehlt; unterscheiden Sie Artefakte anhand von ID und Erstellungszeit.
+Vollständige Wiederherstellung, Updates, Teamnutzung, der vollständige Unternehmens-SSO-Lebenszyklus, Cloud-Provider-Betrieb, beliebige MCP-Integrationen und Produktivlast sind nicht für Alpha.2 abgenommen. Stellen Sie die Installation nicht als öffentlichen Mehrbenutzerdienst bereit. Eine Ansicht zweier Versionen nebeneinander fehlt; unterscheiden Sie Artefakte anhand von ID und Erstellungszeit.
 
 Pakete und SHA-256 stehen unter [Releases](https://github.com/ArtAndrew/RunVerge/releases). Eine Herausgebersignatur fehlt; die Prüfsumme bestätigt die Übereinstimmung mit dem veröffentlichten Wert, nicht die Identität des Herausgebers.
 

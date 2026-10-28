@@ -10,13 +10,15 @@ RunVerge es una aplicación para trabajar con agentes de IA. Describe la tarea y
 
 [**Empezar →**](docs/QUICKSTART-ALPHA.md) · [**Descargar alpha.2 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.2) · [**Primera tarea →**](examples/alpha-first-task.md) · [**Comentarios →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
 
-> **Alpha.1 experimental:** macOS arm64, un único propietario local y solo datos de prueba. PostgreSQL 18 y el servidor local del modelo, como Ollama, se configuran por separado. Esta versión no admite restauración completa, actualizaciones de instalaciones existentes ni despliegue de producción para toda una organización. [Alcance compatible](docs/SUPPORT.md).
+> **Alpha.2 experimental:** macOS arm64, un único propietario local y solo datos de prueba. PostgreSQL 18 y el servidor local del modelo, como Ollama, se configuran por separado. Esta versión no admite restauración completa, actualizaciones de instalaciones existentes ni despliegue de producción para toda una organización. [Alcance compatible](docs/SUPPORT.md).
 
 ## Dónde funciona RunVerge y qué modelo utiliza
 
 RunVerge y el modelo son servicios separados. RunVerge guarda tareas y resultados; el modelo recibe una petición y genera una respuesta. El motor incluye una conexión HTTPS Chat Completions configurable por el administrador.
 
 El paquete alpha.2 publicado y la guía están comprobados en macOS arm64 con un modelo local. No incluyen paquetes para Windows/Linux ni configuraciones listas y verificadas para OpenRouter, DeepSeek, Nebius Token Factory y Z.ai. Una conexión API configurable no demuestra por sí sola compatibilidad con todos los proveedores.
+
+En `main` ya hay una [vista previa para servidores Linux compilada desde el código fuente](docs/LINUX-SERVER.md), para instalaciones nuevas con datos de prueba. En Linux amd64 se verificaron la instalación, el trabajador separado y la conservación del resultado tras reiniciar. Es independiente de la descarga alpha.2. La guía está por ahora en inglés.
 
 El equipo donde se instala la aplicación y el proveedor del modelo se eligen por separado. El paquete actual para Mac no significa que el producto deba usar solo modelos locales.
 

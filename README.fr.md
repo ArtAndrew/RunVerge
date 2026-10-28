@@ -10,13 +10,15 @@ RunVerge est une application pour travailler avec des agents d’IA. Décrivez l
 
 [**Commencer →**](docs/QUICKSTART-ALPHA.md) · [**Télécharger alpha.2 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.2) · [**Première tâche →**](examples/alpha-first-task.md) · [**Donner un avis →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
 
-> **Alpha.1 expérimentale :** macOS arm64, un propriétaire local et uniquement des données de test. PostgreSQL 18 et un serveur de modèle local comme Ollama se configurent séparément. Cette version ne prend pas en charge la restauration complète, la mise à niveau des installations existantes ni un déploiement de production à l’échelle d’une organisation. [Périmètre pris en charge](docs/SUPPORT.md).
+> **Alpha.2 expérimentale :** macOS arm64, un propriétaire local et uniquement des données de test. PostgreSQL 18 et un serveur de modèle local comme Ollama se configurent séparément. Cette version ne prend pas en charge la restauration complète, la mise à niveau des installations existantes ni un déploiement de production à l’échelle d’une organisation. [Périmètre pris en charge](docs/SUPPORT.md).
 
 ## Où fonctionne RunVerge et quel modèle utilise-t-il ?
 
 RunVerge et le modèle sont des services séparés. RunVerge conserve tâches et résultats ; le modèle reçoit une requête et génère une réponse. Le moteur comprend une connexion HTTPS Chat Completions configurable par l’administrateur.
 
 Le paquet alpha.2 publié et le guide ont été vérifiés sur macOS arm64 avec un modèle local. Ils ne comprennent ni paquets Windows/Linux ni configurations prêtes et vérifiées pour OpenRouter, DeepSeek, Nebius Token Factory et Z.ai. Une connexion API configurable ne prouve pas à elle seule la compatibilité avec tous les fournisseurs.
+
+La branche `main` propose un [aperçu pour serveur Linux à compiler depuis les sources](docs/LINUX-SERVER.md), pour une nouvelle installation avec des données de test. L’installation, le worker séparé et la conservation des résultats après redémarrage ont été vérifiés sur Linux amd64. Cet aperçu est distinct du téléchargement alpha.2. Le guide est pour l’instant en anglais.
 
 L’hôte de l’application et le fournisseur du modèle se choisissent séparément. Le paquet Mac actuel ne signifie pas que le produit doit utiliser uniquement des modèles locaux.
 

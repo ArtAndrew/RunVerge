@@ -10,13 +10,15 @@ RunVerge é uma aplicação para trabalhar com agentes de IA. Descreva a tarefa 
 
 [**Começar →**](docs/QUICKSTART-ALPHA.md) · [**Baixar alpha.2 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.2) · [**Primeira tarefa →**](examples/alpha-first-task.md) · [**Feedback →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
 
-> **Alpha.1 experimental:** macOS arm64, um proprietário local e apenas dados de teste. PostgreSQL 18 e o servidor local do modelo, como Ollama, são configurados separadamente. Restauração completa, atualização de instalações existentes e implantação em produção para uma organização inteira não são suportadas nesta versão. [Escopo suportado](docs/SUPPORT.md).
+> **Alpha.2 experimental:** macOS arm64, um proprietário local e apenas dados de teste. PostgreSQL 18 e o servidor local do modelo, como Ollama, são configurados separadamente. Restauração completa, atualização de instalações existentes e implantação em produção para uma organização inteira não são suportadas nesta versão. [Escopo suportado](docs/SUPPORT.md).
 
 ## Onde o RunVerge funciona e qual modelo utiliza
 
 RunVerge e o modelo são serviços separados. RunVerge guarda tarefas e resultados; o modelo recebe uma solicitação e gera a resposta. O motor inclui uma conexão HTTPS Chat Completions configurável pelo administrador.
 
 O pacote alpha.2 publicado e o guia foram verificados no macOS arm64 com um modelo local. Não incluem pacotes para Windows/Linux nem configurações prontas e verificadas para OpenRouter, DeepSeek, Nebius Token Factory e Z.ai. Uma conexão API configurável não comprova, sozinha, a compatibilidade com todos os provedores.
+
+A branch `main` inclui uma [prévia para servidores Linux com compilação do código-fonte](docs/LINUX-SERVER.md), para instalações novas com dados de teste. A instalação, o worker separado e a preservação do resultado após reiniciar foram verificados no Linux amd64. É uma opção separada do pacote alpha.2. O guia está, por enquanto, em inglês.
 
 O computador da aplicação e o provedor do modelo são escolhas separadas. O pacote atual para Mac não significa que o produto deva usar apenas modelos locais.
 

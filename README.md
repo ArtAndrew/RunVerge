@@ -18,6 +18,8 @@ RunVerge and the model are separate services. RunVerge keeps tasks and results; 
 
 The published alpha.2 package and quickstart are checked for macOS arm64 with a local model. Windows/Linux packages and ready-to-use, verified configurations for OpenRouter, DeepSeek, Nebius Token Factory and Z.ai are not included. A configurable API connection alone does not establish compatibility with every provider.
 
+A [Linux server source-build preview](docs/LINUX-SERVER.md) is now available on `main` for fresh installations with test data. It has passed Linux amd64 installation, separate-worker execution and restart checks. It is separate from the alpha.2 download. The preview guide is currently in English.
+
 The application host and model provider are separate choices. The current macOS package does not mean that the product must only use local models.
 
 ## Who should try it?
@@ -80,7 +82,7 @@ Downloads and exact SHA-256 values are on [GitHub Releases](https://github.com/A
 
 ## Know the current limits
 
-Alpha.1's release workflow was checked by an agent; independent new-user testing is still to follow. A small local model can omit facts or truncate an answer. Keep important results outside the platform.
+Alpha.2's release workflow was checked by an agent; independent new-user testing is still to follow. A small local model can omit facts or truncate an answer. Keep important results outside the platform.
 
 Full recovery, upgrades, team usability, enterprise SSO lifecycle, provider deployment, arbitrary MCP integrations and production performance are outside alpha.2 acceptance. Do not expose this installation as a public multi-user service. Source components for additional features do not make them supported.
 
