@@ -84,8 +84,14 @@ func recoveryExecutionHistoryQueries(schema string) []string {
  WHERE (e.status='awaiting_approval' AND a.status<>'pending') OR (e.status='denied' AND a.status<>'denied')
  OR (e.status IN('approved','queued','leased','sent','unknown','succeeded','rejected') AND a.status<>'approved')
  OR (a.status='approved' AND p.profile->'tool'->'require_distinct_approver'='true'::jsonb AND a.decided_by=e.created_by))`)
+	queries = append(queries, `SELECT NOT EXISTS(SELECT 1 FROM {tasks} t
+ JOIN {task_decisions} d ON d.organization_id=t.organization_id AND d.id=t.accepted_decision_id
+ JOIN {artifacts} a ON a.organization_id=d.organization_id AND a.id=d.artifact_id AND a.version=d.artifact_version
+ WHERE d.decision<>'accept' OR d.task_id<>t.id OR t.status<>'succeeded'
+ OR t.candidate_id IS DISTINCT FROM d.candidate_id OR t.current_run_id IS DISTINCT FROM d.run_id
+ OR t.result IS DISTINCT FROM a.content OR d.task_version_after>t.version)`)
 	// Identifiers come only from this fixed list, never archived SQL or names.
-	tables := []string{"runs", "tasks", "tool_executions", "tool_connections", "reservations", "actions", "approvals", "task_candidates", "model_tool_proposals", "model_candidates", "model_turns", "tool_outcome_receipts", "artifacts"}
+	tables := []string{"runs", "tasks", "tool_executions", "tool_connections", "reservations", "actions", "approvals", "task_candidates", "model_tool_proposals", "model_candidates", "model_turns", "tool_outcome_receipts", "artifacts", "task_decisions"}
 	pairs := []string{}
 	for _, table := range tables {
 		pairs = append(pairs, "{"+table+"}", pgx.Identifier{schema, table}.Sanitize())
