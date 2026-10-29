@@ -101,40 +101,68 @@ func (s *Store) CheckRecoverySnapshotData(ctx context.Context, archive *recovery
 			result.RollbackConfirmed = true
 		}
 	}()
+	staged, err := s.stageRecoverySnapshotTx(ctx, tx, archive, spec, snapshot, limits)
+	if err != nil {
+		return result, err
+	}
+	return staged.report, nil
+}
+
+// recoveryStagedData exists only while the caller-owned transaction is alive.
+// It is not a reusable preflight token or an authorization to import/commit.
+type recoveryStagedData struct {
+	schema    string
+	inventory RecoverySnapshotInventory
+	catalog   RecoverySemanticCatalog
+	report    RecoveryStageReport
+}
+
+// stageRecoverySnapshotTx preserves one target/catalog/hold/typed-data view for
+// rollback-only checking and the future atomic importer. The caller must first
+// validate the verified archive and exact metadata, bound context duration and
+// own rollback/commit and connection disposal. This helper never commits, rolls
+// back, clears holds, executes providers or changes target business relations.
+func (s *Store) stageRecoverySnapshotTx(ctx context.Context, tx pgx.Tx, archive *recoveryarchive.VerifiedArchive, spec RecoveryTargetSpec, snapshot RecoverySnapshotReport, limits RecoverySnapshotLimits) (recoveryStagedData, error) {
+	var err error
+	m := snapshot.Metadata
 	if _, err = tx.Exec(ctx, "SET LOCAL search_path=pg_catalog,pg_temp"); err != nil {
-		return result, recoverySnapshotError(ctx, ErrRecoveryStageSchema)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageSchema)
 	}
 	if _, err = tx.Exec(ctx, "SELECT pg_catalog.set_config('statement_timeout',$1,true),pg_catalog.set_config('lock_timeout','5000',true)", strconv.FormatInt(max(1, limits.MaxDuration.Milliseconds()), 10)); err != nil {
-		return result, recoverySnapshotError(ctx, ErrRecoveryStageSchema)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageSchema)
 	}
 	// Migrations take this gate first. Normal application admission is separate.
 	if _, err = tx.Exec(ctx, "SELECT pg_catalog.pg_advisory_xact_lock_shared(841932079)"); err != nil {
-		return result, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
 	}
 	if _, err = tx.Exec(ctx, "SELECT pg_catalog.pg_advisory_xact_lock(841932080,pg_catalog.hashtext($1))", s.runtimeSchema); err != nil {
-		return result, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
 	}
 	// Even metadata-looking application relations could have been replaced by
 	// executable views/RLS/custom types. Verify only pg_catalog structure first;
 	// the catalogue validator reads migration rows only after its complete pin.
 	catalog, err := validateRecoverySemanticCatalog(ctx, tx, s.runtimeSchema)
 	if err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	held, err := readRecoveryState(ctx, s.runtimeSchema, tx)
 	if err != nil || held.State != "held" || held.InstallationID != spec.TargetInstallationID || held.RestoreID != spec.RestoreID || held.BackupID != m.BackupID || held.SourceID != m.SourceID || held.CutUTC != m.CutUTC || held.SchemaSHA256 != m.SchemaSHA256 {
-		return result, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
+	}
+	var recoveryMetadataPresent bool
+	if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM "+pgx.Identifier{s.runtimeSchema, "recovery_import_receipts"}.Sanitize()+") OR EXISTS(SELECT 1 FROM "+pgx.Identifier{s.runtimeSchema, "recovery_historical_rows"}.Sanitize()+")").Scan(&recoveryMetadataPresent); err != nil || recoveryMetadataPresent {
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
 	}
 	if _, err = tx.Exec(ctx, "SET LOCAL row_security=off"); err != nil {
-		return result, recoverySnapshotError(ctx, ErrRecoveryStageSchema)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageSchema)
 	}
 	inventory, err := recoverySnapshotInventory(ctx, tx, s.runtimeSchema, true)
 	if err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	encoded, _ := json.Marshal(inventory)
 	if Hash(encoded) != snapshot.InventorySHA256 || snapshot.InventorySHA256 != recoverySnapshotInventorySHA256 {
-		return result, ErrRecoveryStageSchema
+		return recoveryStagedData{}, ErrRecoveryStageSchema
 	}
 	for _, table := range inventory.Tables {
 		if !table.Exported {
@@ -142,12 +170,12 @@ func (s *Store) CheckRecoverySnapshotData(ctx context.Context, archive *recovery
 		}
 		var populated bool
 		if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM "+pgx.Identifier{s.runtimeSchema, table.Name}.Sanitize()+" LIMIT 1)").Scan(&populated); err != nil || populated {
-			return result, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
+			return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
 		}
 	}
 	var occupied bool
 	if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_class WHERE relnamespace=pg_catalog.pg_my_temp_schema())").Scan(&occupied); err != nil || occupied {
-		return result, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
 	}
 	for _, table := range inventory.Tables {
 		if !table.Exported {
@@ -157,31 +185,31 @@ func (s *Store) CheckRecoverySnapshotData(ctx context.Context, archive *recovery
 		// COPY must accept historical generated/identity values as ordinary data.
 		ddl := "CREATE TEMP TABLE " + pgx.Identifier{"pg_temp", table.Name}.Sanitize() + " (LIKE " + pgx.Identifier{s.runtimeSchema, table.Name}.Sanitize() + " INCLUDING CONSTRAINTS INCLUDING INDEXES EXCLUDING DEFAULTS EXCLUDING GENERATED EXCLUDING IDENTITY) ON COMMIT DROP"
 		if _, err = tx.Exec(ctx, ddl); err != nil {
-			return result, recoveryStageSchemaFailure(ctx, "temporary_table", err)
+			return recoveryStagedData{}, recoveryStageSchemaFailure(ctx, "temporary_table", err)
 		}
 	}
 	var stageSchema string
 	if err = tx.QueryRow(ctx, "SELECT nspname FROM pg_catalog.pg_namespace WHERE oid=pg_catalog.pg_my_temp_schema()").Scan(&stageSchema); err != nil || stageSchema == "" {
-		return result, recoverySnapshotError(ctx, ErrRecoveryStageSchema)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageSchema)
 	}
 	if err = recoveryStageCheckShape(ctx, tx, s.runtimeSchema, stageSchema, inventory); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	if _, err = archive.Seek(0, io.SeekStart); err != nil {
-		return result, recoverySnapshotError(ctx, ErrRecoverySnapshotIO)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoverySnapshotIO)
 	}
 	if err = recoveryStageCopy(ctx, tx, archive, stageSchema, inventory, snapshot, limits); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	// A copied deferrable UNIQUE constraint must actually be flushed even
 	// though this transaction is intentionally never committed.
 	if _, err = tx.Exec(ctx, "SET CONSTRAINTS ALL IMMEDIATE"); err != nil {
-		return result, recoverySnapshotError(ctx, ErrRecoveryStageData)
+		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageData)
 	}
 	// Re-export the typed rows in canonical primary-key order. PostgreSQL may
 	// normalize binary input: neither that nor a lost/extra row may go unnoticed.
 	if err = recoveryStageCheckDigests(ctx, tx, stageSchema, inventory, snapshot, limits); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	generated := 0
 	for _, column := range catalog.Columns {
@@ -191,47 +219,48 @@ func (s *Store) CheckRecoverySnapshotData(ctx context.Context, archive *recovery
 		var mismatch bool
 		sql := "SELECT EXISTS(SELECT 1 FROM " + pgx.Identifier{stageSchema, column.Table}.Sanitize() + " WHERE " + pgx.Identifier{column.Name}.Sanitize() + " IS DISTINCT FROM (" + column.RawExpression + "))"
 		if err = tx.QueryRow(ctx, sql).Scan(&mismatch); err != nil || mismatch {
-			return result, recoverySnapshotError(ctx, ErrRecoveryStageGenerated)
+			return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageGenerated)
 		}
 		generated++
 	}
 	fks, err := recoveryStageCheckReferences(ctx, tx, s.runtimeSchema, stageSchema, inventory, catalog)
 	if err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	if err = recoveryStageCheckState(ctx, tx, stageSchema, snapshot, limits); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	if err = validateRecoveryInvariants(ctx, tx, stageSchema); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	if err = validateRecoveryAllocations(ctx, tx, stageSchema); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	if err = validateRecoveryWebhookProfiles(ctx, tx, stageSchema); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	if err = validateRecoveryExecutionHistory(ctx, tx, stageSchema); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	if err = validateRecoveryModelHistory(ctx, tx, stageSchema); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	if err = validateRecoveryConfigurationHistory(ctx, tx, stageSchema); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	if err = validateRecoveryTeamHistory(ctx, tx, stageSchema); err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	costHistory, err := checkRecoveryCostHistory(ctx, tx, stageSchema)
 	if err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
 	historyCoverage, err := checkRecoveryHistoryCoverage(ctx, tx, stageSchema)
 	if err != nil {
-		return result, err
+		return recoveryStagedData{}, err
 	}
-	return RecoveryStageReport{Scope: "rollback_only_typed_stage", TargetInstallationID: held.InstallationID, RestoreID: held.RestoreID, SemanticCatalogSHA256: recoverySemanticCatalogSHA256, Snapshot: snapshot, ForeignKeysChecked: fks, GeneratedChecked: generated, CostHistory: costHistory, HistoryCoverage: historyCoverage}, nil
+	report := RecoveryStageReport{Scope: "rollback_only_typed_stage", TargetInstallationID: held.InstallationID, RestoreID: held.RestoreID, SemanticCatalogSHA256: recoverySemanticCatalogSHA256, Snapshot: snapshot, ForeignKeysChecked: fks, GeneratedChecked: generated, CostHistory: costHistory, HistoryCoverage: historyCoverage}
+	return recoveryStagedData{schema: stageSchema, inventory: inventory, catalog: catalog, report: report}, nil
 }
 
 func recoveryStageCheckShape(ctx context.Context, tx pgx.Tx, target, stage string, inventory RecoverySnapshotInventory) error {

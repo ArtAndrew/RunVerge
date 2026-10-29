@@ -23,7 +23,7 @@ func (s *Store) ClaimConfigurationVerification(ctx context.Context, worker strin
 		return nil, empty, err
 	}
 	defer tx.Rollback(ctx)
-	v, err := scanConfigurationVerification(tx.QueryRow(ctx, "SELECT "+configurationVerificationColumns+" FROM configuration_verifications WHERE kind='mcp' AND status='queued' AND (lease_until IS NULL OR lease_until<=clock_timestamp()) ORDER BY created_at,id LIMIT 1"))
+	v, err := scanConfigurationVerification(tx.QueryRow(ctx, "SELECT "+configurationVerificationColumns+" FROM configuration_verifications WHERE NOT recovery_is_historical('configuration_verifications',jsonb_build_array(organization_id,id)) AND kind='mcp' AND status='queued' AND (lease_until IS NULL OR lease_until<=clock_timestamp()) ORDER BY created_at,id LIMIT 1"))
 	if errors.Is(err, domain.NotFound) {
 		return nil, empty, nil
 	}
@@ -164,6 +164,9 @@ func (s *Store) RecordConfigurationVerificationObservation(ctx context.Context, 
 		return empty, err
 	}
 	defer tx.Rollback(ctx)
+	if err := admitRecoveryRowTx(ctx, tx, "configuration_verifications", in.OrganizationID, in.VerificationID); err != nil {
+		return empty, err
+	}
 	if err = lockConfigurationFactOrganizationTx(ctx, tx, in.OrganizationID); err != nil {
 		return empty, err
 	}
@@ -277,8 +280,8 @@ func (s *Store) ReconcileConfigurationVerifications(ctx context.Context) (bool, 
 	}
 	defer tx.Rollback(ctx)
 	var org, id string
-	err = tx.QueryRow(ctx, `SELECT v.organization_id,v.id FROM configuration_verifications v WHERE
- (v.status='sent' AND v.lease_until<=clock_timestamp()) OR (v.status='queued' AND (NOT (`+configurationVerificationAdmissionSQL()+`) OR (v.kind='model' AND EXISTS(SELECT 1 FROM tasks WHERE organization_id=v.organization_id AND id=v.task_id AND status IN('blocked','failed','cancelled'))))) ORDER BY v.created_at,v.id LIMIT 1`).Scan(&org, &id)
+	err = tx.QueryRow(ctx, `SELECT v.organization_id,v.id FROM configuration_verifications v WHERE NOT recovery_is_historical('configuration_verifications',jsonb_build_array(v.organization_id,v.id)) AND (
+ (v.status='sent' AND v.lease_until<=clock_timestamp()) OR (v.status='queued' AND (NOT (`+configurationVerificationAdmissionSQL()+`) OR (v.kind='model' AND EXISTS(SELECT 1 FROM tasks WHERE organization_id=v.organization_id AND id=v.task_id AND status IN('blocked','failed','cancelled')))))) ORDER BY v.created_at,v.id LIMIT 1`).Scan(&org, &id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}

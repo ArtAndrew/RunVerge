@@ -415,6 +415,9 @@ func (s *Store) prepareDispatch(ctx context.Context, l *domain.Lease, id string,
 func lockReservation(ctx context.Context, tx pgx.Tx, org, id string) (domain.Reservation, costScopes, error) {
 	var empty domain.Reservation
 	var scopes costScopes
+	if err := admitRecoveryRowTx(ctx, tx, "reservations", org, id); err != nil {
+		return empty, scopes, err
+	}
 	var op, task string
 	e := tx.QueryRow(ctx, "SELECT operation_id,task_id FROM reservations WHERE organization_id=$1 AND id=$2", org, id).Scan(&op, &task)
 	if e != nil {

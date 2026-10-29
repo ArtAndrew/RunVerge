@@ -126,7 +126,7 @@ func (s *Store) ClaimToolExecution(ctx context.Context, worker string, duration 
 	if !validText(worker, 100) || duration < time.Second || duration > 5*time.Minute {
 		return nil, connection, domain.Err("invalid_request", "Некорректная аренда инструмента", 400)
 	}
-	e, err := scanToolExecution(s.Pool.QueryRow(ctx, "SELECT "+toolExecutionColumns+" FROM tool_executions WHERE status='queued' OR (status='leased' AND lease_until<clock_timestamp()) ORDER BY created_at,id LIMIT 1"))
+	e, err := scanToolExecution(s.Pool.QueryRow(ctx, "SELECT "+toolExecutionColumns+" FROM tool_executions WHERE (status='queued' OR (status='leased' AND lease_until<clock_timestamp())) AND NOT recovery_historical_task(organization_id,task_id) ORDER BY created_at,id LIMIT 1"))
 	if errors.Is(err, domain.NotFound) {
 		return nil, connection, nil
 	}
@@ -393,6 +393,9 @@ func (s *Store) RecordToolOutcome(ctx context.Context, in domain.ToolOutcomeEvid
 		return empty, err
 	}
 	defer tx.Rollback(ctx)
+	if err := admitRecoveryRowTx(ctx, tx, "tool_executions", in.OrganizationID, in.ExecutionID); err != nil {
+		return empty, err
+	}
 	e, err := loadToolExecutionTx(ctx, tx, in.OrganizationID, "", in.ExecutionID, false)
 	if err != nil {
 		return empty, err
@@ -517,7 +520,7 @@ func (s *Store) ReconcileToolUnsent(ctx context.Context) (bool, error) {
 	if err := s.CheckRuntimeAdmission(ctx); err != nil {
 		return false, err
 	}
-	e, err := scanToolExecution(s.Pool.QueryRow(ctx, "SELECT "+toolExecutionColumns+" FROM tool_executions WHERE "+toolUnsentReconcileDue+" ORDER BY created_at,id LIMIT 1"))
+	e, err := scanToolExecution(s.Pool.QueryRow(ctx, "SELECT "+toolExecutionColumns+" FROM tool_executions WHERE ("+toolUnsentReconcileDue+") AND NOT recovery_historical_task(organization_id,task_id) ORDER BY created_at,id LIMIT 1"))
 	if errors.Is(err, domain.NotFound) {
 		return false, nil
 	}

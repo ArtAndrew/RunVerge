@@ -2,6 +2,11 @@
 name: Recovery validation candidate
 on:
   workflow_dispatch:
+    inputs:
+      schema_reference:
+        description: 'Capture trusted schema metadata only; this is NOT validation acceptance'
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'internal/storage/recovery_*'
@@ -35,6 +40,20 @@ jobs:
         with:
           persist-credentials: false
       - name: Check model intent serialization and recovery snapshot validation
+        if: ${{ !inputs.schema_reference }}
         run: |
           go test -mod=readonly ./internal/modelruntime -count=1
-          go test -mod=readonly ./internal/storage -run 'TestRecovery(ModelStage|ModelHistory|ExecutionHistory|StageAuthor|StageIndependent|TeamHistory|ConfigurationHistory|AuthorityHistory|HistoryJSON|HistoryCoverage|CostHistory|Allocations|WebhookProfiles)' -count=1 -v
+          go test -mod=readonly ./internal/storage -run 'TestRecovery(SnapshotTrustedInventory|SemanticCatalogTrusted|ImportAuthor|ImportIndependent|ModelStage|ModelHistory|ExecutionHistory|StageAuthor|StageIndependent|TeamHistory|ConfigurationHistory|AuthorityHistory|HistoryJSON|HistoryCoverage|CostHistory|Allocations|WebhookProfiles)' -count=1 -v
+      - name: Capture unsealed schema reference metadata only
+        if: ${{ inputs.schema_reference }}
+        run: |
+          mkdir recovery-reference
+          go test -mod=readonly ./internal/storage -run '^TestRecoverySnapshotTrustedInventory$' -count=1 -v -recovery-snapshot-inventory-output="$GITHUB_WORKSPACE/recovery-reference/inventory.json"
+          go test -mod=readonly ./internal/storage -run '^TestRecoverySemanticCatalogTrusted$' -count=1 -v -recovery-semantic-catalog-output="$GITHUB_WORKSPACE/recovery-reference/catalog.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ inputs.schema_reference }}
+        with:
+          name: recovery-schema-reference
+          path: recovery-reference/*.json
+          if-no-files-found: error
+          retention-days: 3

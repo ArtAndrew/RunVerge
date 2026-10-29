@@ -146,7 +146,7 @@ func (s *Store) ResolveIdentity(ctx context.Context, issuer, subject string) (st
 		return "", oidcidentity.ErrLoginStoreUnavailable
 	}
 	defer tx.Rollback(ctx)
-	e = tx.QueryRow(ctx, "SELECT p.id FROM identity_mappings i JOIN principals p ON p.id=i.principal_id WHERE i.issuer=$1 AND i.subject=$2 AND i.active AND p.active AND p.kind='human'", issuer, subject).Scan(&id)
+	e = tx.QueryRow(ctx, "SELECT p.id FROM identity_mappings i JOIN principals p ON p.id=i.principal_id WHERE i.issuer=$1 AND i.subject=$2 AND i.active AND p.active AND p.kind='human' AND NOT recovery_historical_principal(p.id)", issuer, subject).Scan(&id)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return "", oidcidentity.ErrIdentityUnmapped
 	}
@@ -157,7 +157,7 @@ func (s *Store) ResolveIdentity(ctx context.Context, issuer, subject string) (st
 }
 
 const sessionColumns = "t.id,t.token_hash,t.principal_id,t.issuer,t.subject,t.authenticated_at,t.created_at,t.expires_at"
-const currentSessionFrom = " FROM browser_sessions t JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND i.principal_id=t.principal_id JOIN principals p ON p.id=t.principal_id WHERE t.token_hash=$1 AND NOT t.revoked AND t.expires_at>clock_timestamp() AND i.active AND p.active AND p.kind='human'"
+const currentSessionFrom = " FROM browser_sessions t JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND i.principal_id=t.principal_id JOIN principals p ON p.id=t.principal_id WHERE t.token_hash=$1 AND NOT t.revoked AND t.expires_at>clock_timestamp() AND i.active AND p.active AND p.kind='human' AND NOT recovery_historical_principal(p.id)"
 
 func scanBrowserSession(row scanner) (oidcidentity.BrowserSession, error) {
 	var t oidcidentity.BrowserSession
@@ -188,7 +188,7 @@ func validBrowserSession(t oidcidentity.BrowserSession) bool {
 func lockBrowserAuthority(ctx context.Context, tx pgx.Tx, t oidcidentity.BrowserSession) error {
 	var active bool
 	var kind string
-	if e := tx.QueryRow(ctx, "SELECT active,kind FROM principals WHERE id=$1 FOR SHARE", t.PrincipalID).Scan(&active, &kind); e != nil {
+	if e := tx.QueryRow(ctx, "SELECT active,kind FROM principals WHERE id=$1 AND NOT recovery_historical_principal(id) FOR SHARE", t.PrincipalID).Scan(&active, &kind); e != nil {
 		return e
 	}
 	if !active || kind != domain.PrincipalHuman {

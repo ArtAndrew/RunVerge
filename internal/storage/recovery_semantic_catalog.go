@@ -16,7 +16,7 @@ import (
 
 var ErrRecoverySemanticCatalog = errors.New("unsupported recovery semantic catalogue")
 
-const recoverySemanticCatalogSHA256 = "ffd303da8e0cc77b82e7132e8a3f2406467a5edf906831837cfc409573292f3b"
+const recoverySemanticCatalogSHA256 = "UNSEALED"
 const recoverySemanticNamespace = "__runverge_recovery_target__"
 const recoverySemanticMaxRecord = 256 << 10
 const recoverySemanticMaxBytes = 8 << 20
@@ -154,6 +154,21 @@ func validateRecoverySemanticCatalog(ctx context.Context, tx pgx.Tx, schema stri
 	raw, err := json.Marshal(catalog)
 	if err != nil || len(raw) > recoverySemanticMaxBytes || Hash(raw) != recoverySemanticCatalogSHA256 {
 		return RecoverySemanticCatalog{}, ErrRecoverySemanticCatalog
+	}
+	// Recovery receipts/fences are operator metadata. A relation-shape pin alone
+	// does not detect ACL grants; reject table or column write grants to any
+	// non-owner role before reading or trusting these records. Database owners
+	// and superusers remain an external operational trust boundary.
+	var privateMetadata bool
+	err = tx.QueryRow(ctx, `SELECT pg_catalog.count(*)=2 AND NOT pg_catalog.bool_or(
+ EXISTS(SELECT 1 FROM pg_catalog.aclexplode(COALESCE(c.relacl,pg_catalog.acldefault('r',c.relowner))) permission
+ WHERE permission.grantee<>c.relowner AND permission.privilege_type IN('INSERT','UPDATE','DELETE','TRUNCATE'))
+ OR EXISTS(SELECT 1 FROM pg_catalog.pg_attribute a CROSS JOIN LATERAL pg_catalog.aclexplode(a.attacl) permission
+ WHERE a.attrelid=c.oid AND permission.grantee<>c.relowner AND permission.privilege_type IN('INSERT','UPDATE')))
+ FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+ WHERE n.nspname=$1 AND c.relname IN('recovery_import_receipts','recovery_historical_rows')`, schema).Scan(&privateMetadata)
+	if err != nil || !privateMetadata {
+		return RecoverySemanticCatalog{}, recoverySnapshotError(ctx, ErrRecoverySemanticCatalog)
 	}
 	if err = verifyRecoverySchemaTx(ctx, tx, schema); err != nil {
 		return RecoverySemanticCatalog{}, recoverySnapshotError(ctx, ErrRecoverySemanticCatalog)

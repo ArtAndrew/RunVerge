@@ -30,7 +30,7 @@ func (s *Store) ClaimModel(ctx context.Context, worker string, duration time.Dur
 	l := &domain.Lease{}
 	e = tx.QueryRow(ctx, `SELECT o.organization_id,o.id,o.task_id
  FROM operations o JOIN tasks t ON t.organization_id=o.organization_id AND t.id=o.task_id
- WHERE (o.status='queued' OR (o.status='leased' AND o.lease_until<clock_timestamp())) AND t.status IN('queued','running') AND o.run_id=t.current_run_id AND t.model_connection_id IS NOT NULL
+ WHERE (o.status='queued' OR (o.status='leased' AND o.lease_until<clock_timestamp())) AND t.status IN('queued','running') AND o.run_id=t.current_run_id AND t.model_connection_id IS NOT NULL AND NOT recovery_historical_task(t.organization_id,t.id)
  ORDER BY o.created_at,o.id LIMIT 1`).Scan(&l.OrganizationID, &l.OperationID, &l.TaskID)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return nil, connection, nil
@@ -56,7 +56,7 @@ func (s *Store) ClaimModel(ctx context.Context, worker string, duration time.Dur
  FROM operations o JOIN tasks t ON t.organization_id=o.organization_id AND t.id=o.task_id
  WHERE o.organization_id=$1 AND o.id=$2 AND o.task_id=$3
  AND (o.status='queued' OR (o.status='leased' AND o.lease_until<clock_timestamp()))
- AND t.status IN('queued','running') AND o.run_id=t.current_run_id AND t.model_connection_id IS NOT NULL
+ AND t.status IN('queued','running') AND o.run_id=t.current_run_id AND t.model_connection_id IS NOT NULL AND NOT recovery_historical_task(t.organization_id,t.id)
  FOR UPDATE OF o`, l.OrganizationID, l.OperationID, l.TaskID).Scan(&l.RunID, &l.Token, &attempts, &maxAttempts)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return nil, connection, nil
@@ -471,7 +471,7 @@ func (s *Store) ReconcileModelUnsent(ctx context.Context) (bool, error) {
 	var org, id string
 	e := s.Pool.QueryRow(ctx, `SELECT r.organization_id,r.id FROM reservations r JOIN actions a ON a.organization_id=r.organization_id AND a.id=r.action_id
  JOIN tasks t ON t.organization_id=r.organization_id AND t.id=r.task_id JOIN operations o ON o.organization_id=r.organization_id AND o.id=r.operation_id
- WHERE r.category='model' AND r.status IN('reserved','unknown') AND r.pending_quarantine_id IS NULL AND a.status='pending'
+ WHERE NOT recovery_historical_task(t.organization_id,t.id) AND r.category='model' AND r.status IN('reserved','unknown') AND r.pending_quarantine_id IS NULL AND a.status='pending'
  AND (t.status IN('cancelled','blocked') OR o.run_id<>t.current_run_id) AND o.status IN('cancelled','blocked','failed') ORDER BY r.created_at,r.id LIMIT 1`).Scan(&org, &id)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return false, nil
