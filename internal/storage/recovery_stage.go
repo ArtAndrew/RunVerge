@@ -218,6 +218,9 @@ func (s *Store) CheckRecoverySnapshotData(ctx context.Context, archive *recovery
 	if err = validateRecoveryConfigurationHistory(ctx, tx, stageSchema); err != nil {
 		return result, err
 	}
+	if err = validateRecoveryTeamHistory(ctx, tx, stageSchema); err != nil {
+		return result, err
+	}
 	costHistory, err := checkRecoveryCostHistory(ctx, tx, stageSchema)
 	if err != nil {
 		return result, err
