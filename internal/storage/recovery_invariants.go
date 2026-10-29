@@ -145,6 +145,11 @@ func recoveryInvariantQueries(schema string) []recoveryInvariantQuery {
  UNION ALL SELECT organization_id,created_by,creator_authority_epoch,creator_policy_epoch FROM {tool_executions}
  UNION ALL SELECT organization_id,dispatch_requested_by,dispatcher_authority_epoch,dispatcher_policy_epoch FROM {tool_executions} WHERE dispatch_requested_by IS NOT NULL
  UNION ALL SELECT organization_id,decided_by,decider_authority_epoch,decider_policy_epoch FROM {approvals} WHERE execution_id IS NOT NULL AND decided_by IS NOT NULL
+ UNION ALL SELECT organization_id,issuer_id,issuer_authority_epoch,issuer_policy_epoch FROM {configuration_grants}
+ UNION ALL SELECT organization_id,subject_id,subject_authority_epoch,subject_policy_epoch FROM {configuration_grants}
+ UNION ALL SELECT organization_id,actor_id,actor_authority_epoch,actor_policy_epoch FROM {configuration_plans}
+ UNION ALL SELECT organization_id,principal_id,authority_epoch,policy_epoch FROM {configuration_approvals}
+ UNION ALL SELECT organization_id,actor_id,actor_authority_epoch,actor_policy_epoch FROM {configuration_verifications}
 ) SELECT NOT EXISTS(SELECT 1 FROM snapshots s LEFT JOIN {memberships} m ON m.organization_id=s.organization_id AND m.principal_id=s.principal
  LEFT JOIN {principals} p ON p.id=s.principal LEFT JOIN {organization_login_policies} q ON q.organization_id=s.organization_id
  WHERE m.principal_id IS NULL OR p.id IS NULL OR q.organization_id IS NULL OR s.authority_epoch IS NULL OR s.policy_epoch IS NULL
@@ -170,7 +175,7 @@ func recoveryInvariantQueries(schema string) []recoveryInvariantQuery {
  WHERE e.id IS NULL OR a.id IS NULL OR a.task_id<>e.task_id OR r.content_digest<>pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(a.content,'UTF8')),'hex'))`},
 		{"outbox_scope", `SELECT NOT EXISTS(SELECT 1 FROM {outbox} o LEFT JOIN {events} e ON e.sequence=o.sequence WHERE e.sequence IS NULL OR o.organization_id<>e.organization_id)`},
 	}
-	tables := []string{"tasks", "reservations", "ledger_entries", "organizations", "financial_incidents", "cost_quarantines", "cost_evidence", "cost_quarantine_resolutions", "memberships", "principals", "service_credentials", "access_tokens", "browser_sessions", "identity_mappings", "organization_login_policies", "tool_executions", "approvals", "runs", "operations", "task_automation_grants", "task_tree_controls", "task_candidates", "artifacts", "material_revisions", "tool_outcome_receipts", "tool_outcome_conflicts", "outbox", "events"}
+	tables := []string{"tasks", "reservations", "ledger_entries", "organizations", "financial_incidents", "cost_quarantines", "cost_evidence", "cost_quarantine_resolutions", "memberships", "principals", "service_credentials", "access_tokens", "browser_sessions", "identity_mappings", "organization_login_policies", "tool_executions", "approvals", "runs", "operations", "task_automation_grants", "task_tree_controls", "task_candidates", "artifacts", "material_revisions", "tool_outcome_receipts", "tool_outcome_conflicts", "outbox", "events", "configuration_grants", "configuration_plans", "configuration_approvals", "configuration_verifications"}
 	pairs := make([]string, 0, len(tables)*2)
 	for _, table := range tables {
 		pairs = append(pairs, "{"+table+"}", pgx.Identifier{schema, table}.Sanitize())

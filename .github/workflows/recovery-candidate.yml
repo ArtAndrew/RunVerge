@@ -37,4 +37,4 @@ jobs:
       - name: Check model intent serialization and recovery snapshot validation
         run: |
           go test -mod=readonly ./internal/modelruntime -count=1
-          go test -mod=readonly ./internal/storage -run 'TestRecovery(ModelStage|ModelHistory|ExecutionHistory|StageAuthor|StageIndependent|TeamHistory|ConfigurationHistory|HistoryJSON|CostHistory|Allocations|WebhookProfiles)' -count=1 -v
+          go test -mod=readonly ./internal/storage -run 'TestRecovery(ModelStage|ModelHistory|ExecutionHistory|StageAuthor|StageIndependent|TeamHistory|ConfigurationHistory|AuthorityHistory|HistoryJSON|HistoryCoverage|CostHistory|Allocations|WebhookProfiles)' -count=1 -v
