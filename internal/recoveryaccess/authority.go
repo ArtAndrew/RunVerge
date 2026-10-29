@@ -43,7 +43,10 @@ type Claims struct {
 	ExpiresAt      int64   `json:"expires_at"`
 }
 
-type Scope struct{ Subject, OrganizationID string }
+type Scope struct {
+	Subject        string `json:"subject"`
+	OrganizationID string `json:"organization_id"`
+}
 
 // Policy is host configuration, NEVER request or archive data. Keys authorize
 // only this target/restore/snapshot. Scopes must reflect current operator proof,
@@ -58,6 +61,7 @@ type Policy struct {
 type Authority struct {
 	mu     sync.RWMutex
 	policy Policy
+	closed bool
 }
 
 func New(policy Policy) (*Authority, error) {
@@ -82,7 +86,7 @@ func (a *Authority) Replace(policy Policy) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if p.Binding != a.policy.Binding || p.Epoch <= a.policy.Epoch {
+	if a.closed || p.Binding != a.policy.Binding || p.Epoch <= a.policy.Epoch {
 		return ErrDenied
 	}
 	a.policy = p
@@ -101,7 +105,7 @@ func (a *Authority) Read(ctx context.Context, token, organization string, read f
 	defer cancel()
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	if ctx.Err() != nil {
+	if a.closed || ctx.Err() != nil {
 		return ErrDenied
 	}
 	c, err := verify(token, organization, a.policy, time.Now())
@@ -116,6 +120,28 @@ func (a *Authority) Read(ctx context.Context, token, organization string, read f
 	}
 	_, err = verify(token, organization, a.policy, time.Now())
 	return err
+}
+
+// close permanently expires a transient durable-policy view, draining admitted
+// reads before its shared filesystem lock is released. Retained readers cannot
+// bypass later disk-policy revocation or revive this view through Replace.
+func (a *Authority) close() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.closed = true
+	a.policy.Issuers = nil
+	a.policy.Scopes = nil
+}
+
+// BoundTo checks an independently supplied host target selector. It grants no
+// read permission; token and current-scope checks still occur on every read.
+func (a *Authority) BoundTo(binding Binding) bool {
+	if a == nil {
+		return false
+	}
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return !a.closed && a.policy.Binding == binding
 }
 
 // Sign is an operator-side helper; a signing key alone cannot override the

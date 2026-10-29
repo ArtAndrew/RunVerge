@@ -39,10 +39,13 @@ func main() {
 }
 func run() error {
 	if len(os.Args) < 2 {
-		return errors.New("usage: platform version|bundle|capabilities|doctor|config|migrate|bootstrap|serve|worker|mcp-stdio|link-identity|issue-token|issue-service-token|recover-login-policy|advance-event-replay|prepare-model|install-model|install-tool")
+		return errors.New("usage: platform version|bundle|capabilities|doctor|config|recovery|migrate|bootstrap|serve|worker|mcp-stdio|link-identity|issue-token|issue-service-token|recover-login-policy|advance-event-replay|prepare-model|install-model|install-tool")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if os.Args[1] == "recovery" {
+		return runRecoveryHost(ctx, os.Args[2:], os.Stdout)
+	}
 	if os.Args[1] == "version" {
 		return runVersion(os.Args[2:], os.Stdout)
 	}
