@@ -26,12 +26,14 @@ func TestRecoveryReaderAuthorScopedResultsAndRevocation(t *testing.T) {
 	p, _, content := recoveryAuthorPopulate(t, source)
 	pOther, _ := identity(t, source, 1_000_000)
 	aOther := agent(t, source, pOther)
-	_ = task(t, source, pOther, aOther)
+	if _, err := source.CreateTask(ctx, pOther, domain.NewID("key"), domain.CreateTask{Goal: "private-other-organization-content", AgentID: aOther.ID, BudgetMicroUSD: 10_000}); err != nil {
+		t.Fatal(err)
+	}
 	lease, err := source.ClaimFixture(ctx, "recovery-reader-other-org", time.Minute)
 	if err != nil || lease == nil || lease.Task.OrganizationID != pOther.OrganizationID {
 		t.Fatal("second org fixture failed", err)
 	}
-	otherContent := "private-other-organization-content\n" + domain.ExecutionInput(*lease)
+	otherContent := "Тестовый результат\n" + domain.ExecutionInput(*lease)
 	if err = source.CompleteFixture(ctx, lease, otherContent); err != nil {
 		t.Fatal(err)
 	}
