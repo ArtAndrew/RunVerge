@@ -83,7 +83,7 @@ func TestRecoveryTeamHistoryAuthorSelectedInputs(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = tx.Exec(ctx, "UPDATE pg_temp.artifacts SET content=$1 WHERE id=$2", string(body), artifact); err != nil {
+		if _, err = tx.Exec(ctx, "UPDATE pg_temp.artifacts SET content=$1,provenance=provenance||jsonb_build_object('content_digest',$3::text) WHERE id=$2", string(body), artifact, Hash(body)); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = tx.Exec(ctx, "UPDATE pg_temp.task_candidates SET content_digest=$1 WHERE id=$2", Hash(body), root.CandidateID); err != nil {
@@ -116,7 +116,7 @@ func TestRecoveryTeamHistoryAuthorSelectedInputs(t *testing.T) {
 		if _, err = tx.Exec(ctx, "UPDATE pg_temp.team_members SET status='failed',selected_candidate_id=NULL,selected_artifact_id=NULL,selected_artifact_version=NULL,selected_content_digest=NULL WHERE parent_run_id=$1 AND ordinal=1", root.CurrentRunID); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = tx.Exec(ctx, "UPDATE pg_temp.artifacts SET content=$1 WHERE id=$2", string(body), artifact); err != nil {
+		if _, err = tx.Exec(ctx, "UPDATE pg_temp.artifacts SET content=$1,provenance=provenance||jsonb_build_object('content_digest',$3::text,'complete',false) WHERE id=$2", string(body), artifact, Hash(body)); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = tx.Exec(ctx, "UPDATE pg_temp.task_candidates SET content_digest=$1 WHERE id=$2", Hash(body), root.CandidateID); err != nil {

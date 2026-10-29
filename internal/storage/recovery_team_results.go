@@ -137,7 +137,7 @@ func validateRecoveryTeamResults(ctx context.Context, tx pgx.Tx, schema string, 
 		}
 		// A cancelled/blocked execution may retain a previously emitted manifest.
 		// Compare the frozen members, never current task statuses or latest runs.
-		rows, err = tx.Query(ctx, `SELECT a.content FROM `+q("task_candidates")+` c JOIN `+q("artifacts")+` a ON a.organization_id=c.organization_id AND a.id=c.artifact_id AND a.version=c.artifact_version WHERE c.organization_id=$1 AND c.task_id=$2 AND c.run_id=$3 AND c.source='team'`, e.org, e.task, e.run)
+		rows, err = tx.Query(ctx, `SELECT a.content,a.name,a.media_type,a.version,a.provenance FROM `+q("task_candidates")+` c JOIN `+q("artifacts")+` a ON a.organization_id=c.organization_id AND a.id=c.artifact_id AND a.version=c.artifact_version AND a.task_id=c.task_id WHERE c.organization_id=$1 AND c.task_id=$2 AND c.run_id=$3 AND c.source='team'`, e.org, e.task, e.run)
 		if err != nil {
 			return recoverySnapshotError(ctx, ErrRecoveryTeamHistory)
 		}
@@ -150,10 +150,18 @@ func validateRecoveryTeamResults(ctx context.Context, tx pgx.Tx, schema string, 
 			}
 		}
 		for rows.Next() {
-			var raw string
+			var raw, name, mediaType string
+			var version int
+			var provenance []byte
+			var savedProvenance map[string]any
 			var stored teamManifest
 			count++
-			if rows.Scan(&raw) != nil || count > 1 || ready == 0 || (manifest.JoinPolicy == "all" && !manifest.Complete) || decodeRecoveryHistoryJSON([]byte(raw), &stored, 262144) != nil || !reflect.DeepEqual(stored, manifest) {
+			if rows.Scan(&raw, &name, &mediaType, &version, &provenance) != nil || count > 1 || ready == 0 || (manifest.JoinPolicy == "all" && !manifest.Complete) || decodeRecoveryHistoryJSON([]byte(raw), &stored, 262144) != nil || !reflect.DeepEqual(stored, manifest) || name != "team-result.json" || mediaType != "application/json" || version != 1 || decodeRecoveryHistoryJSON(provenance, &savedProvenance, 262144) != nil {
+				valid = false
+				break
+			}
+			expectedProvenance := map[string]any{"adapter": "team:coordinator", "verified": false, "verification": "awaiting_authorized_decision", "pattern": manifest.Pattern, "join_policy": manifest.JoinPolicy, "complete": manifest.Complete, "all_fixture": manifest.AllFixture, "synthetic_cost": manifest.AllFixture, "run_id": e.run, "content_digest": Hash([]byte(raw)), "plan_digest": e.digest}
+			if !reflect.DeepEqual(savedProvenance, expectedProvenance) {
 				valid = false
 				break
 			}

@@ -37,6 +37,12 @@ func validateRecoveryExecutionHistory(ctx context.Context, tx pgx.Tx, schema str
 func recoveryExecutionHistoryQueries(schema string) []string {
 	queries := []string{
 		`SELECT NOT EXISTS(SELECT 1 FROM {runs} WHERE (input_context='' AND input_digest<>'') OR (input_context<>'' AND input_digest<>pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(input_context,'UTF8')),'hex')))`,
+		`SELECT NOT EXISTS(SELECT 1 FROM {runs} r JOIN {tasks} t ON t.organization_id=r.organization_id AND t.id=r.task_id WHERE r.agent_id<>t.agent_id OR r.agent_version<>t.agent_version)`,
+		`SELECT NOT EXISTS(SELECT 1 FROM {model_candidates} c
+ JOIN {artifacts} artifact ON artifact.organization_id=c.organization_id AND artifact.id=c.artifact_id AND artifact.task_id=c.task_id
+ WHERE c.content_digest<>pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(artifact.content,'UTF8')),'hex')
+ OR NOT EXISTS(SELECT 1 FROM {task_candidates} candidate WHERE candidate.organization_id=c.organization_id AND candidate.task_id=c.task_id AND candidate.operation_id=c.operation_id AND candidate.artifact_id=c.artifact_id AND candidate.artifact_version=artifact.version AND candidate.content_digest=c.content_digest AND candidate.source IN('model','model_tools')))
+ AND NOT EXISTS(SELECT 1 FROM {task_candidates} candidate WHERE candidate.source IN('model','model_tools') AND NOT EXISTS(SELECT 1 FROM {model_candidates} c WHERE c.organization_id=candidate.organization_id AND c.operation_id=candidate.operation_id AND c.task_id=candidate.task_id AND c.artifact_id=candidate.artifact_id AND c.content_digest=candidate.content_digest))`,
 		`SELECT NOT EXISTS(SELECT 1 FROM {tool_executions} e JOIN {tasks} t ON t.organization_id=e.organization_id AND t.id=e.task_id
  JOIN {reservations} r ON r.organization_id=e.organization_id AND r.id=e.reservation_id JOIN {actions} a ON a.organization_id=e.organization_id AND a.id=e.action_id
  WHERE r.task_id<>e.task_id OR r.operation_id<>e.operation_id OR r.action_id<>e.action_id OR r.category<>'tool' OR r.charge_key<>e.action_id
