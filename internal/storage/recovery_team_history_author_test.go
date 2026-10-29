@@ -121,6 +121,18 @@ func TestRecoveryTeamHistoryAuthorNestedRetry(t *testing.T) {
 	if err = tx.QueryRow(context.Background(), "SELECT count(*) FROM pg_temp.task_decisions WHERE parent_decision_id IS NOT NULL").Scan(&inherited); err != nil || inherited < 1 {
 		t.Fatal("inherited fixture absent", err)
 	}
+	t.Run("inherited_from_wrong_generation", func(t *testing.T) {
+		if _, err := tx.Exec(context.Background(), "SAVEPOINT inherited_generation"); err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Exec(context.Background(), "ROLLBACK TO SAVEPOINT inherited_generation")
+		if _, err := tx.Exec(context.Background(), `UPDATE pg_temp.task_decisions d SET parent_decision_id=old.id, decision=old.decision, reason=old.reason FROM pg_temp.task_decisions old WHERE d.parent_decision_id IS NOT NULL AND old.method='authorized_user_decision' AND old.decision='request_changes'`); err != nil {
+			t.Fatal("generation fault violated row shape", err)
+		}
+		if !errors.Is(validateRecoveryTeamHistory(context.Background(), tx, "pg_temp"), ErrRecoveryTeamHistory) {
+			t.Fatal("inherited decision rebound to unselected historical subtree")
+		}
+	})
 	if _, err = tx.Exec(context.Background(), "UPDATE pg_temp.task_decisions SET reason='Different inherited human reason' WHERE parent_decision_id IS NOT NULL"); err != nil {
 		t.Fatal(err)
 	}

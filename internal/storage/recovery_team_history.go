@@ -14,19 +14,20 @@ var ErrRecoveryTeamHistory = errors.New("invalid recovery team plan history")
 var ErrRecoveryTeamLimit = errors.New("recovery team validation exceeds supported limits")
 
 type recoveryTeamExecution struct {
-	org, task, run, root, rootRun, digest string
-	raw                                   []byte
+	org, task, run, root, rootRun, digest, status string
+	raw                                           []byte
 }
 
 // Only retained immutable plan bindings are checked here. Current liveness,
 // permissions and latest profile versions must not reinterpret old admissions.
-// Manifest/dependency-input reconstruction remains a separate coverage boundary.
+// Run-specific manifests, dependency inputs and inherited selections are checked
+// separately below, without using the live coordinator's admission predicates.
 func validateRecoveryTeamHistory(ctx context.Context, tx pgx.Tx, schema string) error {
 	if ctx == nil || tx == nil || !recoverySnapshotName.MatchString(schema) {
 		return ErrRecoveryTeamHistory
 	}
 	q := func(table string) string { return pgx.Identifier{schema, table}.Sanitize() }
-	rows, err := tx.Query(ctx, "SELECT organization_id,task_id,run_id,root_id,root_run_id,plan,plan_digest FROM "+q("team_executions"))
+	rows, err := tx.Query(ctx, "SELECT organization_id,task_id,run_id,root_id,root_run_id,plan,plan_digest,status FROM "+q("team_executions"))
 	if err != nil {
 		return recoverySnapshotError(ctx, ErrRecoveryTeamHistory)
 	}
@@ -34,7 +35,7 @@ func validateRecoveryTeamHistory(ctx context.Context, tx pgx.Tx, schema string) 
 	totalBytes := 0
 	for rows.Next() {
 		var e recoveryTeamExecution
-		if rows.Scan(&e.org, &e.task, &e.run, &e.root, &e.rootRun, &e.raw, &e.digest) != nil {
+		if rows.Scan(&e.org, &e.task, &e.run, &e.root, &e.rootRun, &e.raw, &e.digest, &e.status) != nil {
 			rows.Close()
 			return ErrRecoveryTeamHistory
 		}
@@ -192,5 +193,5 @@ func validateRecoveryTeamHistory(ctx context.Context, tx pgx.Tx, schema string) 
  OR (d.method='inherited_authorized_user_decision' AND (parent.id IS NULL OR parent.method<>'authorized_user_decision' OR path.id IS NULL OR NOT(parent.task_id=ANY(path.ancestors)) OR d.principal_id<>parent.principal_id OR d.decision<>parent.decision OR d.reason<>parent.reason)))`).Scan(&inherited); err != nil || !inherited {
 		return recoverySnapshotError(ctx, ErrRecoveryTeamHistory)
 	}
-	return nil
+	return validateRecoveryTeamResults(ctx, tx, schema, executions)
 }
