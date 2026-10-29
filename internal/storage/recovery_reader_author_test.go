@@ -31,7 +31,7 @@ func TestRecoveryReaderAuthorScopedResultsAndRevocation(t *testing.T) {
 	if err != nil || lease == nil || lease.Task.OrganizationID != pOther.OrganizationID {
 		t.Fatal("second org fixture failed", err)
 	}
-	otherContent := "private-other-organization-content"
+	otherContent := "private-other-organization-content\n" + domain.ExecutionInput(*lease)
 	if err = source.CompleteFixture(ctx, lease, otherContent); err != nil {
 		t.Fatal(err)
 	}

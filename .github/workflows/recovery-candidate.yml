@@ -45,7 +45,8 @@ jobs:
         run: |
           go test -mod=readonly ./internal/modelruntime -count=1
           go test -mod=readonly -race ./internal/recoveryaccess -count=1 -v
-          go test -mod=readonly ./internal/storage -run 'TestRecovery(ReaderAuthor|GateAuthor|GateIndependent|SnapshotTrustedInventory|SemanticCatalogTrusted|ImportAuthor|ImportIndependent|ModelStage|ModelHistory|ExecutionHistory|StageAuthor|StageIndependent|TeamHistory|ConfigurationHistory|AuthorityHistory|HistoryJSON|HistoryCoverage|CostHistory|Allocations|WebhookProfiles)' -count=1 -v
+          go test -mod=readonly ./internal/storage -run '^TestRecoveryReaderAuthor' -count=1 -v
+          go test -mod=readonly ./internal/storage -run 'TestRecovery(GateAuthor|GateIndependent|SnapshotTrustedInventory|SemanticCatalogTrusted|ImportAuthor|ImportIndependent|ModelStage|ModelHistory|ExecutionHistory|StageAuthor|StageIndependent|TeamHistory|ConfigurationHistory|AuthorityHistory|HistoryJSON|HistoryCoverage|CostHistory|Allocations|WebhookProfiles)' -count=1 -v
       - name: Capture unsealed schema reference metadata only
         if: ${{ inputs.schema_reference }}
         run: |
