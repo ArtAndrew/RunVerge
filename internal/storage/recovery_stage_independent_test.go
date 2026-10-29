@@ -83,7 +83,7 @@ func stageIndependentCapture(t *testing.T, s *Store) stageIndependentImage {
 				t.Fatal(err)
 			}
 			image.Seq[v.name] = state
-		} else if v.name != "schema_migrations" && v.name != "runtime_recovery_control" {
+		} else if v.name != "schema_migrations" && v.name != "runtime_recovery_control" && v.name != "recovery_import_receipts" && v.name != "recovery_historical_rows" {
 			var count int64
 			if err := s.Pool.QueryRow(ctx, "SELECT count(*) FROM "+name).Scan(&count); err != nil || count != 0 {
 				t.Fatal("held target contains business rows", v.name, err)

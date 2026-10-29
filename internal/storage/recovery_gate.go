@@ -203,7 +203,7 @@ func (s *Store) PrepareRecoveryTarget(ctx context.Context, spec RecoveryTargetSp
 	}
 	var guarded bool
 	err = tx.QueryRow(ctx, `SELECT NOT EXISTS(SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname=$1 AND c.relkind IN('r','p') AND c.relname NOT IN('runtime_recovery_control','schema_migrations')
+ WHERE n.nspname=$1 AND c.relkind IN('r','p') AND c.relname NOT IN('runtime_recovery_control','schema_migrations','recovery_import_receipts','recovery_historical_rows')
  AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_trigger t JOIN pg_catalog.pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid
  AND t.tgname='recovery_runtime_write' AND t.tgenabled='O' AND t.tgtype=62 AND NOT t.tgisinternal
  AND f.proname='runtime_recovery_write_guard' AND f.pronamespace=c.relnamespace))`, s.runtimeSchema).Scan(&guarded)

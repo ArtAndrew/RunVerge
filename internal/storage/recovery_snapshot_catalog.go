@@ -99,7 +99,7 @@ func recoverySnapshotInventory(ctx context.Context, tx pgx.Tx, schema string, lo
 			rows.Close()
 			return result, ErrRecoverySnapshotSchema
 		}
-		result.Tables = append(result.Tables, RecoverySnapshotTable{Name: name, Exported: name != "schema_migrations" && name != "runtime_recovery_control", Columns: []RecoverySnapshotColumn{}, PrimaryKey: []string{}})
+		result.Tables = append(result.Tables, RecoverySnapshotTable{Name: name, Exported: recoveryBusinessTable(name), Columns: []RecoverySnapshotColumn{}, PrimaryKey: []string{}})
 	}
 	err = rows.Err()
 	rows.Close()

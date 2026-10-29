@@ -28,7 +28,7 @@ func (s *Store) ReconcileTaskAutomation(ctx context.Context) (bool, error) {
 	defer cancel()
 	var org, id, taskID, rootID string
 	err := s.Pool.QueryRow(ctx, `SELECT g.organization_id,g.id,g.task_id,t.root_id FROM task_automation_grants g JOIN tasks t ON t.organization_id=g.organization_id AND t.id=g.task_id
- WHERE g.status='active' AND (NOT EXISTS(SELECT 1 FROM memberships actor JOIN principals ap ON ap.id=actor.principal_id
+ WHERE NOT recovery_historical_task(g.organization_id,g.task_id) AND g.status='active' AND (NOT EXISTS(SELECT 1 FROM memberships actor JOIN principals ap ON ap.id=actor.principal_id
  JOIN memberships own ON own.organization_id=actor.organization_id AND own.principal_id=g.owner_id JOIN principals op ON op.id=own.principal_id
  JOIN organizations tenant ON tenant.id=actor.organization_id
  WHERE actor.organization_id=g.organization_id AND actor.principal_id=g.principal_id AND actor.active AND ap.active AND actor.role IN('owner','admin')

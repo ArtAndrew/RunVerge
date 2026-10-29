@@ -18,7 +18,7 @@ JOIN principals p ON p.id=t.principal_id JOIN memberships m ON m.principal_id=p.
 JOIN organizations o ON o.id=m.organization_id
 JOIN organization_login_policies q ON q.organization_id=m.organization_id
 WHERE t.token_hash=$1 AND m.organization_id=$2 AND NOT t.revoked AND t.expires_at>clock_timestamp()
-AND i.active AND p.active AND p.kind='human' AND m.active AND o.active AND (q.mode='mixed' OR (q.mode='oidc_required' AND q.oidc_issuer=t.issuer)) AND t.credential_generation>m.credential_cutoff`
+AND i.active AND p.active AND p.kind='human' AND NOT recovery_historical_principal(p.id) AND m.active AND o.active AND (q.mode='mixed' OR (q.mode='oidc_required' AND q.oidc_issuer=t.issuer)) AND t.credential_generation>m.credential_cutoff`
 
 // authQuery keeps internal reauthorization in the credential's original domain.
 // A browser-session hash must never be looked up in the Bearer credential table.
@@ -81,7 +81,7 @@ JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND i.prin
 JOIN principals p ON p.id=t.principal_id JOIN memberships m ON m.principal_id=p.id
 JOIN organizations o ON o.id=m.organization_id
 JOIN organization_login_policies q ON q.organization_id=m.organization_id
-WHERE t.token_hash=$1 AND NOT t.revoked AND t.expires_at>clock_timestamp() AND i.active AND p.active AND p.kind='human' AND m.active AND o.active AND (q.mode='mixed' OR (q.mode='oidc_required' AND q.oidc_issuer=t.issuer))
+WHERE t.token_hash=$1 AND NOT t.revoked AND t.expires_at>clock_timestamp() AND i.active AND p.active AND p.kind='human' AND NOT recovery_historical_principal(p.id) AND m.active AND o.active AND (q.mode='mixed' OR (q.mode='oidc_required' AND q.oidc_issuer=t.issuer))
 AND t.credential_generation>m.credential_cutoff
 AND (o.created_at,o.id)<($2,$3) ORDER BY o.created_at DESC,o.id DESC LIMIT $4`, hash, c.CreatedAt, c.ID, limit+1)
 	if e != nil {

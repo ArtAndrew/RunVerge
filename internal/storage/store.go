@@ -155,14 +155,14 @@ const authSQL = `SELECT p.id,m.organization_id,m.role,p.kind FROM access_tokens 
  JOIN principals p ON p.id=t.principal_id JOIN memberships m ON m.principal_id=p.id JOIN organizations o ON o.id=m.organization_id
  JOIN organization_login_policies q ON q.organization_id=m.organization_id
  WHERE t.token_hash=$1 AND m.organization_id=$2 AND NOT t.revoked AND (t.expires_at IS NULL OR t.expires_at>clock_timestamp())
- AND p.kind='human' AND p.active AND m.active AND o.active AND q.mode='mixed'
+ AND p.kind='human' AND NOT recovery_historical_principal(p.id) AND p.active AND m.active AND o.active AND q.mode='mixed'
  AND t.credential_generation>m.credential_cutoff AND t.credential_generation>q.human_credential_cutoff`
 
 const ServiceKeyCredential = "service_key"
 const serviceAuthSQL = `SELECT p.id,m.organization_id,CASE WHEN t.role_ceiling='viewer' OR m.role='viewer' THEN 'viewer' ELSE 'member' END,p.kind
  FROM service_credentials t JOIN principals p ON p.id=t.principal_id JOIN memberships m ON m.principal_id=p.id AND m.organization_id=t.organization_id
  JOIN organizations o ON o.id=m.organization_id JOIN organization_login_policies q ON q.organization_id=m.organization_id
- WHERE t.token_hash=$1 AND t.organization_id=$2 AND p.service_organization_id=t.organization_id AND p.kind='service'
+ WHERE t.token_hash=$1 AND t.organization_id=$2 AND p.service_organization_id=t.organization_id AND p.kind='service' AND NOT recovery_historical_principal(p.id)
  AND m.role IN('member','viewer') AND t.role_ceiling IN('member','viewer') AND NOT t.revoked AND t.expires_at>clock_timestamp()
  AND p.active AND m.active AND o.active AND q.service_access_enabled
  AND t.credential_generation>m.credential_cutoff AND t.credential_generation>q.service_credential_cutoff`

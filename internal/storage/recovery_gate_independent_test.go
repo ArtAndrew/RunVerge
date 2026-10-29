@@ -94,9 +94,12 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
 	s, _ := independentRecoveryStore(t)
 	ctx := context.Background()
 	rows, err := s.Pool.Query(ctx, `SELECT c.relname,a.attname,
- EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid
+ CASE WHEN c.relname IN('recovery_import_receipts','recovery_historical_rows') THEN
+ EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname IN('recovery_receipt_insert','recovery_mark_insert') AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_import_metadata_guard')
+ AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname IN('recovery_receipt_permanent','recovery_mark_permanent') AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_import_metadata_guard')
+ ELSE EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid
  WHERE t.tgrelid=c.oid AND t.tgname='recovery_runtime_write' AND t.tgenabled='O'
- AND t.tgtype=62 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='runtime_recovery_write_guard')
+ AND t.tgtype=62 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='runtime_recovery_write_guard') END
  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  JOIN LATERAL (SELECT attname FROM pg_attribute WHERE attrelid=c.oid AND attnum>0 AND NOT attisdropped AND attidentity<>'a' AND attgenerated='' ORDER BY attnum LIMIT 1) a ON true
  WHERE n.nspname=$1 AND c.relkind IN('r','p') AND c.relname NOT IN('schema_migrations','runtime_recovery_control') ORDER BY c.relname`, s.runtimeSchema)
