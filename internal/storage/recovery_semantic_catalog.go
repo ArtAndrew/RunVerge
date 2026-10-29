@@ -16,7 +16,7 @@ import (
 
 var ErrRecoverySemanticCatalog = errors.New("unsupported recovery semantic catalogue")
 
-const recoverySemanticCatalogSHA256 = "UNSEALED"
+const recoverySemanticCatalogSHA256 = "35d765a3d47627666c1ac35997e149fa7ea45f712db6ba143b69b6075a94a4a3"
 const recoverySemanticNamespace = "__runverge_recovery_target__"
 const recoverySemanticMaxRecord = 256 << 10
 const recoverySemanticMaxBytes = 8 << 20
