@@ -38,6 +38,19 @@ The revision instructions have an 8192-byte UTF-8 limit. For this first example,
 
 This is an explicit human handoff. The agent does not automatically select this tool or ingest its receipt. Source documents can contain misleading instructions, and the model may still make mistakes.
 
+## Correct the final text yourself
+
+Check names, numbers, dates and contact details against the source, even if the reviewer approves the draft. In the checked local-model example, the writer invented an email address for Nina and the reviewer missed it. A second agent is another source of suggestions, not an independent fact check.
+
+For a small correction, you can use the existing material editor without another model attempt:
+
+1. While the result is still waiting for a decision, choose **Prepare final text**. For a team result this opens an empty text draft, with the original team material available for reference.
+2. Write or paste your corrected announcement into **Your text**. Remove unsupported contact details, promises and claims. Keep unanswered questions explicit.
+3. Choose **Save draft**, then **Prepare publication**. Review the saved text and confirm that you want to propose it as the task result. This is publication inside the task, not on the public internet.
+4. Review and accept that specific proposed text separately. The original team outputs remain attached as the basis; editing does not replace them or clear their costs.
+
+Do this before accepting the task. A later draft edit cannot change an already accepted result. This optional editor path was not part of the two-attempt model/browser pilot; that pilot checked acceptance of the original team aggregate.
+
 ## Budget and stopping
 
 The task's shared budget covers its subtasks. Each agent's configured limits and the organization's limits still apply. Two model stages can cost more and take longer than one; the starter makes no savings or quality guarantee.
