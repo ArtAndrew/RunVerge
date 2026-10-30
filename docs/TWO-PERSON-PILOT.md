@@ -45,4 +45,4 @@ Stop the root task to stop its pending team work. Work already sent to a provide
 
 To end the current login, the owner opens **Members → Revoke previous logins** for the member, supplies a reason and confirms. Existing credentials then lose access to this organization, including after a server restart. The account's role and active membership remain. Already authorized durable work is not cancelled by this action. To remove the person's membership access and invalidate their execution authority, disable the member instead; already sent operations and uncertain costs still need separate handling.
 
-A fresh credential issued by the trusted operator is a new authorization, not a way to restore the revoked credential. See the [membership contract](../contracts/MEMBERSHIPS.md) for the distinction between ending a login, disabling a member and cancelling a task.
+A fresh credential issued by the trusted operator is a new authorization, not a way to restore the revoked credential. See the [membership contract](https://github.com/ArtAndrew/RunVerge/blob/main/contracts/MEMBERSHIPS.md) for the distinction between ending a login, disabling a member and cancelling a task.

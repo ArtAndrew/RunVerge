@@ -81,11 +81,18 @@ async function main(){
   }else{
     step='open_saved_task';await openTask(page);
     if(config.phase==='copy'){
-      step='copy_exact_mcp_result';await page.getByRole('tab',{name:'Действия',exact:true}).click();
+      step='open_actions';await page.getByRole('tab',{name:'Действия',exact:true}).click();
+      step='open_exact_action';
       await page.getByRole('button',{name:'Открыть точное действие',exact:true}).click();
+      step='show_exact_receipt';
       await page.getByRole('button',{name:'Показать точный результат',exact:true}).click();
-      assert.equal(await page.locator('.tool-detail .artifact-preview').textContent(),config.artifact_content);
-      await page.locator('.tool-detail .copy-text-control').getByRole('button',{name:'Скопировать точный текст',exact:true}).click();
+      // The action also shows its exact arguments. Select the outcome section,
+      // so those arguments cannot be mistaken for the returned document.
+      const receipt=page.locator('.tool-detail .artifact').filter({has:page.getByRole('heading',{name:'Запись об исходе',exact:true})});
+      step='read_exact_receipt';
+      assert.equal(await receipt.locator('.artifact-preview').textContent(),config.artifact_content);
+      step='copy_exact_receipt';
+      await receipt.getByRole('button',{name:'Скопировать точный текст',exact:true}).click();
       await page.getByText('Точный текст скопирован.',{exact:true}).waitFor();
       assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),config.artifact_content);
     }else if(config.phase==='restart'){

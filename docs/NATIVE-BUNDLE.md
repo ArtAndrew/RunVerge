@@ -121,3 +121,11 @@ unchanged. Opening the form does not call a model.
 Use **Compare results** to read two saved versions and their exact feedback.
 The view verifies artifact identity and content digests; it does not check facts,
 accept a result or run a model. The panels stack on narrow screens.
+
+## Team walkthrough in development builds
+
+Development bundles also include [TEAM-REVIEW.md](TEAM-REVIEW.md) and
+[TWO-PERSON-PILOT.md](TWO-PERSON-PILOT.md). Start with two published agents,
+then use separate owner and member credentials on a fresh local installation.
+These guides are not in the alpha.5 download. They describe a test-data
+walkthrough, not a supported remote team service or enforced independent approval.
