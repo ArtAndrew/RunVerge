@@ -4,7 +4,7 @@
       "RunVerge task and review workflow",
       "Describe a task, get a draft, check it and accept it or approve a revision. Original results and feedback stay in the task history.",
       "RunVerge",
-      "ALPHA.2 / PREVIEW",
+      "ALPHA.6 / PREVIEW",
       "Give an agent a task. Review the result.",
       "Keep the answers and the comments used to revise them.",
       "01 / DESCRIBE",
@@ -32,7 +32,7 @@
       "awaiting confirmation.",
       "Use the browser interface",
       "to work with your agents.",
-      "Verified alpha.2 package: macOS arm64 · one owner · test data · PostgreSQL and model server installed separately"
+      "Alpha.6 · local test-data pilot · PostgreSQL and model configured separately"
     ],
     "starting-points": [
       "Two ways to start working with agents",
@@ -50,14 +50,14 @@
       "Planning, subagents and file context",
       "Plugins and a browser interface",
       "WORK WITH RESULTS",
-      "RunVerge alpha.2",
+      "RunVerge alpha.6",
       "Browser interface + API + CLI + SDKs",
       "Tasks and answers",
       "Review decisions",
       "Saved attempts",
       "Task budgets",
       "Results and history stored in PostgreSQL",
-      "Verified package: one owner, macOS arm64",
+      "Local owner/member pilot · test data",
       "Other ecosystems also provide persistence, human review and managed deployment.",
       "The table below compares the main use cases. It is not a performance ranking."
     ],
@@ -88,7 +88,7 @@
       "Как работает RunVerge",
       "Опишите задачу, получите черновик, проверьте его и примите результат или разрешите доработку. Исходные ответы и замечания остаются в истории задачи.",
       "RunVerge",
-      "АЛЬФА.2 / ПРОБНАЯ",
+      "АЛЬФА.6 / ПРОБНАЯ",
       "Поручите задачу. Проверьте результат.",
       "Сохраняйте ответы и замечания, по которым их исправляли.",
       "01 / ЗАДАНИЕ",
@@ -116,7 +116,7 @@
       "которые ещё требуют сверки.",
       "Работайте с агентами",
       "через браузерный интерфейс.",
-      "Проверенный пакет alpha.2: macOS arm64 · один владелец · тестовые данные · PostgreSQL и сервер модели устанавливаются отдельно"
+      "Alpha.6 · локальный пилот на тестовых данных · PostgreSQL и модель настраиваются отдельно"
     ],
     "starting-points": [
       "Два подхода к работе с агентами",
@@ -134,14 +134,14 @@
       "Планирование, субагенты и файлы",
       "Плагины и браузерный интерфейс",
       "РАБОТА С РЕЗУЛЬТАТОМ",
-      "RunVerge alpha.2",
+      "RunVerge alpha.6",
       "Веб-интерфейс + API + CLI + SDK",
       "Задачи и ответы",
       "Решения человека",
       "История попыток",
       "Бюджет задачи",
       "Результаты и история хранятся в PostgreSQL",
-      "Проверенный пакет: один владелец, macOS arm64",
+      "Владелец и участник · локальный пилот",
       "Другие экосистемы тоже предлагают хранение, проверку человеком и управляемое развёртывание.",
       "Таблица ниже сравнивает назначение инструментов, а не их место в рейтинге производительности."
     ],
@@ -172,7 +172,7 @@
       "Cómo funciona RunVerge",
       "Describe una tarea, obtén un borrador, revísalo y acéptalo o autoriza una revisión. Las respuestas originales y los comentarios se conservan en el historial.",
       "RunVerge",
-      "ALPHA.2 / PRUEBA",
+      "ALPHA.6 / PRUEBA",
       "Asigna una tarea. Revisa el resultado.",
       "Conserva las respuestas y los comentarios para corregirlas.",
       "01 / DESCRIBE",
@@ -200,7 +200,7 @@
       "pendientes de confirmación.",
       "Trabaja con tus agentes",
       "desde el navegador.",
-      "Paquete alpha.2 verificado: macOS arm64 · un propietario · datos de prueba · PostgreSQL y modelo se instalan aparte"
+      "Alpha.6 · piloto local con datos de prueba · PostgreSQL y modelo se configuran aparte"
     ],
     "starting-points": [
       "Dos formas de trabajar con agentes",
@@ -218,14 +218,14 @@
       "Planificación, subagentes y archivos",
       "Plugins e interfaz en el navegador",
       "TRABAJAR CON RESULTADOS",
-      "RunVerge alpha.2",
+      "RunVerge alpha.6",
       "Interfaz web + API + CLI + SDK",
       "Tareas y respuestas",
       "Decisiones",
       "Intentos guardados",
       "Presupuestos",
       "Resultados e historial en PostgreSQL",
-      "Paquete verificado: un propietario, macOS arm64",
+      "Propietario y miembro · piloto local",
       "Otros ecosistemas también ofrecen persistencia, revisión humana y despliegue gestionado.",
       "La tabla compara los usos principales; no es una clasificación de rendimiento."
     ],
@@ -256,7 +256,7 @@
       "Como funciona o RunVerge",
       "Descreva a tarefa, receba um rascunho, confira e aceite ou autorize uma revisão. As respostas originais e os comentários ficam no histórico da tarefa.",
       "RunVerge",
-      "ALPHA.2 / TESTE",
+      "ALPHA.6 / TESTE",
       "Delegue a tarefa. Confira o resultado.",
       "Mantenha respostas e comentários usados nas correções.",
       "01 / DESCREVA",
@@ -284,7 +284,7 @@
       "aguardando confirmação.",
       "Trabalhe com seus agentes",
       "pela interface do navegador.",
-      "Pacote alpha.2 verificado: macOS arm64 · um proprietário · dados de teste · PostgreSQL e modelo instalados à parte"
+      "Alpha.6 · piloto local com dados de teste · PostgreSQL e modelo configurados à parte"
     ],
     "starting-points": [
       "Duas formas de trabalhar com agentes",
@@ -302,14 +302,14 @@
       "Planejamento, subagentes e arquivos",
       "Plugins e interface no navegador",
       "USAR OS RESULTADOS",
-      "RunVerge alpha.2",
+      "RunVerge alpha.6",
       "Interface web + API + CLI + SDK",
       "Tarefas e respostas",
       "Decisões",
       "Histórico",
       "Orçamentos",
       "Resultados e histórico no PostgreSQL",
-      "Pacote verificado: um proprietário, macOS arm64",
+      "Proprietário e membro · piloto local",
       "Outros ecossistemas também oferecem persistência, revisão humana e implantação gerenciada.",
       "A tabela compara os usos principais; não é um ranking de desempenho."
     ],
@@ -340,7 +340,7 @@
       "So funktioniert RunVerge",
       "Aufgabe beschreiben, Entwurf erhalten, prüfen und annehmen oder eine Überarbeitung genehmigen. Originalantworten und Kommentare bleiben im Aufgabenverlauf.",
       "RunVerge",
-      "ALPHA.2 / TEST",
+      "ALPHA.6 / TEST",
       "Aufgabe erteilen. Ergebnis prüfen.",
       "Antworten und die Kommentare zur Überarbeitung behalten.",
       "01 / AUFTRAG",
@@ -368,7 +368,7 @@
       "Beträge bleiben sichtbar.",
       "Mit Ihren Agenten über",
       "den Browser arbeiten.",
-      "Geprüftes Alpha.2-Paket: macOS arm64 · ein Eigentümer · Testdaten · PostgreSQL und Modellserver separat installieren"
+      "Alpha.6 · lokaler Pilot mit Testdaten · PostgreSQL und Modell separat einrichten"
     ],
     "starting-points": [
       "Zwei Ansätze für die Arbeit mit Agenten",
@@ -386,14 +386,14 @@
       "Planung, Unteragenten und Dateien",
       "Plugins und Browseroberfläche",
       "ERGEBNISSE BEARBEITEN",
-      "RunVerge alpha.2",
+      "RunVerge alpha.6",
       "Browseroberfläche + API + CLI + SDKs",
       "Aufgaben",
       "Prüfentscheid",
       "Versuchsverlauf",
       "Aufgabenbudget",
       "Ergebnisse und Verlauf in PostgreSQL",
-      "Geprüftes Paket: ein Eigentümer, macOS arm64",
+      "Eigentümer und Mitglied · lokaler Pilot",
       "Andere Ökosysteme bieten ebenfalls Persistenz, menschliche Prüfung und verwalteten Betrieb.",
       "Die Tabelle vergleicht Anwendungsfälle, nicht die Leistung in einem Benchmark."
     ],
@@ -424,7 +424,7 @@
       "Fonctionnement de RunVerge",
       "Décrivez la tâche, recevez un brouillon, vérifiez-le et acceptez-le ou autorisez une révision. Réponses originales et commentaires restent dans l’historique.",
       "RunVerge",
-      "ALPHA.2 / ESSAI",
+      "ALPHA.6 / ESSAI",
       "Confiez une tâche. Vérifiez le résultat.",
       "Gardez les réponses et les commentaires de correction.",
       "01 / DÉCRIVEZ",
@@ -452,7 +452,7 @@
       "en attente de confirmation.",
       "Travaillez avec vos agents",
       "depuis le navigateur.",
-      "Paquet alpha.2 vérifié : macOS arm64 · un propriétaire · données de test · PostgreSQL et modèle installés séparément"
+      "Alpha.6 · essai local avec données de test · PostgreSQL et modèle configurés séparément"
     ],
     "starting-points": [
       "Deux façons de travailler avec des agents",
@@ -470,14 +470,14 @@
       "Planification, sous-agents et fichiers",
       "Plugins et interface dans le navigateur",
       "TRAVAILLER SUR LES RÉSULTATS",
-      "RunVerge alpha.2",
+      "RunVerge alpha.6",
       "Interface web + API + CLI + SDK",
       "Tâches et réponses",
       "Décisions",
       "Historique",
       "Budgets",
       "Résultats et historique dans PostgreSQL",
-      "Paquet vérifié : un propriétaire, macOS arm64",
+      "Propriétaire et membre · essai local",
       "D’autres écosystèmes offrent aussi persistance, vérification humaine et déploiement géré.",
       "Le tableau compare les usages principaux, pas les performances."
     ],
@@ -508,7 +508,7 @@
       "RunVerge 的任务与审核流程",
       "描述任务，获得草稿，检查后接受或批准修改。原始回答和修改意见保留在任务历史中。",
       "RunVerge",
-      "ALPHA.2 / 试用版",
+      "ALPHA.6 / 试用版",
       "布置任务，检查结果。",
       "保留回答，以及用于修改回答的意见。",
       "01 / 描述任务",
@@ -536,7 +536,7 @@
       "以及仍待核对的金额。",
       "通过浏览器界面",
       "与智能体一起工作。",
-      "已验证的 alpha.2 软件包：macOS arm64 · 单个所有者 · 测试数据 · PostgreSQL 和模型服务器需单独安装"
+      "Alpha.6 · 本地测试数据试用 · PostgreSQL 和模型需单独配置"
     ],
     "starting-points": [
       "两种使用智能体的方式",
@@ -554,14 +554,14 @@
       "规划、子智能体和文件上下文",
       "插件和浏览器界面",
       "处理生成结果",
-      "RunVerge alpha.2",
+      "RunVerge alpha.6",
       "浏览器界面 + API + CLI + SDK",
       "任务与回答",
       "人工决定",
       "执行历史",
       "任务预算",
       "结果和历史记录保存在 PostgreSQL 中",
-      "已验证软件包：单个所有者，macOS arm64",
+      "所有者与成员 · 本地试用",
       "其他生态同样提供持久化、人工审核和托管部署。",
       "下表比较主要用途，不代表性能排名。"
     ],

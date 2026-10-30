@@ -1,6 +1,6 @@
 # Contributor instructions
 
-RunVerge alpha.3 serves one local owner on macOS arm64 with test data. Read README.md and docs/SUPPORT.md before expanding scope. A separate Linux amd64/arm64 source-build preview is documented in docs/LINUX-SERVER.md; it requires an explicit container listener and test data. Full restore and enterprise/provider features are deferred; do not describe unfinished components as supported features.
+RunVerge alpha.6 provides a local owner/member test-data walkthrough and a macOS arm64 package. Read README.md and docs/SUPPORT.md before expanding scope. A separate Linux amd64/arm64 source-build preview is documented in docs/LINUX-SERVER.md; it requires an explicit container listener and test data. Full restore and enterprise/provider features are deferred; do not describe unfinished components as supported features.
 
 - Preserve existing access checks, tenant boundaries, budget reservations, uncertain outcomes, explicit consent for a new attempt and immutable result history.
 - Never replay an uncertain external effect automatically. Model output, business outcome and financial evidence are separate facts.

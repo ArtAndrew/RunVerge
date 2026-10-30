@@ -1,6 +1,6 @@
 # Draft, review, then decide
 
-This guide describes the team starter in the development branch. It is not included in the alpha.5 download and does not establish support for a shared production service. Use synthetic materials on a disposable installation. [Current release limits](https://github.com/ArtAndrew/RunVerge/blob/main/docs/SUPPORT.md).
+This guide describes the alpha.6 team starter. It does not establish support for a shared production service. Use synthetic materials on a disposable installation. [Current release limits](https://github.com/ArtAndrew/RunVerge/blob/main/docs/SUPPORT.md).
 
 A review team has two stages. The first agent prepares a draft. The second compares the saved draft with the original task and its supplied materials. RunVerge keeps both outputs for a person to review. Another model response is not proof that the draft is correct.
 
@@ -59,6 +59,6 @@ Use the root task's stop action to stop the team. A request already sent to a pr
 
 ## Agent teams and human teams are separate
 
-This starter composes agents. It does not invite colleagues or grant access. Human participants need their own identity and permissions configured through the supported administration path; never share an owner's token. End-to-end acceptance of the two-person installation and review workflow is a separate release requirement. [Membership contract](https://github.com/ArtAndrew/RunVerge/blob/main/contracts/MEMBERSHIPS.md).
+This starter composes agents. It does not invite colleagues or grant access. Human participants need their own identity and permissions configured through the supported administration path; never share an owner's token. The installed browser pilot covers separate local owner/member identities and result review; independent human usability and secure remote deployment remain unproven. [Membership contract](https://github.com/ArtAndrew/RunVerge/blob/main/contracts/MEMBERSHIPS.md).
 
-For separate human logins, see the development [two-person walkthrough](TWO-PERSON-PILOT.md).
+For separate human logins, see the local [two-person walkthrough](TWO-PERSON-PILOT.md).

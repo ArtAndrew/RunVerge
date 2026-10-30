@@ -6,7 +6,7 @@ can use a separately configured model service; a model is not included in the im
 
 Use a fresh installation and test data only. This preview does not add production
 backup/restore, supported upgrades, enterprise login or provider billing acceptance.
-It is separate from the published macOS arm64 alpha.3 package. A successful image
+It is separate from the published macOS arm64 alpha.6 package. A successful image
 build includes a native Linux installation/restart check; CI additionally checks the
 Compose services together. Check the **Linux server preview** GitHub Actions result
 for the exact revision you intend to try. An untested revision is not a supported
@@ -88,8 +88,11 @@ explicitly before evaluating real tasks. See [local model configuration](LOCAL-M
 and [the alpha quickstart](QUICKSTART-ALPHA.md). A model on the server's loopback
 address is not reachable through a container's own `127.0.0.1`; do not copy the
 macOS local endpoint unchanged. For the explicit OpenRouter text profile, see [OpenRouter setup](OPENROUTER.md).
-The real-model revision workflow was checked on macOS; Linux CI uses synthetic
-fixtures and installs the provider profile offline without a model key.
+The OpenRouter revision workflow was checked on macOS. Routine Linux CI uses
+synthetic fixtures and installs the provider profile offline without a model key.
+A separate alpha.6 Linux amd64 browser pilot used an owned loopback Qwen2.5:7b
+server for the two-person team workflow; this does not verify OpenRouter on Linux.
+See [alpha.6 validation](VALIDATION-alpha.6.md).
 
 ## Stop, resume and remove
 

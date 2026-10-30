@@ -2,7 +2,7 @@
 
 Нужны Go 1.27, PostgreSQL 18, Node.js 24 и Python 3.10+. Серверные зависимости закреплены в go.mod/go.sum; веб и SDK — в собственных package manifests и lock-файлах. Установка зависимостей выполняется до автономного запуска. По умолчанию локальный профиль использует loopback, bootstrap token и fixture:echo. Ограниченный модельный профиль и браузерный OIDC-вход настраиваются отдельно; их наличие ещё не означает готовность всей платформы к эксплуатации.
 
-Текущая локально проверенная версия —0.12.0, основной сохранённый профиль обновлён до SQL020. CORE-0.12.md (internal historical reference omitted) связывает проверку исходников, изолированные сценарии и подтверждённое локальное развёртывание. Настройка моделей и MCP через интерфейс, обычный CLI или SDK описана в [CONFIGURATION.md](CONFIGURATION.md).
+Текущая версия API —0.14.0. Границы опубликованной альфы и проверенные сценарии описаны в [SUPPORT.md](SUPPORT.md); исходники дополнительных компонентов не означают их готовность к эксплуатации. Настройка моделей и MCP через интерфейс, обычный CLI или SDK описана в [CONFIGURATION.md](CONFIGURATION.md).
 
 ## На текущем компьютере
 
@@ -188,12 +188,12 @@ python3 scripts/dev.py mcp-stdio --credentials .local/new-service.json
 Аварийный возврат к mixed — явная команда хоста `python3 scripts/dev.py recover-login-policy --organization ORG --reason "Recorded recovery"`. Она сохраняет audit, не возвращает старые токены и не является сетевым обходом SSO. Подробности: [SECURITY.md](../contracts/SECURITY.md).
 
 
-## События0.11 и текущая версия API0.12
+## События и текущая версия API0.14
 
-Снимки, точные курсоры и replay появились в0.11. Текущие UI и SDK отправляют обязательный `X-Platform-API-Version: 0.12.0` автоматически. Прямой HTTP-клиент должен добавить его явно; текущую версию сообщает `GET /api/v1/compatibility`. Несовместимый запрос не исполняет команду и не заменяет сохранённый idempotency-ответ. При обновлении локального профиля обновляйте сервер, worker, UI и SDK согласованно.
+Снимки, точные курсоры и replay появились в0.11. Текущие UI и SDK отправляют обязательный `X-Platform-API-Version: 0.14.0` автоматически. Прямой HTTP-клиент должен добавить его явно; текущую версию сообщает `GET /api/v1/compatibility`. Несовместимый запрос не исполняет команду и не заменяет сохранённый idempotency-ответ. При обновлении локального профиля обновляйте сервер, worker, UI и SDK согласованно.
 
 Поток восстанавливается только для чтения. При устаревшей истории интерфейс просит обновить снимок, сохраняя черновик; он не повторяет согласования, запуск или отмену. `python3 scripts/dev.py advance-event-replay --organization ORG --task TASK --after DECIMAL --reason "Recorded replay boundary"` — операторская команда с доступом к БД и обязательной причиной; она двигает только логическое окно, ничего физически не удаляет. Это не средство резервного копирования. Полный контракт: [EVENTS.md](../contracts/EVENTS.md).
 
-## Team starter in development
+## Team starter
 
-The [draft-and-review walkthrough](TEAM-REVIEW.md) covers the editable team starter. It is not included in the alpha.5 download. This UI addition does not change the current single-owner release support or establish acceptance of a two-person deployment.
+The [draft-and-review walkthrough](TEAM-REVIEW.md) covers the editable team starter. Alpha.6 includes it with a local owner/member walkthrough. See the validation notes for the installed model/browser checks; secure remote team deployment and independent user acceptance remain outside this release.

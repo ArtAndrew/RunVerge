@@ -1,6 +1,6 @@
 # A contributor and a reviewer
 
-Development walkthrough, not a supported alpha.5 deployment. Use a fresh local installation and synthetic data. Remote access, SSO onboarding, backup/restore and mandatory independent approval are outside this walkthrough.
+Alpha.6 local test-data walkthrough. Use a fresh local installation and synthetic data. Remote access, SSO onboarding, backup/restore and mandatory independent approval are outside this walkthrough.
 
 The smallest shared workflow uses two separate human accounts:
 
@@ -37,7 +37,7 @@ This credential identifies the person globally; the organization in the file is 
 3. As owner, find the task in **Tasks → Needs attention**. Open its saved results, compare them with the original material and record **Accept**, **Reject** or **Request changes**. Your decision is attached to the exact saved result and your identity.
 4. As member, reopen the same task and inspect that decision. Feedback alone does not launch another attempt. A new attempt requires a separate action and consent to possible cost.
 
-The fixture executors used by the package check test this sequence but do not draft or review intelligently. Real-model quality and independent user usability need their own evaluation.
+The native package check uses fixture executors to test permissions and retained state. A separate installed Linux amd64 browser pilot uses Qwen2.5:7b for two team attempts, including an MCP document in the revision. That model still invented details that the reviewer missed. These checks do not establish factual quality or independent user usability.
 
 ## Stop work and end access
 
