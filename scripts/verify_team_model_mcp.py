@@ -60,8 +60,11 @@ class TeamModelMCPProbe:
         if child.returncode != 0 or result.get('passed') is not True:
             step = result.get('step', 'no_result')
             require(isinstance(step, str) and step.replace('_', '').isalnum() and len(step) < 64, 'invalid browser failure stage')
+            self.browser_phases.append({'phase': phase, 'passed': False, 'step': step})
+            self.samples_file.with_name('browser-phases.json').write_text(json.dumps(self.browser_phases, indent=2) + '\n')
             raise RuntimeError('Team browser phase failed: ' + phase + ' at ' + step)
         self.browser_phases.append({key: result[key] for key in ('phase', 'passed', 'mutation_count', 'separate_contexts', 'browser_version')})
+        self.samples_file.with_name('browser-phases.json').write_text(json.dumps(self.browser_phases, indent=2) + '\n')
         return result['data']
 
     def command(self, phase, route, payload, identity=None, **extra):

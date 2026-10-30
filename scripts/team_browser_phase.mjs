@@ -47,6 +47,10 @@ async function main(){
     return page;
   }
   async function openTask(page){
+    // Team children may deliberately have the same goal as their parent. Use
+    // the real task search to select the captured root, never an arbitrary row.
+    const taskId=config.route.split('/')[4];assert.match(taskId,/^tsk_[a-z0-9]+$/);
+    await page.getByLabel('Поиск по загруженным задачам',{exact:true}).fill(taskId);
     await page.getByRole('button',{name:config.task_goal,exact:true}).click();
     await page.getByRole('heading',{name:config.task_goal,exact:true}).waitFor();
   }
