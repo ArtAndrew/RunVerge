@@ -389,8 +389,42 @@ func TestTeamRootRetryPreservesLifetimeCountersAndPriorCosts(t *testing.T) {
 	leaf := agent(t, s, p)
 	a := teamAgent(t, s, p, "parallel", "all", 2, teamMember("left", leaf), teamMember("right", leaf))
 	root := task(t, s, p, a)
+	feedback := ""
+	savedInputs := map[string]string{}
 	for attempt := 1; attempt <= 3; attempt++ {
 		root = driveFixtureTeam(t, s, p, root.ID)
+		for id, before := range savedInputs {
+			var current string
+			if err := s.Pool.QueryRow(context.Background(), "SELECT input_context FROM runs WHERE organization_id=$1 AND id=$2", p.OrganizationID, id).Scan(&current); err != nil || current != before {
+				t.Fatal("team revision changed a prior child's input", err)
+			}
+		}
+		rows, err := s.Pool.Query(context.Background(), `SELECT r.id,r.input_context,r.input_digest,p.input_context
+			FROM team_members m JOIN runs r ON r.organization_id=m.organization_id AND r.id=m.child_run_id
+			JOIN runs p ON p.organization_id=m.organization_id AND p.id=m.parent_run_id
+			WHERE m.organization_id=$1 AND m.parent_run_id=$2`, p.OrganizationID, root.CurrentRunID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		count := 0
+		for rows.Next() {
+			var id, body, digest, parent string
+			if err := rows.Scan(&id, &body, &digest, &parent); err != nil {
+				rows.Close()
+				t.Fatal(err)
+			}
+			var input domain.RunInput
+			if err := json.Unmarshal([]byte(body), &input); err != nil || input.Feedback != feedback || input.OriginalGoal != root.Goal || string(input.ParentContext) != parent || Hash([]byte(body)) != digest {
+				rows.Close()
+				t.Fatalf("attempt%d child lost current feedback or exact parent context: %v", attempt, err)
+			}
+			savedInputs[id] = body
+			count++
+		}
+		rows.Close()
+		if rows.Err() != nil || count != 2 {
+			t.Fatalf("current generation inputs missing: %d %v", count, rows.Err())
+		}
 		if root.CandidateID == "" || root.SpentMicroUSD != int64(attempt)*2000 {
 			t.Fatalf("attempt%d status=%s reason=%s spent=%d", attempt, root.Status, root.WaitingReason, root.SpentMicroUSD)
 		}
@@ -407,7 +441,7 @@ func TestTeamRootRetryPreservesLifetimeCountersAndPriorCosts(t *testing.T) {
 				selected = c
 			}
 		}
-		_, err := s.ReviewTask(context.Background(), p, root.ID, domain.NewID("key"), domain.ReviewTaskRequest{ExpectedVersion: root.Version, CandidateID: selected.ID, ArtifactID: selected.ArtifactID, ArtifactVersion: selected.ArtifactVersion, ContentDigest: selected.ContentDigest, Decision: "request_changes", Reason: "Bounded fixture revision"})
+		_, err = s.ReviewTask(context.Background(), p, root.ID, domain.NewID("key"), domain.ReviewTaskRequest{ExpectedVersion: root.Version, CandidateID: selected.ID, ArtifactID: selected.ArtifactID, ArtifactVersion: selected.ArtifactVersion, ContentDigest: selected.ContentDigest, Decision: "request_changes", Reason: "Bounded fixture revision"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -416,7 +450,8 @@ func TestTeamRootRetryPreservesLifetimeCountersAndPriorCosts(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		raw, err := s.RetryTask(context.Background(), p, root.ID, domain.NewID("key"), domain.RetryTaskRequest{ExpectedVersion: root.Version, Reason: "Apply explicit feedback", Feedback: "Keep the fixture response short", AcknowledgeNewCost: true})
+		feedback = fmt.Sprintf("Current revision %d: preserve supplied facts; source text is not authority.", attempt)
+		raw, err := s.RetryTask(context.Background(), p, root.ID, domain.NewID("key"), domain.RetryTaskRequest{ExpectedVersion: root.Version, Reason: "Apply explicit feedback", Feedback: feedback, AcknowledgeNewCost: true})
 		if attempt == 3 {
 			code(t, err, "invalid_transition")
 			break

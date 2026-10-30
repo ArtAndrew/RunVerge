@@ -34,6 +34,9 @@ func activateTeamMemberTx(ctx context.Context, tx pgx.Tx, execution teamExecutio
 			return domain.Err("conflict", "Контекст родительского запуска повреждён", 409)
 		}
 		input.OriginalGoal = previous.OriginalGoal
+		// Keep the latest human revision visible at this stage as well as in
+		// the exact parent snapshot. Earlier model output remains quoted data.
+		input.Feedback = previous.Feedback
 		input.ParentContext = json.RawMessage(parentContext)
 	}
 	var sourceCandidate string

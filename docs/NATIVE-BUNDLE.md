@@ -1,6 +1,6 @@
 # RunVerge native bundle
 
-Experimental 0.14.0-alpha.5 targets macOS arm64. Published packages are listed
+Experimental 0.14.0-alpha.6 targets macOS arm64. Published packages are listed
 on GitHub Releases. A separate Linux amd64/arm64 source/Compose preview is
 described in docs/LINUX-SERVER.md. A service supervisor, automatic updates,
 full backup/restore and release signing remain outside the supported alpha
@@ -121,3 +121,11 @@ unchanged. Opening the form does not call a model.
 Use **Compare results** to read two saved versions and their exact feedback.
 The view verifies artifact identity and content digests; it does not check facts,
 accept a result or run a model. The panels stack on narrow screens.
+
+## Team walkthrough
+
+Bundles also include [TEAM-REVIEW.md](TEAM-REVIEW.md) and
+[TWO-PERSON-PILOT.md](TWO-PERSON-PILOT.md). Start with two published agents,
+then use separate owner and member credentials on a fresh local installation.
+These guides describe a test-data
+walkthrough, not a supported remote team service or enforced independent approval.

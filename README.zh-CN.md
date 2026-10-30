@@ -8,19 +8,27 @@
 
 RunVerge 是一款与 AI 智能体协作的应用。你描述任务并设置预算，获得草稿，留下修改意见，再决定接受回答或批准新一轮执行。修改后仍可查看原始回答。
 
-[**开始使用 →**](docs/QUICKSTART-ALPHA.md) · [**下载 alpha.5 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.5) · [**第一个任务 →**](examples/alpha-first-task.md) · [**反馈 →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
+[**开始使用 →**](docs/QUICKSTART-ALPHA.md) · [**下载 alpha.6 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.6) · [**第一个任务 →**](examples/alpha-first-task.md) · [**反馈 →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
 
-> **实验性 alpha.5：** macOS arm64、单个本地所有者、仅限测试数据。PostgreSQL 18 需单独配置。模型可以在本地运行，也可以通过 OpenRouter 连接。本版本不支持完整恢复、现有安装的升级或面向整个组织的生产部署。[支持范围](docs/SUPPORT.md)。
+> **实验性 alpha.6：** macOS arm64、所有者与成员的本地试用、仅限测试数据。PostgreSQL 18 需单独配置。模型可以在本地运行，也可以通过 OpenRouter 连接。本版本不支持完整恢复、现有安装的升级或面向整个组织的生产部署。[支持范围](docs/SUPPORT.md)。
+
+## 试用两个代理组成的审核团队
+
+一个代理起草，另一个代理审核，由您决定是否接受。可编辑的流程模板保留两份回答，并共享任务预算。同事可以使用自己的本地凭据创建任务，所有者可以要求修改或接受某个确切结果。经过批准的 MCP 读取结果，可以加入另行授权的修改请求。
+
+[代理团队英文指南](docs/TEAM-REVIEW.md) · [双人登录英文指南](docs/TWO-PERSON-PILOT.md)
+
+审核代理也可能漏掉编造的事实。本版本不强制独立审批：成员可以接受自己的工作。所有成员都能读取组织内的任务。仅使用测试数据；暂不支持远程团队部署或 SSO。
 
 ## RunVerge 安装在哪里，使用什么模型？
 
 RunVerge 和模型是独立的服务。RunVerge 保存任务和结果，模型接收请求并生成回答。引擎已包含可由管理员配置的 HTTPS Chat Completions 连接。
 
-alpha.5 软件包可在 macOS arm64 上运行，包含本地模型配置和明确指定的 [OpenRouter 文本模型配置](docs/OPENROUTER.md)。选择模型，将密钥保存在私有文件中，再检查生成的草稿。OpenRouter 模型在服务商处运行，不在您的电脑上运行。本版本不包含 DeepSeek、Nebius Token Factory、Z.ai 的直接连接或 Windows/Linux 原生软件包。验证一个模型不代表兼容所有服务商。
+alpha.6 软件包可在 macOS arm64 上运行，包含本地模型配置和明确指定的 [OpenRouter 文本模型配置](docs/OPENROUTER.md)。选择模型，将密钥保存在私有文件中，再检查生成的草稿。OpenRouter 模型在服务商处运行，不在您的电脑上运行。本版本不包含 DeepSeek、Nebius Token Factory、Z.ai 的直接连接或 Windows/Linux 原生软件包。验证一个模型不代表兼容所有服务商。
 
 [试用 OpenRouter](https://openrouter.ai/) · [连接到 RunVerge](docs/OPENROUTER.md)。
 
-`main` 分支已提供[从源码构建的 Linux 服务器预览版](docs/LINUX-SERVER.md)，仅限全新安装和测试数据。已在 Linux amd64 和 arm64 上验证安装、独立工作进程执行任务及重启后保留结果。此预览版与 alpha.5 下载包分开，指南目前为英文。
+`main` 分支已提供[从源码构建的 Linux 服务器预览版](docs/LINUX-SERVER.md)，仅限全新安装和测试数据。已在 Linux amd64 和 arm64 上验证安装、独立工作进程执行任务及重启后保留结果。此预览版与 alpha.6 下载包分开，指南目前为英文。
 
 应用的安装主机和模型服务商可以分别选择。目前提供 Mac 软件包，并不意味着产品只能使用本地模型。
 
@@ -32,7 +40,7 @@ alpha.5 软件包可在 macOS arm64 上运行，包含本地模型配置和明�
 | 技术负责人 | 了解生成了什么、作出了什么决定 | 跟踪原始材料、反馈、人工决策和费用状态 |
 | 有开发者协助的早期用户 | 根据给定事实起草短文档 | 总结文本、起草说明或比较选项，再检查和修改结果 |
 
-Alpha 安装仅支持**一个所有者**。上述用户类型不代表已经支持多人共享服务。
+可以先由一个所有者使用，也可以用独立凭据试用[本地双人流程](docs/TWO-PERSON-PILOT.md)。这不是可用于生产环境的多人共享服务。
 
 ## 实际优势
 
@@ -55,7 +63,7 @@ Alpha 安装仅支持**一个所有者**。上述用户类型不代表已经支�
 | [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) | 有状态编排、持久执行和人工干预 | 需要结合确定性代码步骤与模型步骤的自定义图 |
 | [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) | 规划、子智能体、文件上下文和记忆 | 需要这些能力作为智能体的构建基础 |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | 带 Web 界面的可扩展插件式 harness | 希望通过插件定制 harness |
-| **RunVerge alpha.5** | **本地任务与审核应用** | **希望以单个所有者和测试数据评估这一流程** |
+| **RunVerge alpha.6** | **本地任务与审核应用** | **希望以独立的本地身份和测试数据评估这一流程** |
 
 以上内容依据链接中的官方介绍，于 2026 年 10 月 28 日核对。比较的是使用起点，并非断言其他项目缺少某项功能。LangGraph 和 Deep Agents 同样支持持久化与人工干预；LangChain 生态也提供托管部署产品。目前没有比较证据表明 RunVerge 在回答质量、速度、安全性或总成本方面优于这些产品。
 
@@ -65,7 +73,7 @@ Alpha 安装仅支持**一个所有者**。上述用户类型不代表已经支�
 
 任务预算、执行次数上限和截止时间限制新工作的准入，并不保证文本事实准确，也不保证服务商的最终账单。已发送操作结果不确定时，其预留金额会保留，不会盲目重试。本地 API 费率为零不代表 CPU/GPU、电力或折旧成本为零，也不会使付费工具免费。
 
-**MCP：** 提供受限的[文本读取示例](docs/MCP-READ.md)，采用受信任配置、权限检查和执行批准。任意服务器、OAuth 和通用连接器市场不属于 alpha.5。
+**MCP：** 提供受限的[文本读取示例](docs/MCP-READ.md)，采用受信任配置、权限检查和执行批准。任意服务器、OAuth 和通用连接器市场不属于 alpha.6。
 
 ## 如何体验
 
@@ -74,9 +82,9 @@ Alpha 安装仅支持**一个所有者**。上述用户类型不代表已经支�
 3. 检查草稿，记录修改意见，再单独批准新一轮执行。
 4. 查看两个材料并决定接受什么结果。欢迎告诉我们你是否愿意带着第二个任务回来。
 
-**Alpha.5 提供七种界面语言：**英语、俄语、西班牙语、巴西葡萄牙语、德语、法语和简体中文。
+**Alpha.6 提供七种界面语言：**英语、俄语、西班牙语、巴西葡萄牙语、德语、法语和简体中文。
 
-在 alpha.5 中，首次任务指南依次引导您**保存代理草稿 → 发布版本 → 创建任务并检查回答**。针对所提供文本的可选代理指令和任务示例，只会在您选择后填入可编辑字段，不会自动选择模型、发布代理或启动工作。
+在 alpha.6 中，首次任务指南依次引导您**保存代理草稿 → 发布版本 → 创建任务并检查回答**。针对所提供文本的可选代理指令和任务示例，只会在您选择后填入可编辑字段，不会自动选择模型、发布代理或启动工作。
 
 在顶部栏选择界面语言，选择会保存在当前设备上。切换语言会保留连接和当前工作，不会翻译已输入的任务、模型回答或材料。金额保持精确的美元（USD）数值，不进行货币兑换。[语言选择、本地语言资源和回退行为](docs/LANGUAGES.md)。
 
@@ -84,12 +92,12 @@ Alpha 安装仅支持**一个所有者**。上述用户类型不代表已经支�
 
 发布流程已由智能体检查，尚待新用户独立试用。小型本地模型可能遗漏事实或截断回答，请在平台之外保存重要结果。
 
-完整恢复、升级、团队使用、企业 SSO 完整生命周期、云服务商部署、任意 MCP 集成以及生产性能尚不属于 alpha.5 已验收范围。不要将其作为公开的多用户服务。在 **比较结果** 中查看两个确切版本及其反馈。使用已完成任务中的 **以此创建新任务**，即可替换原始数据并开始独立任务。[英文指南](docs/REPEAT-WORK.md)。
+完整恢复、升级、独立团队的使用体验、企业 SSO 完整生命周期、云服务商部署、任意 MCP 集成以及生产性能尚不属于 alpha.6 已验收范围。不要将其作为公开的多用户服务。在 **比较结果** 中查看两个确切版本及其反馈。使用已完成任务中的 **以此创建新任务**，即可替换原始数据并开始独立任务。[英文指南](docs/REPEAT-WORK.md)。
 
 软件包和 SHA-256 位于 [Releases](https://github.com/ArtAndrew/RunVerge/releases)。目前没有发布者签名；校验和只能核对文件是否与公布值一致，不能证明发布者身份。
 
 - [安装](docs/NATIVE-BUNDLE.md) · [本地模型](docs/LOCAL-MODELS.md) · [MCP](docs/MCP-READ.md)
-- [发布说明](docs/RELEASE-NOTES-alpha.5.md) · [支持范围](docs/SUPPORT.md) · [验证](docs/VALIDATION-alpha.5.md)
+- [发布说明](docs/RELEASE-NOTES-alpha.6.md) · [支持范围](docs/SUPPORT.md) · [验证](docs/VALIDATION-alpha.6.md)
 - [开发](docs/DEVELOPMENT.md) · [API 契约](contracts/README.md) · [公开内容](docs/PUBLIC-SOURCE.md)
 
 [提交反馈](https://github.com/ArtAndrew/RunVerge/issues/new/choose)时，请提供系统、版本和遇到困难的步骤。不要附带令牌、私有配置、数据库连接字符串或私有文档。链接中的详细指南可能使用英语或俄语。
