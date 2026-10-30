@@ -6,6 +6,10 @@ create backups, import archives, upgrade an installation, stop the source server
 reconcile later costs or enable new work. The published alpha support limits still
 apply. Use synthetic data while evaluating this candidate.
 
+The separate [archive commands](RECOVERY-ARCHIVES.md) create backups and prepare a
+held import. Their generated private `target.json` can be used directly here;
+keep its `receipt_sha256` field and other exact selectors intact.
+
 The commands run on the trusted recovery host. They are not a remote login service
 or a team-access feature. They never use `DATABASE_URL` implicitly and never start
 workers or bootstrap an owner from the backup.

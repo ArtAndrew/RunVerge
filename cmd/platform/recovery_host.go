@@ -31,6 +31,7 @@ type recoveryHostTarget struct {
 	CutUTC               string `json:"cut_utc"`
 	SchemaSHA256         string `json:"schema_sha256"`
 	SnapshotSHA256       string `json:"snapshot_sha256"`
+	ReceiptSHA256        string `json:"receipt_sha256,omitempty"`
 }
 type recoveryHostScopes struct {
 	Scopes []struct {
@@ -49,6 +50,10 @@ func (c recoveryHostTarget) binding() recoveryaccess.Binding {
 func runRecoveryHost(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
 		return recoveryUsage
+	}
+	switch args[0] {
+	case "backup-keygen", "backup-create", "archive-verify", "target-prepare", "target-inspect", "archive-import", "import-inspect":
+		return runRecoveryArchiveHost(ctx, args, out)
 	}
 	f := flag.NewFlagSet("recovery", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
