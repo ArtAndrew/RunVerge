@@ -85,6 +85,12 @@ class TeamModelMCPProbe:
 
     def run(self, context):
         request, owner = context['request'], context['credentials']
+        # Existing storage regressions use separate schemas in this verifier's
+        # newly initialized database, never an inherited developer connection.
+        test_env = dict(context['env'], TEST_DATABASE_URL=context['env']['DATABASE_URL'])
+        context['record']('team_input_history_regressions', ['/opt/test-tools/storage-pilot.test',
+                          '-test.run=^TestTeam(NestedSequencePinsInputsAndSharedCosts|RealHTTPSequenceRetainsUnknownExposure|RootRetryPreservesLifetimeCountersAndPriorCosts)$',
+                          '-test.count=1', '-test.timeout=60s'], test_env)
         context['stop_child'](context['worker'])
         profile = {
             'id': 'team_local_qwen', 'organization_id': owner['organization_id'], 'version': 1,

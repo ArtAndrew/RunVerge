@@ -2,8 +2,7 @@
 name: Local model team and MCP pilot
 on:
   workflow_dispatch:
-  # Restricted PR trigger bootstraps validation before this workflow reaches
-  # main. This test downloads a pinned public local model, never a paid API key.
+  # Temporary bootstrap until the checked workflow is available on main.
   pull_request:
     paths:
       - '.github/workflows/team-model-pilot.yml'

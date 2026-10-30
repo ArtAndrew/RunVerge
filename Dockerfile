@@ -38,10 +38,12 @@ COPY --from=build /out/build-report.json /build-report.json
 # weights nor this peer, and does not download or start a model implicitly.
 FROM build AS model-pilot-tools
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/mcp-read-server ./tests/fixtures/mcp-read-server
+RUN CGO_ENABLED=0 go test -c -mod=readonly -o /out/storage-pilot.test ./internal/storage
 
 FROM native-check AS model-pilot-runtime
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=model-pilot-tools --chown=postgres:postgres /out/mcp-read-server /opt/test-tools/mcp-read-server
+COPY --from=model-pilot-tools --chown=postgres:postgres /out/storage-pilot.test /opt/test-tools/storage-pilot.test
 
 FROM scratch AS runtime
 COPY --from=native-check --chown=10001:10001 /opt/installed /app
