@@ -21,6 +21,7 @@ from urllib.request import Request, ProxyHandler, build_opener
 from urllib.parse import urlparse
 
 import server_setup
+import verify_recovery_process
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -91,6 +92,10 @@ def verify(evidence, image):
         for resource, listing in [('container', ['ps', '-aq']), ('volume', ['volume', 'ls', '-q'])]:
             if command(['docker', *listing, '--filter', 'label=com.docker.compose.project=' + project]).strip():
                 raise RuntimeError('Disposable project collision: ' + resource)
+        if command(['docker', 'ps', '-aq', '--filter', 'label=runverge.check.owner=' + project]).strip():
+            raise RuntimeError('Disposable shutdown resource collision')
+        if command(['docker', 'image', 'ls', '-q', project + '-process-check']).strip():
+            raise RuntimeError('Disposable shutdown image collision')
         server_setup.initialize(root / 'private')
         db_settings = dict(line.split('=', 1) for line in (root / 'private/db.env').read_text().splitlines())
         admin_password = db_settings['POSTGRES_PASSWORD']
@@ -245,6 +250,9 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
             raise RuntimeError('Missing database profile marker was not refused')
         command(health)
         step('readiness_refuses_elevated_role_wrong_settings_and_missing_volume_marker')
+        phase = 'verify_explicit_container_shutdown'
+        verify_recovery_process.verify(command, compose, env, root, project, database)
+        step('explicit_container_shutdown_lost_output_inspection_and_stopped_synthetic_sender')
         report['passed'] = True
     except Exception as error:
         report['failure_type'] = type(error).__name__
@@ -277,9 +285,16 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
         if attempted:
             try:
                 command([*compose, '--profile', 'admin', 'down', '--volumes', '--remove-orphans'])
+                auxiliaries = command(['docker', 'ps', '-aq', '--filter', 'label=runverge.check.owner=' + project]).split()
+                if auxiliaries:
+                    command(['docker', 'rm', '-f', *auxiliaries])
+                image_tag = project + '-process-check'
+                if command(['docker', 'image', 'ls', '-q', image_tag]).strip():
+                    command(['docker', 'image', 'rm', image_tag])
                 containers = command(['docker', 'ps', '-aq', '--filter', 'label=com.docker.compose.project=' + project])
                 volumes = command(['docker', 'volume', 'ls', '-q', '--filter', 'label=com.docker.compose.project=' + project])
-                report['cleanup_complete'] = not containers.strip() and not volumes.strip()
+                remaining_aux = command(['docker', 'ps', '-aq', '--filter', 'label=runverge.check.owner=' + project])
+                report['cleanup_complete'] = not containers.strip() and not volumes.strip() and not remaining_aux.strip()
             except Exception:
                 report['cleanup_complete'] = False
         else:
