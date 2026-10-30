@@ -52,6 +52,8 @@ func runRecoveryHost(ctx context.Context, args []string, out io.Writer) error {
 		return recoveryUsage
 	}
 	switch args[0] {
+	case "container-stop-plan", "container-stop-inspect", "container-stop-apply":
+		return runRecoveryProcessHost(ctx, args, out)
 	case "database-fence-plan", "database-fence-inspect", "database-fence-apply", "database-fence-drain":
 		return runRecoveryDatabaseFenceHost(ctx, args, out)
 	case "backup-keygen", "backup-create", "archive-verify", "target-prepare", "target-inspect", "archive-import", "import-inspect":
