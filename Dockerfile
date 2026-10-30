@@ -34,6 +34,14 @@ FROM scratch AS evidence
 COPY --from=native-check /tmp/linux-native-smoke.json /linux-native-smoke.json
 COPY --from=build /out/build-report.json /build-report.json
 
+# Optional test-only target. The default runtime below contains neither model
+# weights nor this peer, and does not download or start a model implicitly.
+FROM build AS model-pilot-tools
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/mcp-read-server ./tests/fixtures/mcp-read-server
+
+FROM native-check AS model-pilot-runtime
+COPY --from=model-pilot-tools --chown=postgres:postgres /out/mcp-read-server /opt/test-tools/mcp-read-server
+
 FROM scratch AS runtime
 COPY --from=native-check --chown=10001:10001 /opt/installed /app
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
