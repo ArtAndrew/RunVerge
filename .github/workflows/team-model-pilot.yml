@@ -29,7 +29,7 @@ jobs:
       - name: Run local model and MCP with synthetic data only
         run: |
           container="runverge-team-model-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          docker create --name "$container" --cpus 2 --memory 6g --pids-limit 256 \
+          docker create --name "$container" --cpus 4 --memory 10g --pids-limit 256 \
             --mount "type=bind,src=$RUNNER_TEMP/ollama-pinned,dst=/opt/ollama,readonly" \
             runverge:team-model-pilot python3 /src/runverge/scripts/run_team_model_pilot.py \
             --ollama /opt/ollama/bin/ollama --output /tmp/team-model-evidence

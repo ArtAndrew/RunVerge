@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 from verify_mcp_read import read_probe
 from verify_team_pilot import require, denied
 
-MODEL = 'qwen2.5:1.5b'
+MODEL = 'qwen2.5:7b'
 
 
 class TeamModelMCPProbe:
@@ -34,7 +34,7 @@ class TeamModelMCPProbe:
         self.phase = 'setup'
 
     def candidate(self, request, worker, count):
-        deadline = time.monotonic() + 300
+        deadline = time.monotonic() + 450
         while time.monotonic() < deadline:
             task = request(self.route)
             if task['status'] == 'waiting_input' and task.get('candidate_id'):
@@ -99,7 +99,7 @@ class TeamModelMCPProbe:
             'accounting_mode': 'operator_unmetered_local', 'max_charge_microusd': 0,
             'input_microusd_per_million': 0, 'output_microusd_per_million': 0, 'fixed_microusd': 0,
             'max_input_tokens': 8192, 'max_output_tokens': 384, 'max_input_bytes': 65536,
-            'max_output_bytes': 16384, 'timeout_milliseconds': 90000,
+            'max_output_bytes': 16384, 'timeout_milliseconds': 180000,
             'bound_assumptions': 'Operator declares zero API tariff for owned local inference. Hardware and electricity are not measured. Limits remain; unknown zero-cost records are not final invoices.',
             'token_limit_field': 'max_tokens', 'allow_insecure_loopback': True, 'active': True,
         }

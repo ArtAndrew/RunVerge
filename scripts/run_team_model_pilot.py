@@ -21,7 +21,7 @@ from verify_native_bundle import verify, unused_port, stop_owned_child
 from verify_team_model_mcp import TeamModelMCPProbe, MODEL
 
 ENGINE_VERSION = '0.40.11'
-MODEL_DIGEST = '65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b'
+MODEL_DIGEST = '845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e'
 
 
 def main():
