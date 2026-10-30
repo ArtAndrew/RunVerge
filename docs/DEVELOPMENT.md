@@ -193,3 +193,7 @@ python3 scripts/dev.py mcp-stdio --credentials .local/new-service.json
 Снимки, точные курсоры и replay появились в0.11. Текущие UI и SDK отправляют обязательный `X-Platform-API-Version: 0.12.0` автоматически. Прямой HTTP-клиент должен добавить его явно; текущую версию сообщает `GET /api/v1/compatibility`. Несовместимый запрос не исполняет команду и не заменяет сохранённый idempotency-ответ. При обновлении локального профиля обновляйте сервер, worker, UI и SDK согласованно.
 
 Поток восстанавливается только для чтения. При устаревшей истории интерфейс просит обновить снимок, сохраняя черновик; он не повторяет согласования, запуск или отмену. `python3 scripts/dev.py advance-event-replay --organization ORG --task TASK --after DECIMAL --reason "Recorded replay boundary"` — операторская команда с доступом к БД и обязательной причиной; она двигает только логическое окно, ничего физически не удаляет. Это не средство резервного копирования. Полный контракт: [EVENTS.md](../contracts/EVENTS.md).
+
+## Team starter in development
+
+The [draft-and-review walkthrough](TEAM-REVIEW.md) covers the editable team starter. It is not included in the alpha.5 download. This UI addition does not change the current single-owner release support or establish acceptance of a two-person deployment.
