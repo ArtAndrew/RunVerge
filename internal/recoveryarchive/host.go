@@ -49,11 +49,24 @@ func WriteHostJSON(path string, value any) error {
 
 // Database credentials/target intent must not enter the transportable backup.
 func WriteHostJSONOutside(directory, path string, value any) error {
-	if !hostPathOutside(directory, path) {
-		return ErrOptions
+	if err := RequireHostPathOutside(directory, path); err != nil {
+		return err
 	}
 	return WriteHostJSON(path, value)
 }
+
+// Current host inputs must not acquire trust merely by traveling with a backup.
+// A subsequent private-file read also checks the final file identity/type/link.
+func RequireHostPathOutside(directory, path string) error {
+	if !hostPathOutside(directory, path) {
+		return ErrOptions
+	}
+	return nil
+}
+
+// ReadHostPrivateFile uses the same owner-only parent, no-follow and single-link
+// requirements as archive keys. Parsing and field validation belong to callers.
+func ReadHostPrivateFile(path string) ([]byte, error) { return readHostPrivateFile(path, 1<<20) }
 
 func GenerateHostKeys(path string) (HostKeySummary, error) {
 	identity, err := age.GenerateX25519Identity()
@@ -244,7 +257,7 @@ func hostPathOutside(directory, path string) bool {
 		return false
 	}
 	info, err := os.Stat(root)
-	if err != nil {
+	if err != nil || !info.IsDir() {
 		return false
 	}
 	for ; ; parent = filepath.Dir(parent) {
