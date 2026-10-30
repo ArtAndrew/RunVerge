@@ -4,13 +4,12 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/ed25519"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +18,6 @@ import (
 	"agentplatform.local/platform/internal/recoveryaccess"
 	"agentplatform.local/platform/internal/recoveryarchive"
 	"agentplatform.local/platform/internal/storage"
-	"filippo.io/age"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -133,12 +131,30 @@ func TestRecoveryHostAuthorExplicitDatabaseSelection(t *testing.T) {
 }
 
 func TestRecoveryHostAuthorImportedResultAcrossProcesses(t *testing.T) {
+	for _, lostOutput := range []bool{false, true} {
+		name := "reported_success"
+		if lostOutput {
+			name = "lost_command_output"
+		}
+		t.Run(name, func(t *testing.T) { recoveryHostArchiveRoundTrip(t, lostOutput) })
+	}
+}
+
+// An output failure after a database operation is distinct from loss of the
+// database COMMIT acknowledgment, which is covered by the storage import tests.
+type recoveryHostFailedOutput struct{}
+
+func (recoveryHostFailedOutput) Write([]byte) (int, error) { return 0, errRecoveryHostOutput }
+
+var errRecoveryHostOutput = errors.New("synthetic output unavailable")
+
+func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput bool) {
 	if os.Getenv("RUNVERGE_RECOVERY_OWNED_PG") != "1" || os.Getenv("RUNVERGE_RECOVERY_INDEPENDENT_OWNED_PG") != "1" {
 		t.Skip("requires explicit disposable recovery cluster")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	source, _, bootstrap := independentCLIDB(t)
+	source, sourceDSN, bootstrap := independentCLIDB(t)
 	principal, err := source.Authenticate(ctx, bootstrap.Token, bootstrap.OrganizationID)
 	if err != nil {
 		t.Fatal(err)
@@ -210,37 +226,118 @@ func TestRecoveryHostAuthorImportedResultAcrossProcesses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := recoveryHostTarget{DatabaseURL: u.String(), TargetInstallationID: state.InstallationID, RestoreID: domain.NewID("restore"), BackupID: report.Metadata.BackupID, SourceID: report.Metadata.SourceID, CutUTC: report.Metadata.CutUTC, SchemaSHA256: report.Metadata.SchemaSHA256, SnapshotSHA256: report.SHA256}
-	if _, err = target.PrepareRecoveryTarget(ctx, config.spec()); err != nil {
-		t.Fatal(err)
-	}
 	parent := t.TempDir()
 	if err = os.Chmod(parent, 0700); err != nil {
 		t.Fatal(err)
 	}
-	identity, err := age.GenerateX25519Identity()
-	if err != nil {
+	stage := filepath.Join(parent, "stage")
+	if err = os.Mkdir(stage, 0700); err != nil {
 		t.Fatal(err)
 	}
-	pub, key, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
+	keys := filepath.Join(parent, "archive-keys.json")
+	bundle := filepath.Join(parent, "backup")
+	sourceFile := recoveryHostPrivateJSON(t, filepath.Join(parent, "source.json"), recoveryDatabaseFile{sourceDSN})
+	databaseFile := recoveryHostPrivateJSON(t, filepath.Join(parent, "database.json"), recoveryDatabaseFile{u.String()})
+	configFile := filepath.Join(parent, "target.json")
+	if _, err = recoveryHostCommand(t, ctx, "backup-keygen", "--out", keys); err != nil {
+		t.Fatal("key generation", err)
+	}
+	out, err := recoveryHostCommand(t, ctx, "backup-create", "--database-config", sourceFile, "--keys-file", keys, "--staging-parent", stage, "--out-dir", bundle)
+	var receipt recoveryarchive.HostBackupReceipt
+	if err != nil || json.Unmarshal(out, &receipt) != nil || receipt.ReceiptSHA256 == "" {
+		t.Fatal("backup command", err)
+	}
+	selection := []string{"--backup-dir", bundle, "--keys-file", keys, "--staging-parent", stage, "--expected-receipt-sha256", receipt.ReceiptSHA256}
+	if _, err = recoveryHostCommand(t, ctx, append([]string{"archive-verify"}, selection...)...); err != nil {
+		t.Fatal("verify command", err)
+	}
+	wrongPin := append([]string(nil), selection...)
+	wrongPin[len(wrongPin)-1] = strings.Repeat("0", 64)
+	if out, err = recoveryHostCommand(t, ctx, append([]string{"archive-verify"}, wrongPin...)...); err == nil || len(out) != 0 {
+		t.Fatal("wrong receipt accepted")
+	}
+	out, err = recoveryHostCommand(t, ctx, "target-inspect", "--database-config", databaseFile)
+	var inspected storage.RecoveryTargetState
+	if err != nil || json.Unmarshal(out, &inspected) != nil || inspected.InstallationID != state.InstallationID || inspected.State != "normal" {
+		t.Fatal("target selection inspection", err)
+	}
+	prepareArgs := append([]string{"target-prepare"}, selection...)
+	prepareArgs = append(prepareArgs, "--database-config", databaseFile, "--expected-installation-id", state.InstallationID, "--confirm-new-target", "--intent-out", configFile)
+	// Rejections must happen before preparation or creation of credentials inside
+	// a backup, including when its parent is reached through an alias.
+	alias := filepath.Join(t.TempDir(), "parent-alias")
+	if err = os.Symlink(parent, alias); err != nil {
 		t.Fatal(err)
 	}
-	metadata := recoveryarchive.Metadata{BackupID: config.BackupID, SourceID: config.SourceID, CutUTC: config.CutUTC, SchemaSHA256: config.SchemaSHA256}
-	limits := recoveryarchive.Limits{MaxPlaintextBytes: 8 << 20, MaxCiphertextBytes: 9 << 20}
-	var sealed bytes.Buffer
-	if _, err = recoveryarchive.Seal(ctx, &sealed, bytes.NewReader(snapshot.Bytes()), recoveryarchive.SealOptions{Recipient: identity.Recipient(), SigningKey: key, Metadata: metadata, Limits: limits, StagingParent: parent}); err != nil {
-		t.Fatal(err)
+	for _, forbidden := range []string{filepath.Join(bundle, "intent.json"), filepath.Join(alias, "backup", "intent.json")} {
+		bad := append([]string(nil), prepareArgs...)
+		bad[len(bad)-1] = forbidden
+		if out, err = recoveryHostCommand(t, ctx, bad...); err == nil || len(out) != 0 {
+			t.Fatal("credential output inside bundle accepted")
+		}
+		if _, err = os.Lstat(forbidden); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("forbidden intent created")
+		}
+		if current, e := target.InspectRecoveryTarget(ctx); e != nil || current.State != "normal" {
+			t.Fatal("rejected intent changed target", e)
+		}
 	}
-	archive, err := recoveryarchive.Open(ctx, bytes.NewReader(sealed.Bytes()), recoveryarchive.OpenOptions{Identity: identity, TrustedSigner: pub, Expected: metadata, Limits: limits, StagingParent: parent})
-	if err != nil {
-		t.Fatal(err)
+	// A pre-existing output must never be overwritten or trigger preparation.
+	existing := recoveryHostPrivateJSON(t, filepath.Join(parent, "existing.json"), map[string]string{"sentinel": "preserve"})
+	bad := append([]string(nil), prepareArgs...)
+	bad[len(bad)-1] = existing
+	if _, err = recoveryHostCommand(t, ctx, bad...); err == nil {
+		t.Fatal("existing intent accepted")
 	}
-	defer archive.Close()
-	if _, err = target.ImportRecoverySnapshot(ctx, archive, config.spec(), storage.DefaultRecoverySnapshotLimits()); err != nil {
-		t.Fatal(err)
+	if current, e := target.InspectRecoveryTarget(ctx); e != nil || current.State != "normal" {
+		t.Fatal("existing intent prepared target", e)
 	}
-	configFile := recoveryHostPrivateJSON(t, filepath.Join(parent, "target.json"), config)
+	if lostOutput {
+		if err = runRecoveryHost(ctx, prepareArgs, recoveryHostFailedOutput{}); !errors.Is(err, errRecoveryHostOutput) {
+			t.Fatal("prepare output failure not observed", err)
+		}
+	} else if _, err = recoveryHostCommand(t, ctx, prepareArgs...); err != nil {
+		t.Fatal("prepare command", err)
+	}
+	var config recoveryHostTarget
+	if err = readPrivateJSON(configFile, &config); err != nil || config.ReceiptSHA256 != receipt.ReceiptSHA256 || config.TargetInstallationID != state.InstallationID {
+		t.Fatal("durable intent missing or incorrect", err)
+	}
+	assertImportState := func(want string) {
+		t.Helper()
+		out, e := recoveryHostCommand(t, ctx, "import-inspect", "--target-config", configFile)
+		var status struct {
+			State          string `json:"state"`
+			TargetID       string `json:"target_id"`
+			RestoreID      string `json:"restore_id"`
+			SnapshotSHA256 string `json:"snapshot_sha256"`
+		}
+		if e != nil || json.Unmarshal(out, &status) != nil || status.State != want || status.TargetID != config.TargetInstallationID || status.RestoreID != config.RestoreID || status.SnapshotSHA256 != config.SnapshotSHA256 {
+			t.Fatal("exact import inspection", want, e)
+		}
+	}
+	assertImportState("empty_held")
+	importArgs := []string{"archive-import", "--backup-dir", bundle, "--keys-file", keys, "--staging-parent", stage, "--target-config", configFile}
+	if lostOutput {
+		if err = runRecoveryHost(ctx, importArgs, recoveryHostFailedOutput{}); !errors.Is(err, errRecoveryHostOutput) {
+			t.Fatal("import output failure not observed", err)
+		}
+	} else if _, err = recoveryHostCommand(t, ctx, importArgs...); err != nil {
+		t.Fatal("import command", err)
+	}
+	assertImportState("committed_held")
+	if out, err = recoveryHostCommand(t, ctx, importArgs...); err == nil || len(out) != 0 {
+		t.Fatal("repeated import accepted")
+	}
+	assertImportState("committed_held")
+	if entries, e := os.ReadDir(stage); e != nil || len(entries) != 0 {
+		t.Fatal("plaintext staging remains", e)
+	}
+	var after bytes.Buffer
+	afterReport, err := source.ExportRecoverySnapshot(ctx, &after, storage.DefaultRecoverySnapshotLimits())
+	if err != nil || !reflect.DeepEqual(report.Tables, afterReport.Tables) || !reflect.DeepEqual(report.Sequences, afterReport.Sequences) {
+		t.Fatal("source business data changed", err)
+	}
 	scopesFile := filepath.Join(parent, "scopes.json")
 	if err = os.WriteFile(scopesFile, []byte(`{"scopes":[{"subject":"current-owner","organization_id":"`+principal.OrganizationID+`"}]}`), 0600); err != nil {
 		t.Fatal(err)
@@ -255,7 +352,7 @@ func TestRecoveryHostAuthorImportedResultAcrossProcesses(t *testing.T) {
 		t.Fatal("issue command", err)
 	}
 	listArgs := []string{"list-tasks", "--authority-dir", directory, "--target-config", configFile, "--token-file", tokenFile, "--organization-id", principal.OrganizationID}
-	out, err := recoveryHostCommand(t, ctx, listArgs...)
+	out, err = recoveryHostCommand(t, ctx, listArgs...)
 	var page storage.RecoveryTaskPage
 	if err != nil || json.Unmarshal(out, &page) != nil || len(page.Tasks) != 1 || page.Tasks[0].CandidateID != candidate {
 		t.Fatal("list command did not read imported task", err)
