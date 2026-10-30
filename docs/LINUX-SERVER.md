@@ -6,7 +6,7 @@ can use a separately configured model service; a model is not included in the im
 
 Use a fresh installation and test data only. This preview does not add production
 backup/restore, supported upgrades, enterprise login or provider billing acceptance.
-It is separate from the published macOS arm64 alpha.3 package. A successful image
+It is separate from the published macOS arm64 alpha.5 package. A successful image
 build includes a native Linux installation/restart check; CI additionally checks the
 Compose services together. Check the **Linux server preview** GitHub Actions result
 for the exact revision you intend to try. An untested revision is not a supported
@@ -54,11 +54,29 @@ docker compose -f deploy/compose.yaml build api
 docker compose -f deploy/compose.yaml up -d
 ```
 
-The first command creates `deploy/private/` with a random database password and
-private settings. It refuses to replace an existing directory. Do not commit,
+The first command creates `deploy/private/` with separate random passwords for the
+application and database administrator. It refuses to replace an existing directory. Do not commit,
 share or paste these files, and do not print the fully resolved Compose configuration
 into public reports. Keep this directory when restarting the same installation:
 generating another password does not change a password inside an existing database.
+
+For a fresh database, the setup creates `runverge_admin` for database administration
+and `runverge` for the application. Only the database container receives the
+administrator password in `db.env`. The API, worker, migration command and RunVerge
+administration commands receive the application connection in `runtime.env`.
+The application role owns its database, so it can install the schema, but it has no
+PostgreSQL superuser, role-management, database-creation, replication or RLS-bypass
+privileges. It cannot switch to the administrator role. Database ownership still
+allows schema changes: this is not a restricted SQL account for untrusted code.
+
+Readiness checks authenticate to PostgreSQL and verify the application role and a
+marker linking the private settings to the database volume. Old settings, a volume
+without the marker, or an elevated application role fail this check. Initialization
+scripts run only for a new volume; they do not convert existing installations. Keep
+an older installation on its matching source revision and settings until a supported
+upgrade is available. Do not delete its volume, add a marker manually or replace its
+password files to bypass a startup failure. An unhealthy status does not stop work
+already running; these checks do not replace recovery isolation or access control.
 
 The image contains the compiled application, Workspace, notices and a readiness
 probe. Application services run as user `10001`, with a read-only root filesystem
@@ -114,7 +132,11 @@ python3 scripts/verify_server_container.py --evidence /tmp/runverge-container-ch
 Choose a new evidence filename. The verifier creates its own randomly named Compose
 project, private settings, database and owner, executes a synthetic task through the
 separate worker, then restarts PostgreSQL/API/worker and compares the result and cost
-records. It removes only that disposable project's containers and volumes. It does
+records. It also checks separate database passwords, denied administrator/file/program
+operations under the application login, and refusal of an elevated role or mismatched
+volume settings. These checks use only the disposable database, including deliberate
+temporary role and marker changes after stopping its application services.
+It removes only that disposable project's containers and volumes. It does
 not attach to the installation above, load its settings, call a paid model or prove
 real-model quality. A failure retains private diagnostics locally; publish only the
 sanitized evidence JSON.

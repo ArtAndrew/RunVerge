@@ -18,6 +18,7 @@ import tempfile
 import time
 from urllib.error import URLError
 from urllib.request import Request, ProxyHandler, build_opener
+from urllib.parse import urlparse
 
 import server_setup
 
@@ -57,12 +58,46 @@ def verify(evidence, image):
     def step(name):
         report['steps'].append({'name': name, 'passed': True})
 
+    def check_application_credentials(identifier):
+        state = json.loads(command(['docker', 'inspect', identifier]))[0]
+        entries = state['Config']['Env']
+        if any(admin_password in entry or entry.startswith(('POSTGRES_PASSWORD=',
+               'RUNVERGE_APP_VERIFIER=', 'RUNVERGE_CREDENTIAL_PROFILE=')) for entry in entries):
+            raise RuntimeError('Database administrator settings reached an application container')
+        if 'DATABASE_URL=' + runtime_url not in entries:
+            raise RuntimeError('Application credential missing')
+
+    def sql(role, password, statement, database_name='runverge'):
+        # Password is passed over stdin, never argv, a shell expansion or a log.
+        return subprocess.run(['docker', 'exec', '-i', database, 'sh', '-c',
+            'IFS= read -r PGPASSWORD; export PGPASSWORD; export PGCONNECT_TIMEOUT=3; '
+            'exec psql -h 127.0.0.1 -U "$1" -d "$2" -X -At --no-password '
+            '-v ON_ERROR_STOP=1 -v VERBOSITY=verbose', 'sh', role, database_name],
+            input=password + '\n' + statement + '\n', env=env, capture_output=True,
+            text=True, timeout=15)
+
+    def require_sql(role, password, statement, expected):
+        result = sql(role, password, statement)
+        if result.returncode or result.stdout.strip() != expected:
+            raise RuntimeError('Database role check failed')
+
+    def require_denied(statement):
+        result = sql('runverge', runtime_password, statement)
+        if not result.returncode or '42501' not in result.stderr:
+            raise RuntimeError('Database privilege boundary not enforced')
+
     try:
         # Refuse any collision before acquiring authority to clean this project.
         for resource, listing in [('container', ['ps', '-aq']), ('volume', ['volume', 'ls', '-q'])]:
             if command(['docker', *listing, '--filter', 'label=com.docker.compose.project=' + project]).strip():
                 raise RuntimeError('Disposable project collision: ' + resource)
         server_setup.initialize(root / 'private')
+        db_settings = dict(line.split('=', 1) for line in (root / 'private/db.env').read_text().splitlines())
+        admin_password = db_settings['POSTGRES_PASSWORD']
+        runtime_url = (root / 'private/runtime.env').read_text().strip().split('=', 1)[1]
+        runtime_password = urlparse(runtime_url).password
+        if not runtime_password or admin_password == runtime_password:
+            raise RuntimeError('Database credentials must be distinct')
         attempted = True
         phase = 'start_compose_services'
         command([*compose, 'up', '--no-build', '-d'])
@@ -74,6 +109,7 @@ def verify(evidence, image):
         command(['docker', 'cp', container + ':/state/bootstrap.json', str(credentials_path)])
         credentials_path.chmod(0o600)
         credentials = json.loads(credentials_path.read_text())
+        check_application_credentials(container)
         command(['docker', 'rm', container])
         opener = build_opener(ProxyHandler({}))
         base = 'http://127.0.0.1:' + str(port)
@@ -113,6 +149,7 @@ def verify(evidence, image):
         step('workspace_and_database_readiness')
         for service in ('api', 'worker'):
             identifier = command([*compose, 'ps', '-q', service]).strip()
+            check_application_credentials(identifier)
             state = json.loads(command(['docker', 'inspect', identifier]))[0]
             host = state['HostConfig']
             if state['Config']['User'] != '10001:10001' or not host['ReadonlyRootfs'] or 'ALL' not in host['CapDrop']:
@@ -122,6 +159,25 @@ def verify(evidence, image):
         if state['HostConfig'].get('PortBindings'):
             raise RuntimeError('Database must not expose a host port')
         step('non_root_read_only_application_and_private_database')
+        phase = 'verify_database_credential_boundaries'
+        check_application_credentials(command([*compose, 'ps', '-a', '-q', 'migrate']).strip())
+        require_sql('runverge', runtime_password, """
+SELECT 'ok' FROM pg_catalog.pg_roles r, pg_catalog.pg_database d
+WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
+ AND NOT r.rolsuper AND NOT r.rolcreatedb AND NOT r.rolcreaterole
+ AND NOT r.rolinherit AND NOT r.rolreplication AND NOT r.rolbypassrls
+ AND d.datname=CURRENT_DATABASE() AND d.datdba=r.oid
+ AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_auth_members m WHERE m.member=r.oid);
+""", 'ok')
+        for role, wrong_password in [('runverge_admin', runtime_password), ('runverge', admin_password)]:
+            result = sql(role, wrong_password, 'SELECT 1;')
+            if not result.returncode or 'password authentication failed' not in result.stderr.lower():
+                raise RuntimeError('Wrong database password was not rejected by authentication')
+        for statement in ["SET ROLE runverge_admin;",
+                          "SELECT pg_catalog.pg_read_file('/etc/hostname', 0, 128);",
+                          "COPY (SELECT 'synthetic') TO PROGRAM 'true';"]:
+            require_denied(statement)
+        step('distinct_database_passwords_and_actual_privilege_denials')
         phase = 'install_offline_openrouter_profile'
         command([*compose, '--profile', 'admin', 'run', '--rm', '--no-deps', 'admin', 'prepare-model',
                  '--provider', 'openrouter', '--organization-id', credentials['organization_id'],
@@ -161,6 +217,34 @@ def verify(evidence, image):
         if request('/api/v1/models') != models:
             raise RuntimeError('Restart changed installed model configuration')
         step('database_api_worker_restart_retains_result_and_costs')
+        # Deliberate faults are confined to this disposable cluster after stopping
+        # applications. Readiness does not fence already-running application work.
+        phase = 'verify_database_profile_readiness_refusal'
+        command([*compose, 'stop', 'worker', 'api'])
+        health = ['docker', 'exec', database, '/usr/local/bin/runverge-db-healthcheck']
+        command(health)
+        require_sql('runverge_admin', admin_password, 'ALTER ROLE runverge SUPERUSER;', 'ALTER ROLE')
+        try:
+            if subprocess.run(health, env=env, capture_output=True, timeout=15).returncode == 0:
+                raise RuntimeError('Readiness accepted an elevated application role')
+        finally:
+            require_sql('runverge_admin', admin_password, 'ALTER ROLE runverge NOSUPERUSER;', 'ALTER ROLE')
+        command(health)
+        result = subprocess.run(['docker', 'exec', '-e', 'RUNVERGE_CREDENTIAL_PROFILE=' + secrets.token_hex(16),
+                                 database, '/usr/local/bin/runverge-db-healthcheck'],
+                                env=env, capture_output=True, timeout=15)
+        if result.returncode == 0:
+            raise RuntimeError('Readiness accepted settings for another database volume')
+        result = subprocess.run(['docker', 'exec', database, 'sh', '-c',
+            'set -eu; marker="$PGDATA/runverge-credential-profile"; '
+            'mv "$marker" "$marker.check-held"; '
+            'trap \'mv "$marker.check-held" "$marker"\' EXIT; '
+            'if /usr/local/bin/runverge-db-healthcheck; then exit 1; fi'],
+            env=env, capture_output=True, timeout=15)
+        if result.returncode:
+            raise RuntimeError('Missing database profile marker was not refused')
+        command(health)
+        step('readiness_refuses_elevated_role_wrong_settings_and_missing_volume_marker')
         report['passed'] = True
     except Exception as error:
         report['failure_type'] = type(error).__name__

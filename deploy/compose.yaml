@@ -21,15 +21,18 @@ services:
   db:
     image: postgres:18.6-bookworm@sha256:5c4783a8cc3f0074912164f94dfa1be4e043438f0f707cf968d7af9a0d31a2c8
     environment:
-      POSTGRES_USER: runverge
+      POSTGRES_USER: runverge_admin
       POSTGRES_DB: runverge
       POSTGRES_INITDB_ARGS: "--auth=scram-sha-256 --encoding=UTF8 --locale=C"
     env_file:
       - ${RUNVERGE_PRIVATE_DIR:-./private}/db.env
     volumes:
       - postgres:/var/lib/postgresql
+      - ./postgres/10-runtime.sql:/docker-entrypoint-initdb.d/10-runtime.sql:ro
+      - ./postgres/20-profile.sh:/docker-entrypoint-initdb.d/20-profile.sh:ro
+      - ./postgres/healthcheck.sh:/usr/local/bin/runverge-db-healthcheck:ro
     healthcheck:
-      test: [CMD, pg_isready, -U, runverge, -d, runverge]
+      test: [CMD, /usr/local/bin/runverge-db-healthcheck]
       interval: 3s
       timeout: 3s
       retries: 20
