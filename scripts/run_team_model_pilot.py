@@ -28,6 +28,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--ollama', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--browser-node', type=Path, help='Explicit Node executable in the browser-pilot-runtime test image')
     args = parser.parse_args()
     output = args.output.absolute()
     output.mkdir(mode=0o700, parents=False, exist_ok=False)
@@ -95,7 +96,7 @@ def main():
                 print('Model manifest verified; running bounded team and MCP workflow.', flush=True)
                 bundle = Path('/opt/bundle')
                 probe = TeamModelMCPProbe(base + '/v1/chat/completions', Path('/opt/test-tools/mcp-read-server'),
-                                          output / 'synthetic-model-samples.json')
+                                          output / 'synthetic-model-samples.json', browser_node=args.browser_node)
                 report = verify(bundle, hashlib.sha256((bundle / 'bundle.json').read_bytes()).hexdigest(),
                                 output / 'team-model-native.json', extra_probe=probe)
                 engine_report['passed'] = report['passed'] and report['additional_probe'].get('restart_verified') is True

@@ -45,6 +45,18 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 COPY --from=model-pilot-tools --chown=postgres:postgres /out/mcp-read-server /opt/test-tools/mcp-read-server
 COPY --from=model-pilot-tools --chown=postgres:postgres /out/storage-pilot.test /opt/test-tools/storage-pilot.test
 
+# Opt-in browser walkthrough against this same installed API and fresh database.
+# Locked tooling and browser binaries are excluded from the default image.
+FROM model-pilot-runtime AS browser-pilot-runtime
+USER root
+COPY --from=web-dependencies /usr/local/bin/node /usr/local/bin/node
+COPY --from=web-dependencies /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+COPY tests/browser-tools/package.json tests/browser-tools/package-lock.json /opt/browser-tools/
+RUN node /usr/local/lib/node_modules/npm/bin/npm-cli.js ci --prefix /opt/browser-tools --ignore-scripts --no-audit --no-fund && \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/browser-tools/browsers node /opt/browser-tools/node_modules/playwright/cli.js install --with-deps chromium && \
+    chmod -R a+rX /opt/browser-tools
+USER postgres
+
 FROM scratch AS runtime
 COPY --from=native-check --chown=10001:10001 /opt/installed /app
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

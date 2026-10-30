@@ -16,7 +16,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Build the owned native pilot environment
-        run: docker build --target model-pilot-runtime --tag runverge:team-model-pilot .
+        run: docker build --target browser-pilot-runtime --tag runverge:team-model-pilot .
       - name: Fetch and verify the official pinned engine
         run: |
           mkdir "$RUNNER_TEMP/ollama-pinned"
@@ -32,7 +32,7 @@ jobs:
           docker create --name "$container" --cpus 4 --memory 10g --pids-limit 256 \
             --mount "type=bind,src=$RUNNER_TEMP/ollama-pinned,dst=/opt/ollama,readonly" \
             runverge:team-model-pilot python3 /src/runverge/scripts/run_team_model_pilot.py \
-            --ollama /opt/ollama/bin/ollama --output /tmp/team-model-evidence
+            --ollama /opt/ollama/bin/ollama --output /tmp/team-model-evidence --browser-node /usr/local/bin/node
           set +e
           docker start --attach "$container"
           result=$?

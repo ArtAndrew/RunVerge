@@ -120,10 +120,10 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
                 raise RuntimeError('Native smoke step failed: ' + name)
             return result.stdout
 
-        def process(name, args):
+        def process(name, args, selected_env=env):
             log = (private / (name + '.log')).open('x')
             os.chmod(log.name, 0o600); output_streams.append(log)
-            child = subprocess.Popen([str(x) for x in args], cwd=cwd, env=env,
+            child = subprocess.Popen([str(x) for x in args], cwd=cwd, env=selected_env,
                                      stdout=log, stderr=log)
             children.append(child)
             return child
@@ -238,6 +238,7 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
                 # package test does not acquire a model or call one implicitly.
                 report['additional_probe'] = extra_probe({
                     'binary': binary, 'private': private, 'env': env,
+                    'base_url': base, 'api_version': manifest['identity']['api_version'],
                     'credentials': credentials, 'request': request,
                     'record': record, 'process': process,
                     'worker': worker, 'stop_child': stop_child,
