@@ -28,7 +28,7 @@ COPY scripts /src/runverge/scripts
 COPY --from=build --chown=postgres:postgres /out/bundle /opt/bundle
 COPY --from=build --chown=postgres:postgres /out/installed /opt/installed
 USER postgres
-RUN python3 /src/runverge/scripts/verify_native_bundle.py --bundle /opt/bundle --manifest-sha256 "$(sha256sum /opt/bundle/bundle.json | cut -d ' ' -f 1)" --evidence /tmp/linux-native-smoke.json
+RUN python3 /src/runverge/scripts/verify_native_bundle.py --bundle /opt/bundle --manifest-sha256 "$(sha256sum /opt/bundle/bundle.json | cut -d ' ' -f 1)" --evidence /tmp/linux-native-smoke.json --team-pilot
 
 FROM scratch AS evidence
 COPY --from=native-check /tmp/linux-native-smoke.json /linux-native-smoke.json

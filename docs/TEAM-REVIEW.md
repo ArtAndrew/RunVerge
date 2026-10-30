@@ -33,3 +33,5 @@ Use the root task's stop action to stop the team. A request already sent to a pr
 ## Agent teams and human teams are separate
 
 This starter composes agents. It does not invite colleagues or grant access. Human participants need their own identity and permissions configured through the supported administration path; never share an owner's token. End-to-end acceptance of the two-person installation and review workflow is a separate release requirement. [Membership contract](../contracts/MEMBERSHIPS.md).
+
+For separate human logins, see the development [two-person walkthrough](TWO-PERSON-PILOT.md).

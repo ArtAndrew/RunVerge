@@ -93,7 +93,7 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
               'not_proven': ['named_paid_provider_interoperability_and_final_billing', 'external_mcp_acceptance',
                              'backup_restore', 'upgrade_downgrade', 'other_os_architectures',
                              'publisher_signature', 'full_alpha_or_production_readiness']}
-    if extra_probe is None:
+    if extra_probe is None or getattr(extra_probe, 'real_model_called', None) is False:
         report['not_proven'].append('real_model_acceptance')
     pg_started = False
     pg_start_attempted = False
@@ -172,14 +172,15 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
             base = 'http://127.0.0.1:%d' % api_port
             opener = build_opener(ProxyHandler({}))
 
-            def request(route, payload=None):
-                headers = {'Authorization': 'Bearer ' + credentials['token'],
-                           'X-Organization-ID': credentials['organization_id'],
+            def request(route, payload=None, *, identity=None, idempotency_key=None):
+                selected = credentials if identity is None else identity
+                headers = {'Authorization': 'Bearer ' + selected['token'],
+                           'X-Organization-ID': selected['organization_id'],
                            'X-Platform-API-Version': manifest['identity']['api_version']}
                 data = None
                 if payload is not None:
                     data = json.dumps(payload).encode()
-                    headers.update({'Content-Type': 'application/json', 'Idempotency-Key': secrets.token_hex(16)})
+                    headers.update({'Content-Type': 'application/json', 'Idempotency-Key': idempotency_key or secrets.token_hex(16)})
                 with opener.open(Request(base + route, data=data, headers=headers), timeout=3) as response:
                     raw = response.read(2 * 1024 * 1024)
                     if route == '/':
@@ -289,9 +290,14 @@ def main():
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--manifest-sha256', required=True)
     parser.add_argument('--evidence', type=Path, required=True)
+    parser.add_argument('--team-pilot', action='store_true', help='also verify two human identities with synthetic team executors')
     args = parser.parse_args()
+    probe = None
+    if args.team_pilot:
+        from verify_team_pilot import TeamPilotProbe
+        probe = TeamPilotProbe()
     try:
-        report = verify(args.bundle.absolute(), args.manifest_sha256, args.evidence.absolute())
+        report = verify(args.bundle.absolute(), args.manifest_sha256, args.evidence.absolute(), extra_probe=probe)
     except Exception as error:
         raise SystemExit(str(error) if isinstance(error, RuntimeError) else 'Native verification failed: ' + type(error).__name__) from None
     print(json.dumps({'passed': report['passed'], 'steps': len(report['steps']),
