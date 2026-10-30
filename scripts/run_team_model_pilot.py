@@ -51,7 +51,7 @@ def main():
             if len(raw) > 1024 * 1024:
                 raise RuntimeError('Owned model metadata exceeded bound')
             return json.loads(raw)
-        with (private / 'engine.log').open('x') as log:
+        with (private / 'engine.log').open('x+') as log:
             try:
                 child = subprocess.Popen([str(args.ollama), 'serve'], env=env, stdout=log, stderr=log)
                 deadline = time.monotonic() + 30
@@ -69,7 +69,25 @@ def main():
                 pull = subprocess.run([str(args.ollama), 'pull', MODEL], env=env,
                                       stdout=log, stderr=log, timeout=900)
                 if pull.returncode:
-                    raise RuntimeError('Owned model download failed; no inference attempted')
+                    # Classify a bounded tail without exposing registry responses,
+                    # generated engine keys, progress output or private paths.
+                    log.flush(); log.seek(0, 2)
+                    log.seek(max(0, log.tell() - 16384))
+                    tail = log.read().lower()
+                    reason = next((label for needle, label in (
+                        ('certificate signed by unknown authority', 'untrusted_tls_certificate'),
+                        ('permission denied', 'filesystem_permission'),
+                        ('no space left on device', 'disk_full'),
+                        ('no such host', 'dns_failure'),
+                        ('connection refused', 'connection_refused'),
+                        ('timed out', 'network_timeout'),
+                        ('401', 'registry_authentication'),
+                        ('403', 'registry_access_denied'),
+                        ('not found', 'model_not_found'),
+                    ) if needle in tail), 'unclassified_download_failure')
+                    engine_report['download_exit_code'] = pull.returncode
+                    engine_report['download_failure'] = reason
+                    raise RuntimeError('Owned model download failed: ' + reason + '; no inference attempted')
                 models = [v for v in get('/api/tags')['models'] if v['name'] == MODEL]
                 if len(models) != 1 or models[0]['digest'].removeprefix('sha256:') != MODEL_DIGEST:
                     raise RuntimeError('Model manifest differs from the reviewed pin; no inference attempted')

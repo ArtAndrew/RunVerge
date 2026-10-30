@@ -40,6 +40,7 @@ FROM build AS model-pilot-tools
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/mcp-read-server ./tests/fixtures/mcp-read-server
 
 FROM native-check AS model-pilot-runtime
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=model-pilot-tools --chown=postgres:postgres /out/mcp-read-server /opt/test-tools/mcp-read-server
 
 FROM scratch AS runtime
