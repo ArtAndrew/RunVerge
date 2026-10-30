@@ -2,13 +2,6 @@
 name: Local model team and MCP pilot
 on:
   workflow_dispatch:
-  # Temporary bootstrap until the checked workflow is available on main.
-  pull_request:
-    paths:
-      - '.github/workflows/team-model-pilot.yml'
-      - 'scripts/run_team_model_pilot.py'
-      - 'scripts/verify_team_model_mcp.py'
-      - 'scripts/verify_mcp_read.py'
 permissions:
   contents: read
 concurrency:
