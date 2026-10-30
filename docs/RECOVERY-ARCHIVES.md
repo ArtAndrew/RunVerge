@@ -137,3 +137,7 @@ authorized new backup must use a new directory.
 File sync and process-crash handling do not prove physical power-loss recovery.
 Reconciling events and costs after the snapshot, externally verifying source
 isolation and enabling new work remain separate, unfinished recovery steps.
+
+The [database admission fence](RECOVERY-DATABASE-FENCE.md) is a separate
+development component for disconnecting the source database. It does not stop
+in-memory dispatch permits or establish that all external work has ended.

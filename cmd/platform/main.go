@@ -437,15 +437,19 @@ func readPrivateJSON(path string, out any) error {
 	if e != nil {
 		return e
 	}
+	return decodePrivateJSON(data, out)
+}
+
+func decodePrivateJSON(data []byte, out any) error {
 	if !jsonwire.ValidUnicode(data) {
 		return errors.New("invalid Unicode in private configuration")
 	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
-	if e = strictConfigValue(d, reflect.TypeOf(out).Elem(), 0); e != nil {
+	if e := strictConfigValue(d, reflect.TypeOf(out).Elem(), 0); e != nil {
 		return e
 	}
-	if _, e = d.Token(); e != io.EOF {
+	if _, e := d.Token(); e != io.EOF {
 		return errors.New("one JSON object required")
 	}
 	d = json.NewDecoder(bytes.NewReader(data))

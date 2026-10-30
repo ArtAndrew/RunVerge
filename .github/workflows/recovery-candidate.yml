@@ -13,6 +13,7 @@ on:
       - 'internal/recoveryaccess/**'
       - 'internal/recoveryarchive/**'
       - 'cmd/platform/recovery_archive_host*'
+      - 'cmd/platform/recovery_database_fence_host*'
       - 'cmd/platform/recovery_host*'
       - 'internal/modelruntime/intent_snapshot*'
       - '.github/workflows/recovery-candidate.yml'
@@ -30,7 +31,7 @@ jobs:
           POSTGRES_USER: runverge
           POSTGRES_PASSWORD: synthetic-recovery-ci-only
           POSTGRES_DB: postgres
-          POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+          POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C --set=max_prepared_transactions=16
         options: >-
           --health-cmd "pg_isready -U runverge -d postgres"
           --health-interval 5s --health-timeout 5s --health-retries 12
@@ -50,6 +51,7 @@ jobs:
           go test -mod=readonly -race ./internal/recoveryarchive -count=1 -v
           go test -mod=readonly -race ./internal/recoveryaccess -count=1 -v
           go test -mod=readonly ./cmd/platform -run '^TestRecoveryHostAuthor' -count=1 -v
+          go test -mod=readonly ./internal/storage -run '^TestRecoveryDatabaseFenceAuthor' -count=1 -v
           go test -mod=readonly ./internal/storage -run '^TestRecoveryReaderAuthor' -count=1 -v
           go test -mod=readonly ./internal/storage -run 'TestRecovery(GateAuthor|GateIndependent|SnapshotTrustedInventory|SemanticCatalogTrusted|ImportAuthor|ImportIndependent|ModelStage|ModelHistory|ExecutionHistory|StageAuthor|StageIndependent|TeamHistory|ConfigurationHistory|AuthorityHistory|HistoryJSON|HistoryCoverage|CostHistory|Allocations|WebhookProfiles)' -count=1 -v
       - name: Capture unsealed schema reference metadata only
