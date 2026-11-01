@@ -1,0 +1,9 @@
+{
+  "name": "@runverge/browser-pilot",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Elastic-2.0",
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}

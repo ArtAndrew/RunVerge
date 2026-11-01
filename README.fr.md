@@ -8,19 +8,27 @@
 
 RunVerge est une application pour travailler avec des agents d’IA. Décrivez la tâche et son budget, recevez un brouillon, commentez-le et décidez de l’accepter ou d’autoriser une autre tentative. La réponse originale reste accessible après les corrections.
 
-[**Commencer →**](docs/QUICKSTART-ALPHA.md) · [**Télécharger alpha.5 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.5) · [**Première tâche →**](examples/alpha-first-task.md) · [**Donner un avis →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
+[**Commencer →**](docs/QUICKSTART-ALPHA.md) · [**Télécharger alpha.6 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.6) · [**Première tâche →**](examples/alpha-first-task.md) · [**Donner un avis →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
 
-> **Alpha.5 expérimentale :** macOS arm64, un propriétaire local et uniquement des données de test. PostgreSQL 18 se configure séparément. Utilisez un modèle local ou OpenRouter. Cette version ne prend pas en charge la restauration complète, la mise à niveau des installations existantes ni un déploiement de production à l’échelle d’une organisation. [Périmètre pris en charge](docs/SUPPORT.md).
+> **Alpha.6 expérimentale :** macOS arm64, un essai local avec propriétaire et membre et uniquement des données de test. PostgreSQL 18 se configure séparément. Utilisez un modèle local ou OpenRouter. Cette version ne prend pas en charge la restauration complète, la mise à niveau des installations existantes ni un déploiement de production à l’échelle d’une organisation. [Périmètre pris en charge](docs/SUPPORT.md).
+
+## Essayez une équipe de deux agents
+
+Un agent rédige, un second vérifie, vous décidez. Le modèle de parcours modifiable conserve les deux réponses et utilise le budget commun de la tâche. Un collègue peut créer la tâche avec ses propres identifiants locaux ; le propriétaire peut demander des modifications ou accepter un résultat précis. Un texte lu par MCP avec approbation peut être inclus dans une révision autorisée séparément.
+
+[Guide des agents en anglais](docs/TEAM-REVIEW.md) · [Accès à deux personnes, en anglais](docs/TWO-PERSON-PILOT.md)
+
+L’agent vérificateur peut aussi manquer des faits inventés. Aucune approbation indépendante n’est imposée : les membres peuvent accepter leur propre travail. Tous les membres peuvent lire les tâches de l’organisation. Utilisez des données de test ; le déploiement distant en équipe et le SSO ne sont pas pris en charge.
 
 ## Où fonctionne RunVerge et quel modèle utilise-t-il ?
 
 RunVerge et le modèle sont des services séparés. RunVerge conserve tâches et résultats ; le modèle reçoit une requête et génère une réponse. Le moteur comprend une connexion HTTPS Chat Completions configurable par l’administrateur.
 
-Le paquet alpha.5 fonctionne sur macOS arm64 et comprend la configuration des modèles locaux ainsi qu’un [profil texte pour OpenRouter](docs/OPENROUTER.md). Choisissez un modèle, conservez sa clé dans un fichier privé et vérifiez le brouillon. Le modèle OpenRouter s’exécute chez le fournisseur. Les connexions directes à DeepSeek, Nebius Token Factory et Z.ai et les paquets natifs Windows/Linux restent hors de cette version. La vérification d’un modèle ne prouve pas la compatibilité avec tous les fournisseurs.
+Le paquet alpha.6 fonctionne sur macOS arm64 et comprend la configuration des modèles locaux ainsi qu’un [profil texte pour OpenRouter](docs/OPENROUTER.md). Choisissez un modèle, conservez sa clé dans un fichier privé et vérifiez le brouillon. Le modèle OpenRouter s’exécute chez le fournisseur. Les connexions directes à DeepSeek, Nebius Token Factory et Z.ai et les paquets natifs Windows/Linux restent hors de cette version. La vérification d’un modèle ne prouve pas la compatibilité avec tous les fournisseurs.
 
 [Essayer OpenRouter](https://openrouter.ai/) · [Le connecter à RunVerge](docs/OPENROUTER.md).
 
-La branche `main` propose un [aperçu pour serveur Linux à compiler depuis les sources](docs/LINUX-SERVER.md), pour une nouvelle installation avec des données de test. L’installation, le worker séparé et la conservation des résultats après redémarrage ont été vérifiés sur Linux amd64 et arm64. Cet aperçu est distinct du téléchargement alpha.5. Le guide est pour l’instant en anglais.
+La branche `main` propose un [aperçu pour serveur Linux à compiler depuis les sources](docs/LINUX-SERVER.md), pour une nouvelle installation avec des données de test. L’installation, le worker séparé et la conservation des résultats après redémarrage ont été vérifiés sur Linux amd64 et arm64. Cet aperçu est distinct du téléchargement alpha.6. Le guide est pour l’instant en anglais.
 
 L’hôte de l’application et le fournisseur du modèle se choisissent séparément. Le paquet Mac actuel ne signifie pas que le produit doit utiliser uniquement des modèles locaux.
 
@@ -32,7 +40,7 @@ L’hôte de l’application et le fournisseur du modèle se choisissent sépar�
 | Responsable technique | Comprendre ce qui a été produit et décidé | Suivre les matériaux originaux, commentaires, décisions et état des coûts |
 | Premier utilisateur accompagné d’un développeur | Préparer de courts documents à partir de faits fournis | Résumer un texte, rédiger une consigne ou comparer des options, puis vérifier le résultat |
 
-L’installation alpha prend en charge **un propriétaire**. Ces profils n’impliquent pas un service partagé entre plusieurs utilisateurs.
+Commencez avec un propriétaire ou essayez le [parcours local à deux personnes](docs/TWO-PERSON-PILOT.md), avec des identifiants distincts. Il ne s’agit pas d’un service partagé de production.
 
 ## Avantages pratiques
 
@@ -55,7 +63,7 @@ Utilisez RunVerge si vous cherchez des pages de tâches avec brouillons conserv�
 | [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) | Orchestration avec état, exécution durable et intervention humaine | Vous avez besoin de graphes personnalisés avec étapes programmées et étapes pilotées par un modèle |
 | [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) | Planification, sous-agents, contexte de fichiers et mémoire | Vous avez besoin de ces capacités comme briques de l’agent |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Harness extensible par plugins avec interface web | Vous voulez personnaliser le harness au moyen de plugins |
-| **RunVerge alpha.5** | **Application locale de tâches et de vérification** | **Vous voulez évaluer le parcours avec un propriétaire et des données de test** |
+| **RunVerge alpha.6** | **Application locale de tâches et de vérification** | **Vous voulez évaluer le parcours avec des accès locaux distincts et des données de test** |
 
 Les présentations officielles liées ont été vérifiées le 28 octobre 2026. La comparaison porte sur les points de départ, pas sur des fonctions prétendument absentes ailleurs. LangGraph et Deep Agents proposent aussi persistance et intervention humaine ; l’écosystème LangChain offre des produits de déploiement géré. Aucune preuve comparative ne démontre une supériorité de RunVerge en qualité, vitesse, sécurité ou coût total.
 
@@ -65,7 +73,7 @@ Les présentations officielles liées ont été vérifiées le 28 octobre 2026. 
 
 Le budget, le nombre de tentatives et le délai limitent l’admission de nouveau travail. Ils ne garantissent ni l’exactitude du texte ni la facture finale du fournisseur. Une opération envoyée dont l’issue est incertaine conserve sa réservation et n’est pas répétée à l’aveugle. Un tarif local d’API à zéro ne mesure ni CPU/GPU, ni électricité, ni amortissement, et ne rend pas gratuits les outils payants.
 
-**MCP :** un [exemple limité de lecture de texte](docs/MCP-READ.md) utilise une configuration de confiance, des permissions et une approbation d’exécution. Les serveurs arbitraires, OAuth et un catalogue général de connecteurs ne font pas partie d’alpha.5.
+**MCP :** un [exemple limité de lecture de texte](docs/MCP-READ.md) utilise une configuration de confiance, des permissions et une approbation d’exécution. Les serveurs arbitraires, OAuth et un catalogue général de connecteurs ne font pas partie d’alpha.6.
 
 ## Essayer le parcours
 
@@ -74,9 +82,9 @@ Le budget, le nombre de tentatives et le délai limitent l’admission de nouvea
 3. Vérifiez le brouillon, consignez une correction et autorisez séparément une autre tentative.
 4. Examinez les deux matériaux et décidez quoi accepter. Reviendriez-vous avec une deuxième tâche ?
 
-**Alpha.5 propose sept langues d’interface :** anglais, russe, espagnol, portugais du Brésil, allemand, français et chinois simplifié.
+**Alpha.6 propose sept langues d’interface :** anglais, russe, espagnol, portugais du Brésil, allemand, français et chinois simplifié.
 
-Dans alpha.5, le guide de démarrage suit **enregistrer un brouillon d’agent → publier une version → créer une tâche et examiner la réponse**. Les instructions facultatives pour travailler sur un texte fourni et les exemples de tâches remplissent des champs modifiables uniquement après votre choix. Ils ne sélectionnent pas de modèle, ne publient pas d’agent et ne lancent aucun travail automatiquement.
+Dans alpha.6, le guide de démarrage suit **enregistrer un brouillon d’agent → publier une version → créer une tâche et examiner la réponse**. Les instructions facultatives pour travailler sur un texte fourni et les exemples de tâches remplissent des champs modifiables uniquement après votre choix. Ils ne sélectionnent pas de modèle, ne publient pas d’agent et ne lancent aucun travail automatiquement.
 
 La langue se choisit dans la barre supérieure et est mémorisée sur cet appareil. Le changement conserve la connexion et le travail en cours ; les tâches déjà saisies, les réponses du modèle et les documents restent inchangés. Les montants restent des valeurs exactes en USD, sans conversion de devise. [Choix de langue, fichiers locaux et langue de repli](docs/LANGUAGES.md).
 
@@ -84,12 +92,12 @@ La langue se choisit dans la barre supérieure et est mémorisée sur cet appare
 
 Un agent a vérifié le parcours de publication ; les essais indépendants par de nouveaux utilisateurs restent à mener. Un petit modèle local peut omettre des faits ou tronquer sa réponse. Conservez les résultats importants hors de la plateforme.
 
-Restauration complète, mises à niveau, usage en équipe, cycle complet du SSO d’entreprise, exploitation par un fournisseur cloud, intégrations MCP arbitraires et performances de production ne sont pas validés pour alpha.5. N’exposez pas l’installation comme service public multiutilisateur. Dans **Comparer les résultats**, consultez deux versions exactes et leurs commentaires. **Utiliser pour une nouvelle tâche** permet de reprendre une tâche terminée avec de nouvelles données. [Guide en anglais](docs/REPEAT-WORK.md).
+Restauration complète, mises à niveau, ergonomie pour des équipes indépendantes, cycle complet du SSO d’entreprise, exploitation par un fournisseur cloud, intégrations MCP arbitraires et performances de production ne sont pas validés pour alpha.6. N’exposez pas l’installation comme service public multiutilisateur. Dans **Comparer les résultats**, consultez deux versions exactes et leurs commentaires. **Utiliser pour une nouvelle tâche** permet de reprendre une tâche terminée avec de nouvelles données. [Guide en anglais](docs/REPEAT-WORK.md).
 
 Paquets et SHA-256 se trouvent dans [Releases](https://github.com/ArtAndrew/RunVerge/releases). Il n’y a pas de signature de l’éditeur ; la somme de contrôle vérifie la correspondance avec la valeur publiée, pas l’identité de l’éditeur.
 
 - [Installation](docs/NATIVE-BUNDLE.md) · [modèles](docs/LOCAL-MODELS.md) · [MCP](docs/MCP-READ.md)
-- [Notes de version](docs/RELEASE-NOTES-alpha.5.md) · [support](docs/SUPPORT.md) · [validation](docs/VALIDATION-alpha.5.md)
+- [Notes de version](docs/RELEASE-NOTES-alpha.6.md) · [support](docs/SUPPORT.md) · [validation](docs/VALIDATION-alpha.6.md)
 - [Développement](docs/DEVELOPMENT.md) · [API](contracts/README.md) · [contenu public](docs/PUBLIC-SOURCE.md)
 
 [Envoyez un avis](https://github.com/ArtAndrew/RunVerge/issues/new/choose) avec système, version et étape difficile. Ne joignez ni jetons, ni configuration privée, ni chaînes de connexion, ni documents privés. Les guides détaillés liés peuvent être en anglais ou en russe.

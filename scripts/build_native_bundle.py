@@ -22,6 +22,8 @@ OPERATOR_GUIDES = {
     'LOCAL-MODELS.md': 'docs/LOCAL-MODELS.md',
     'MCP-READ.md': 'docs/MCP-READ.md',
     'OPENROUTER.md': 'docs/OPENROUTER.md',
+    'TEAM-REVIEW.md': 'docs/TEAM-REVIEW.md',
+    'TWO-PERSON-PILOT.md': 'docs/TWO-PERSON-PILOT.md',
 }
 
 

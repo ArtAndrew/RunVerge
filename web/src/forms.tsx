@@ -7,6 +7,7 @@ import TeamFields, {validateTeamForm} from './TeamFields'
 import {modelTariffLabel,modelResourceLabel,validateModelProfile,chooseModelSelection} from './modelAccounting'
 import {taskExamples} from './taskExamples'
 import {sourceTextStarter} from './agentStarter'
+import {createReviewTeam, isEmptyTeamDraft, teamReviewStarter} from './teamStarter'
 
 export function ConnectionForm({ initial, busy, error, onConnect }: { initial: Connection; busy: boolean; error: unknown; onConnect: (connection: Connection) => void }) {
   const [url, setUrl] = useState(initial.baseUrl)
@@ -142,6 +143,14 @@ export function AgentForm({ api, onClose, onCreated }: { api: ApiClient; onClose
         <button type="button" className="button button-secondary" disabled={busy} onClick={() => {setName(t(sourceTextStarter.name));setInstructions(t(sourceTextStarter.instructions))}}>{t('Использовать заготовку агента')}</button>
       </div>}
       <label className="field">{t("Тип исполнителя")}<select aria-label={t("Тип исполнителя")} value={mode} onChange={event=>setMode(event.target.value as 'single'|'team')} disabled={busy}><option value="single">{t("Один агент")}</option><option value="team">{t("Команда агентов")}</option></select></label>
+      {mode === 'team' && (isEmptyTeamDraft(name, instructions, team) || team.pattern === 'delegate_verify') && <div className="agent-starter">
+        <strong>{t('Черновик → проверка → решение человека')}</strong>
+        <p>{t('Выберите опубликованного агента для каждого этапа. Проверяющий получит исходную задачу и сохранённый черновик. Вы увидите оба результата и решите, что принять.')}</p>
+        {isEmptyTeamDraft(name, instructions, team) && <button type="button" className="button button-secondary" disabled={busy} onClick={() => {
+          setName(t(teamReviewStarter.name)); setInstructions(t(teamReviewStarter.instructions)); setTeam(createReviewTeam())
+        }}>{t('Заполнить сценарий с проверкой')}</button>}
+        <small>{t('Заготовка заполняет только форму. Агенты, публикация и запуск задачи выбираются отдельно.')}</small>
+      </div>}
       <label className="field">{t("Название")}<input value={name} onChange={event => setName(event.target.value)} placeholder={t("Например, редактор отчётов")} required disabled={busy} autoFocus /></label>
       <label className="field">{t("Инструкции")}<textarea value={instructions} onChange={event => setInstructions(event.target.value)} rows={5} placeholder={t("Опишите роль, порядок работы и требования к результату…")} required disabled={busy} /></label>
       <div className="form-columns">{mode==='single'?<label className="field">{t("Модель")}<select aria-label={t("Модель")} value={model} onChange={event => { modelExplicitlySelected.current = true; setModel(event.target.value) }} required disabled={busy}><option value="" disabled>{t("Выберите модель")}</option><option value="fixture:echo">{t("Тестовый исполнитель · fixture:echo")}</option>{models.map(item => <option key={item.id} value={item.model}>{item.model} · v{item.version}</option>)}</select><small>{t("Доступные подключения задаёт администратор.")}</small></label>:<div className="field"><span>{t("Исполнение")}</span><strong>{t("Координатор команды")}</strong><small>{t("Модели вызывают выбранные участники.")}</small></div>}<label className="field">{t("Лимит задачи, USD")}<div className="currency-input"><span>$</span><input aria-label={t("Лимит задачи, USD")} inputMode="decimal" value={budget} onChange={event => setBudget(event.target.value)} required disabled={busy} /></div></label></div>

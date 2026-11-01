@@ -24,7 +24,8 @@ COMPONENT = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z')
 SOURCE_PART = re.compile(r'[A-Za-z0-9_][A-Za-z0-9._-]{0,127}\Z')
 FIXED_PAYLOAD = {'LICENSE', 'LICENSING.md', 'LOCAL-MODELS.md', 'RUNNING.md',
                  'bin/platform', 'components.json', 'source-files.json', 'web/index.html'}
-OPTIONAL_GUIDES = {'QUICKSTART-ALPHA.md', 'MCP-READ.md', 'OPENROUTER.md', 'helpers/model_key.py'}
+OPTIONAL_GUIDES = {'QUICKSTART-ALPHA.md', 'MCP-READ.md', 'OPENROUTER.md',
+                  'TEAM-REVIEW.md', 'TWO-PERSON-PILOT.md', 'helpers/model_key.py'}
 ASSET = re.compile(r'web/assets/[A-Za-z0-9][A-Za-z0-9_-]{0,127}-[A-Za-z0-9_-]{6,64}\.(js|css)\Z')
 NOTICE = re.compile(r'notices/[0-9]{3}/(?:LICENSE|LICENCE|COPYING|NOTICE)(?:[._-][A-Za-z0-9._-]+)?\Z', re.I)
 PRIVATE_PARTS = {'.git', '.local', '.env', 'node_modules', 'work', 'private', 'secrets', '__pycache__'}

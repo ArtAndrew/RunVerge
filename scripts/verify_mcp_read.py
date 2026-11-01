@@ -110,7 +110,8 @@ def read_probe(server_binary):
                 'result_sha256': receipt['content_digest'], 'content_blocks': 2,
                 'task_accepted_by_read': False, 'charge_bound_microusd': '0',
                 'charge_is_operator_assumption': True, 'billing_settled': False,
-                'receipt_id': receipt['id'], 'receipt_execution_restart_verified': False}
+                'receipt_id': receipt['id'], 'artifact_id': artifact['id'], 'artifact_version': artifact['version'],
+                'receipt_execution_restart_verified': False}
         snapshot.update(route=execution_route, execution=view['execution'], receipt=receipt, report=report)
         return report
 
