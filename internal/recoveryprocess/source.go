@@ -187,28 +187,28 @@ func (c *Client) execRead(ctx context.Context, container, user string, command [
 		ID string `json:"Id"`
 	}
 	if c.call(ctx, "POST", "/containers/"+container+"/exec", body, &created, 201) != nil || !fullID.MatchString(created.ID) {
-		return nil, ErrProfile
+		return nil, sourceError("exec_create")
 	}
 	request, err := http.NewRequestWithContext(ctx, "POST", "http://docker/v1.45/exec/"+created.ID+"/start", strings.NewReader(`{"Detach":false,"Tty":false}`))
 	if err != nil {
-		return nil, ErrProfile
+		return nil, sourceError("exec_request")
 	}
 	request.Header.Set("Content-Type", "application/json")
 	client := *c.http
 	client.Timeout = 28 * time.Second
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, ErrProfile
+		return nil, sourceError("exec_start")
 	}
 	defer response.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 32769))
 	defer clear(raw)
 	if err != nil || len(raw) > 32768 || response.StatusCode != 200 {
-		return nil, ErrProfile
+		return nil, sourceError("exec_stream")
 	}
 	output, err := witnessOutput(raw)
 	if err != nil {
-		return nil, err
+		return nil, sourceError("exec_output")
 	}
 	var final struct {
 		ID, ContainerID string
@@ -220,19 +220,19 @@ func (c *Client) execRead(ctx context.Context, container, user string, command [
 	for {
 		if c.call(settled, "GET", "/exec/"+created.ID+"/json", nil, &final, 200) != nil || final.ID != created.ID || final.ContainerID != container {
 			clear(output)
-			return nil, ErrProfile
+			return nil, sourceError("exec_identity")
 		}
 		if !final.Running {
 			if final.ExitCode != 0 {
 				clear(output)
-				return nil, ErrProfile
+				return nil, sourceError("exec_exit")
 			}
 			break
 		}
 		select {
 		case <-settled.Done():
 			clear(output)
-			return nil, ErrProfile
+			return nil, sourceError("exec_timeout")
 		case <-time.After(25 * time.Millisecond):
 		}
 	}
@@ -273,7 +273,7 @@ func (c *Client) observeSource(ctx context.Context, db string, nonces []string) 
 		values[i] = "'rvg_witness_" + n + "'"
 	}
 	query := `SELECT pg_catalog.json_build_object('source_id',r.installation_id,'system_id',s.system_identifier::text,'database_oid',d.oid,'nonces',COALESCE((SELECT pg_catalog.json_agg(a.application_name ORDER BY a.application_name) FROM pg_catalog.pg_stat_activity a WHERE a.datid=d.oid AND a.usesysid=u.oid AND a.state='active' AND a.application_name IN (` + strings.Join(values, ",") + `)), '[]'::json), 'peers', COALESCE((SELECT pg_catalog.json_object_agg(a.application_name,pg_catalog.host(a.client_addr)) FROM pg_catalog.pg_stat_activity a WHERE a.datid=d.oid AND a.usesysid=u.oid AND a.state='active' AND a.application_name IN (` + strings.Join(values, ",") + `)), '{}'::json)) FROM public.runtime_recovery_control r,pg_catalog.pg_control_system() s,pg_catalog.pg_database d,pg_catalog.pg_roles u WHERE r.singleton AND r.state='normal' AND d.datname=current_database() AND d.datname='runverge' AND u.rolname='runverge' AND NOT u.rolsuper AND NOT u.rolcreatedb AND NOT u.rolcreaterole AND NOT u.rolreplication AND NOT u.rolbypassrls AND NOT pg_catalog.pg_is_in_recovery()`
-	command := []string{"/bin/sh", "-ec", `exec env -i PATH=/usr/local/bin:/usr/bin:/bin PGPASSWORD="$POSTGRES_PASSWORD" PGCONNECT_TIMEOUT=2 PGOPTIONS="-c statement_timeout=2000 -c default_transaction_read_only=on" psql -X -w -h 127.0.0.1 -p 5432 -U runverge_admin -d runverge -At -v ON_ERROR_STOP=1 -c "$1"`, "source-observer", query}
+	command := []string{"/bin/sh", "-ec", `exec env -i PATH=/usr/local/bin:/usr/bin:/bin PGPASSWORD="$POSTGRES_PASSWORD" PGCONNECT_TIMEOUT=2 PGOPTIONS="-c statement_timeout=2000 -c default_transaction_read_only=on" /usr/lib/postgresql/18/bin/psql -X -w -h 127.0.0.1 -p 5432 -U runverge_admin -d runverge -At -v ON_ERROR_STOP=1 -c "$1"`, "source-observer", query}
 	raw, err := c.execRead(ctx, db, "postgres", command)
 	if err != nil {
 		return zero, err
@@ -281,7 +281,7 @@ func (c *Client) observeSource(ctx context.Context, db string, nonces []string) 
 	defer clear(raw)
 	var observed sourceDatabaseObservation
 	if json.Unmarshal(bytes.TrimSpace(raw), &observed) != nil || !sourceID.MatchString(observed.SourceID) || observed.SystemID == "" || observed.DatabaseOID == 0 {
-		return zero, ErrProfile
+		return zero, sourceError("database_reply")
 	}
 	return observed, nil
 }
@@ -332,7 +332,7 @@ func (c *Client) BindSource(ctx context.Context, p Intent, source, snapshot, ima
 	for !proved {
 		observed, err = c.observeSource(bounded, db, nonces)
 		if err != nil {
-			err = sourceError("database_observation")
+			// execRead already returns only fixed, safe stage classifications.
 			break
 		}
 		if observed.SourceID != source {

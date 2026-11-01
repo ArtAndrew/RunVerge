@@ -196,7 +196,8 @@ def verify_source_binding(command, compose, env, root, project, database, api,
 
     def require(result, label):
         if result.returncode:
-            fixed = ('container_inventory', 'image_id', 'dns', 'active_exec', 'auxiliary_state', 'runtime_state',
+            fixed = ('exec_create', 'exec_request', 'exec_start', 'exec_stream', 'exec_identity',
+                     'exec_exit', 'exec_timeout', 'exec_output', 'database_reply', 'container_inventory', 'image_id', 'dns', 'active_exec', 'auxiliary_state', 'runtime_state',
                      'network_endpoint', 'network_address', 'network_identity', 'database_image',
                      'runtime_image', 'api_command', 'worker_command', 'worker_concurrency',
                      'environment_shape', 'environment_duplicate', 'pg_environment',
