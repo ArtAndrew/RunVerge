@@ -188,8 +188,9 @@ database connection. It then disables container restart, stops application
 executors and waits for other database client sessions to finish. Prepared
 transactions prevent capture. The evidence snapshot starts only after that
 barrier. A fresh nonce, observed inside the exact database container, binds the
-export transaction to the source. The connection is read-only; it cannot migrate
-the source or resolve pending charges.
+export transaction to the source. The export uses a read-only transaction and
+performs no migrations or charge resolution. Its operator connection still
+uses a trusted database administrator.
 
 The new encrypted archive preserves the observed business rows, including
 post-backup facts. A separately signed `.capture` file binds its digest to the
@@ -209,3 +210,16 @@ Failure can leave executors stopped and the database running. Inspect the saved
 plan and outputs; do not repeat apply, overwrite partial evidence, or restart
 agents automatically. A lost final output can be inspected in a fresh process.
 This candidate is not a supported complete restore flow or an alpha.7 release.
+
+Checked implementation: `d325547ca50e236dd0d5e72d2bb192359e26bd9e`.
+[PostgreSQL verification](https://github.com/ArtAndrew/RunVerge/actions/runs/41331278044)
+passed source identity/cutoff/witness refusals, outstanding client and prepared
+transaction barriers, a late committed row in the exported snapshot, and
+signature splice/wrong-key refusal. The concurrent drain test includes a timing
+wait; it does not deterministically control a server-side COMMIT crash boundary.
+[Native Linux verification](https://github.com/ArtAndrew/RunVerge/actions/runs/41331283620)
+passed on amd64 and arm64: the installed source-stop command captured evidence,
+lost its final output, then a fresh inspection authenticated the archive and
+link and confirmed the source containers stopped. Both disposable environments
+were cleaned up; no real model was called. These checks do not yet import the
+late evidence into a restored target or prove external billing reconciliation.
