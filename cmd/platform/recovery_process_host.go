@@ -20,6 +20,7 @@ type recoveryProcessFile struct {
 	Socket  string                         `json:"docker_socket"`
 	Intent  recoveryprocess.Intent         `json:"intent"`
 	Binding *recoveryprocess.SourceBinding `json:"source_binding,omitempty"`
+	Capture *recoverySourceCapture         `json:"evidence_capture,omitempty"`
 }
 
 func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) error {
@@ -33,7 +34,7 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 	var confirmed bool
 	bound := strings.HasPrefix(args[0], "source-stop-")
 	operation := strings.Replace(args[0], "source-stop-", "container-stop-", 1)
-	var keys, stage, receipt, image string
+	var keys, stage, receipt, image, evidence string
 	switch operation {
 	case "container-stop-plan":
 		f.StringVar(&socket, "docker-socket", "", "explicit local Docker Unix socket")
@@ -45,6 +46,7 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 			f.StringVar(&stage, "staging-parent", "", "private archive staging directory")
 			f.StringVar(&receipt, "expected-receipt-sha256", "", "independently recorded receipt digest")
 			f.StringVar(&image, "expected-runtime-image", "", "independently trusted immutable runtime image ID")
+			f.StringVar(&evidence, "evidence-dir", "", "new encrypted post-backup evidence directory; native Linux host only")
 		}
 	case "container-stop-inspect", "container-stop-apply":
 		f.StringVar(&path, "intent-file", "", "private saved shutdown plan")
@@ -58,7 +60,7 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 	if f.Parse(args[1:]) != nil || f.NArg() != 0 || path == "" {
 		return usage
 	}
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer cancel()
 	var saved recoveryProcessFile
 	var source, snapshot string
@@ -91,6 +93,12 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 				return err
 			}
 			source, snapshot = m.SourceID, report.SHA256
+			if evidence != "" {
+				saved.Capture = &recoverySourceCapture{Directory: evidence, Keys: keys, Stage: stage, SelectedDirectory: bundle, SelectedReceipt: receipt, SelectedCut: m.CutUTC}
+				if err = validateSourceCapturePaths(bundle, path, *saved.Capture); err != nil {
+					return err
+				}
+			}
 		}
 	} else {
 		if readRecoveryFenceJSON(path, &saved) != nil {
@@ -98,6 +106,9 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 		}
 		if bound != (saved.Binding != nil) {
 			return errors.New("use the command family matching the saved shutdown plan")
+		}
+		if saved.Capture != nil && !bound {
+			return usage
 		}
 		if operation == "container-stop-apply" && (!confirmed || expected == "" || expected != saved.Intent.Project) {
 			return usage
@@ -149,13 +160,25 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 				return err
 			}
 		}
+		var sourceStore *storage.Store
+		if saved.Capture != nil {
+			sourceStore, err = prepareSourceCapture(ctx, c, saved, path)
+			if err != nil {
+				return err
+			}
+			defer sourceStore.Close()
+		}
 		if err = recoveryarchive.WriteHostJSON(path+".apply", struct {
 			OperationID string    `json:"operation_id"`
 			StartedAt   time.Time `json:"started_at"`
 		}{saved.Intent.OperationID, time.Now().UTC()}); err != nil {
 			return errors.New("shutdown attempt already recorded or could not be saved; inspect before preparing a new plan")
 		}
-		observation, err = c.Stop(ctx, saved.Intent)
+		if saved.Capture != nil {
+			observation, err = applySourceCapture(ctx, c, saved, path, sourceStore)
+		} else {
+			observation, err = c.Stop(ctx, saved.Intent)
+		}
 	} else {
 		observation, err = c.Inspect(ctx, saved.Intent)
 	}
@@ -167,6 +190,17 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 		if err != nil {
 			return err
 		}
+	}
+	if saved.Capture != nil {
+		captured, e := inspectSourceCapture(ctx, saved, path)
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(out).Encode(struct {
+			recoveryprocess.Observation
+			EvidenceCaptured   bool `json:"evidence_captured"`
+			EvidenceReconciled bool `json:"evidence_reconciled"`
+		}{observation, captured, false})
 	}
 	return json.NewEncoder(out).Encode(observation)
 }

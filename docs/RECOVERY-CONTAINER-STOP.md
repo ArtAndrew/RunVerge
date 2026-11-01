@@ -175,3 +175,37 @@ This accepts the source-binding/process-shutdown component within its declared
 Linux profile. It does not accept complete restoration, external-effect settlement,
 post-backup accounting reconciliation, enabling new work, a populated alpha.6
 upgrade or native macOS source shutdown. Published alpha.6 is unchanged.
+# Post-backup source evidence (development candidate)
+
+The source-stop plan accepts an optional `--evidence-dir /private/new-evidence`
+on a native Linux Docker host. This directory must be new and separate from the
+selected backup, keys, staging directory and saved intent. The host must reach
+its own Docker bridge; this does not publish a database port or add a Docker
+Desktop/macOS capture profile. Keep exclusive operator control throughout.
+
+Before shutdown, apply reauthenticates the selected archive and checks the direct
+database connection. It then disables container restart, stops application
+executors and waits for other database client sessions to finish. Prepared
+transactions prevent capture. The evidence snapshot starts only after that
+barrier. A fresh nonce, observed inside the exact database container, binds the
+export transaction to the source. The connection is read-only; it cannot migrate
+the source or resolve pending charges.
+
+The new encrypted archive preserves the observed business rows, including
+post-backup facts. A separately signed `.capture` file binds its digest to the
+selected older archive and source plan; `.capture-state` preserves the observed
+executor state covered by that signature. These private files contain recovery
+metadata, not credentials. Keep them with the private intent, outside both
+archives. The signed link attests evidence capture, not final database shutdown.
+Only after saving that link does apply stop PostgreSQL.
+
+`source-stop-inspect` rechecks the signed link and encrypted archive and reports
+`evidence_captured`. It always reports `evidence_reconciled: false`: importing and
+reconciling these late facts into a held target is not implemented yet. Neither
+capture nor local shutdown proves that external requests have settled. An
+uncertain request remains uncertain; historical work must not be resent.
+
+Failure can leave executors stopped and the database running. Inspect the saved
+plan and outputs; do not repeat apply, overwrite partial evidence, or restart
+agents automatically. A lost final output can be inspected in a fresh process.
+This candidate is not a supported complete restore flow or an alpha.7 release.

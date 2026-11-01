@@ -10,6 +10,8 @@ import (
 
 type hostBundle struct{}
 
+func RequireHostPathOutsideNewDirectory(string, string) error { return ErrHostFiles }
+
 func writeHostPrivateFile(string, []byte) error                   { return ErrHostFiles }
 func readHostPrivateFile(string, int64) ([]byte, error)           { return nil, ErrHostFiles }
 func newHostBundle(context.Context, string) (*hostBundle, error)  { return nil, ErrHostFiles }

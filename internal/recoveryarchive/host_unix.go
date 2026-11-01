@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -19,6 +20,42 @@ type hostBundle struct {
 	parent, root *os.Root
 	name         string
 	lock         *os.File
+}
+
+// RequireHostPathOutsideNewDirectory resolves an absent single child of a
+// protected existing parent. It does not reserve or create the output. Actual
+// creation still uses exclusive no-follow operations and checks ownership.
+func RequireHostPathOutsideNewDirectory(directory, path string) error {
+	root, name, err := hostPrivateParent(directory)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	if _, err = root.Lstat(name); !errors.Is(err, os.ErrNotExist) {
+		return ErrHostFiles
+	}
+	parent, err := filepath.EvalSymlinks(filepath.Dir(directory))
+	if err != nil {
+		return ErrHostFiles
+	}
+	prospective := filepath.Join(parent, name)
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return ErrHostFiles
+	}
+	resolved, err := filepath.EvalSymlinks(path)
+	if errors.Is(err, os.ErrNotExist) {
+		var p string
+		p, err = filepath.EvalSymlinks(filepath.Dir(path))
+		resolved = filepath.Join(p, filepath.Base(path))
+	}
+	if err != nil {
+		return ErrHostFiles
+	}
+	rel, err := filepath.Rel(prospective, resolved)
+	if err != nil || rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
+		return ErrOptions
+	}
+	return nil
 }
 
 func hostPrivateParent(path string) (*os.Root, string, error) {

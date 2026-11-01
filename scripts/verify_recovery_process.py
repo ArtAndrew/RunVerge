@@ -269,7 +269,8 @@ def verify_source_binding(command, compose, env, root, project, database, api,
         raise RuntimeError('Unbound command bypassed source revalidation')
     progress('plan_current')
     current = private / 'source-stop.json'
-    require(cli(['source-stop-plan', *common, '--out', str(current)]), 'plan-current')
+    require(cli(['source-stop-plan', *common, '--out', str(current),
+                 '--evidence-dir', str(private / 'late-evidence')]), 'plan-current')
     saved = json.loads(current.read_text())
     # A wrong installation binding cannot authorize shutdown, even when all
     # container IDs and the authenticated snapshot digest are otherwise exact.
@@ -291,6 +292,8 @@ def verify_source_binding(command, compose, env, root, project, database, api,
     observed = require(cli(['source-stop-inspect', '--intent-file', str(current)]), 'inspect-stopped')
     if not observed['source_installation_bound'] or not observed['bound_source_processes_stopped'] or observed['source_id'] != source_id or observed['external_execution_fenced'] or observed['external_effects_settled']:
         raise RuntimeError('Bound source shutdown scope incorrect')
+    if not observed.get('evidence_captured') or observed.get('evidence_reconciled'):
+        raise RuntimeError('Source evidence capture not authenticated after lost output')
     if cli(apply).returncode == 0:
         raise RuntimeError('Source shutdown repeated')
     # No volume replacement: same DB container and data are restarted solely

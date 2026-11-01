@@ -334,6 +334,16 @@ func (c *Client) Inspect(ctx context.Context, p Intent) (Observation, error) {
 // Stop never retries an uncertain mutation. The saved plan can be inspected in
 // a new process; continuing is a separate explicitly authorized invocation.
 func (c *Client) Stop(ctx context.Context, p Intent) (Observation, error) {
+	return c.stop(ctx, p, false)
+}
+
+// StopExecutors leaves PostgreSQL running solely for evidence capture. It is
+// not a completed source shutdown or proof about externally sent requests.
+func (c *Client) StopExecutors(ctx context.Context, p Intent) (Observation, error) {
+	return c.stop(ctx, p, true)
+}
+
+func (c *Client) stop(ctx context.Context, p Intent, keepDatabase bool) (Observation, error) {
 	var zero Observation
 	if time.Since(p.CreatedAt) < 0 || time.Since(p.CreatedAt) > 15*time.Minute {
 		return zero, ErrProfile
@@ -359,6 +369,9 @@ func (c *Client) Stop(ctx context.Context, p Intent) (Observation, error) {
 	// Stop application processes first and PostgreSQL last. No graceful window:
 	// this is a recovery stop, not a normal restart with task draining.
 	for _, service := range []string{"worker", "api", "admin", "migrate", "db"} {
+		if keepDatabase && service == "db" {
+			continue
+		}
 		for _, bound := range p.Containers {
 			if bound.Service == service {
 				if c.call(ctx, "POST", "/containers/"+bound.ID+"/stop?t=0&signal=SIGKILL", nil, nil, 204, 304) != nil {
@@ -368,8 +381,39 @@ func (c *Client) Stop(ctx context.Context, p Intent) (Observation, error) {
 		}
 	}
 	o, err = c.Inspect(ctx, p)
-	if err != nil || !o.ProjectProcessesStopped {
+	if err != nil || (!keepDatabase && !o.ProjectProcessesStopped) {
 		return zero, ErrUnknown
+	}
+	if keepDatabase {
+		for _, s := range o.Containers {
+			if (s.Service != "db" && !s.Stopped) || (s.Service == "db" && (s.Status != "running" || s.RestartPolicy != "no")) {
+				return zero, ErrUnknown
+			}
+		}
+	}
+	return o, nil
+}
+
+// StopDatabaseAfterEvidence requires the exact executors to remain stopped.
+// The caller persists its completed evidence receipt before this final action.
+func (c *Client) StopDatabaseAfterEvidence(ctx context.Context, p Intent) (Observation, error) {
+	o, err := c.Inspect(ctx, p)
+	if err != nil {
+		return Observation{}, err
+	}
+	for _, s := range o.Containers {
+		if (s.Service != "db" && !s.Stopped) || s.RestartPolicy != "no" {
+			return Observation{}, ErrProfile
+		}
+	}
+	for _, item := range p.Containers {
+		if item.Service == "db" && c.call(ctx, "POST", "/containers/"+item.ID+"/stop?t=0&signal=SIGKILL", nil, nil, 204, 304) != nil {
+			return Observation{}, ErrUnknown
+		}
+	}
+	o, err = c.Inspect(ctx, p)
+	if err != nil || !o.ProjectProcessesStopped {
+		return Observation{}, ErrUnknown
 	}
 	return o, nil
 }

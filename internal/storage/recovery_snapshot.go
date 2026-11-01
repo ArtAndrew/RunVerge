@@ -3,6 +3,7 @@ package storage
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -227,17 +228,94 @@ func recoverySnapshotError(ctx context.Context, fallback error) error {
 // discard partial staging data. Use the separately authenticated encryption
 // layer before storing or transporting a completed snapshot.
 func (s *Store) ExportRecoverySnapshot(ctx context.Context, out io.Writer, limits RecoverySnapshotLimits) (RecoverySnapshotReport, error) {
+	return s.exportRecoverySnapshot(ctx, out, limits, nil)
+}
+
+// RecoverySourceIdentity selects a physical source, not restored authorization.
+// The identity is checked in the very transaction which exports the evidence.
+type RecoverySourceIdentity struct {
+	SourceID    string
+	SystemID    string
+	DatabaseOID uint32
+	AfterCutUTC string
+	// Observe must independently find this nonce on the exact source backend.
+	Observe func(context.Context, string) error
+}
+
+func (s *Store) ExportRecoverySourceEvidence(ctx context.Context, out io.Writer, limits RecoverySnapshotLimits, expected RecoverySourceIdentity) (RecoverySnapshotReport, error) {
+	if !recoverySnapshotSourceID.MatchString(expected.SourceID) || expected.SystemID == "" || expected.DatabaseOID == 0 || expected.Observe == nil {
+		return RecoverySnapshotReport{}, ErrRecoverySnapshotSource
+	}
+	cut, err := time.Parse(time.RFC3339Nano, expected.AfterCutUTC)
+	if err != nil || cut.IsZero() || cut.UTC().Format(time.RFC3339Nano) != expected.AfterCutUTC {
+		return RecoverySnapshotReport{}, ErrRecoverySnapshotSource
+	}
+	return s.exportRecoverySnapshot(ctx, out, limits, &expected)
+}
+
+func (s *Store) exportRecoverySnapshot(ctx context.Context, out io.Writer, limits RecoverySnapshotLimits, expected *RecoverySourceIdentity) (RecoverySnapshotReport, error) {
 	var report RecoverySnapshotReport
 	if !limits.valid() || out == nil {
 		return report, ErrRecoverySnapshotLimit
 	}
 	ctx, cancel := context.WithTimeout(ctx, limits.MaxDuration)
 	defer cancel()
-	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	connection, err := s.Pool.Acquire(ctx)
 	if err != nil {
 		return report, recoverySnapshotError(ctx, ErrRecoverySnapshotSource)
 	}
-	defer tx.Rollback(context.Background())
+	defer connection.Release()
+	if expected != nil {
+		// Docker stopped does not prove its PostgreSQL backends have finished.
+		// Drain before creating the RR snapshot, using separate fresh statements.
+		// The operator must hold exclusive deployment control throughout capture.
+		drain, stop := context.WithTimeout(ctx, 20*time.Second)
+		defer stop()
+		for {
+			var quiet bool
+			err = connection.QueryRow(drain, `SELECT NOT EXISTS(SELECT 1 FROM pg_catalog.pg_stat_activity WHERE datid=(SELECT oid FROM pg_catalog.pg_database WHERE datname=current_database()) AND backend_type='client backend' AND pid<>pg_backend_pid()) AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_prepared_xacts WHERE database=current_database())`).Scan(&quiet)
+			if err != nil {
+				return report, ErrRecoverySnapshotSource
+			}
+			if quiet {
+				break
+			}
+			select {
+			case <-drain.Done():
+				return report, ErrRecoverySnapshotSource
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+	}
+	tx, err := connection.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return report, recoverySnapshotError(ctx, ErrRecoverySnapshotSource)
+	}
+	defer func() {
+		cleanup, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = tx.Rollback(cleanup)
+	}()
+	if expected != nil {
+		var nonce [16]byte
+		if _, err = rand.Read(nonce[:]); err != nil {
+			return report, ErrRecoverySnapshotSource
+		}
+		challenge := hex.EncodeToString(nonce[:])
+		if _, err = tx.Exec(ctx, "SELECT pg_catalog.set_config('application_name',$1,true)", "rvg_evidence_"+challenge); err != nil {
+			return report, ErrRecoverySnapshotSource
+		}
+		if err = expected.Observe(ctx, challenge); err != nil {
+			return report, ErrRecoverySnapshotSource
+		}
+		var system string
+		var oid uint32
+		var primary bool
+		if err = tx.QueryRow(ctx, `SELECT s.system_identifier::text,d.oid,NOT pg_catalog.pg_is_in_recovery()
+		 FROM pg_catalog.pg_control_system() s,pg_catalog.pg_database d WHERE d.datname=current_database()`).Scan(&system, &oid, &primary); err != nil || !primary || system != expected.SystemID || oid != expected.DatabaseOID {
+			return report, ErrRecoverySnapshotSource
+		}
+	}
 
 	header, schema, err := recoverySnapshotInspect(ctx, tx, s.runtimeSchema)
 	if err != nil {
@@ -245,6 +323,13 @@ func (s *Store) ExportRecoverySnapshot(ctx context.Context, out io.Writer, limit
 	}
 	if err = recoverySnapshotValidateHeader(header); err != nil {
 		return report, err
+	}
+	if expected != nil {
+		previous, _ := time.Parse(time.RFC3339Nano, expected.AfterCutUTC)
+		current, _ := time.Parse(time.RFC3339Nano, header.Metadata.CutUTC)
+		if header.Metadata.SourceID != expected.SourceID || !current.After(previous) {
+			return report, ErrRecoverySnapshotSource
+		}
 	}
 
 	// Check every row's binary size before any payload is sent to the client.
