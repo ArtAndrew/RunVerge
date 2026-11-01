@@ -14,6 +14,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 def verify(command, compose, env, root, project, database, runtime_url, image, progress):
     # The parent created this exact project and owns its cleanup. No saved host
     # settings, user project, real model, tokens or business payloads are used.
+    # The preceding readiness fault checks deliberately stopped both runtimes.
+    progress('start_source_witness_runtimes')
+    command([*compose, 'start', 'api', 'worker'])
     binary = root / 'platform-process-check'
     api = command([*compose, 'ps', '-a', '-q', 'api']).strip()
     command(['docker', 'cp', api + ':/app/bin/platform', str(binary)])
