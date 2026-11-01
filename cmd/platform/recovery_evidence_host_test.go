@@ -59,4 +59,15 @@ func recoveryHostEvidenceRoundTrip(t *testing.T, ctx context.Context, source *st
 	if _, err = recoveryHostCommand(t, ctx, args...); err == nil {
 		t.Fatal("evidence CLI replay accepted")
 	}
+	planArgs := []string{"reconciliation-plan", "--source-intent-file", path, "--target-config", targetConfig}
+	raw, err = recoveryHostCommand(t, ctx, planArgs...)
+	var plan storage.RecoveryReconciliationPlan
+	if err != nil || json.Unmarshal(raw, &plan) != nil || !plan.RollbackConfirmed || !plan.ExecutionHeld || plan.ReconciliationState != "pending" || len(plan.PlanSHA256) != 64 || len(plan.Organizations) < 2 {
+		t.Fatal("fresh reconciliation plan CLI", err)
+	}
+	raw, err = recoveryHostCommand(t, ctx, planArgs...)
+	var repeated storage.RecoveryReconciliationPlan
+	if err != nil || json.Unmarshal(raw, &repeated) != nil || repeated.PlanSHA256 != plan.PlanSHA256 {
+		t.Fatal("plan CLI is not reproducible", err)
+	}
 }

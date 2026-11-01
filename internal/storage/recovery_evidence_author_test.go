@@ -50,6 +50,11 @@ func evidenceAuthorPair(t *testing.T, selected, late *recoveryarchive.VerifiedAr
 }
 func evidenceAuthorSetup(t *testing.T) *evidenceAuthorFixture {
 	t.Helper()
+	return evidenceAuthorSetupWithMutation(t, nil)
+}
+
+func evidenceAuthorSetupWithMutation(t *testing.T, mutate func(*Store)) *evidenceAuthorFixture {
+	t.Helper()
 	ctx := context.Background()
 	source, _ := recoveryAuthorStore(t)
 	p, _, _ := recoveryAuthorPopulate(t, source)
@@ -68,6 +73,9 @@ func evidenceAuthorSetup(t *testing.T) *evidenceAuthorFixture {
 	}
 	if _, err = source.Pool.Exec(ctx, "DELETE FROM principals WHERE id=$1", unused); err != nil {
 		t.Fatal(err)
+	}
+	if mutate != nil {
+		mutate(source)
 	}
 	if _, err = source.ExportRecoverySnapshot(ctx, &late, DefaultRecoverySnapshotLimits()); err != nil {
 		t.Fatal(err)

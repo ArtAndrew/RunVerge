@@ -1,8 +1,8 @@
 # Preserve late source records — development candidate
 
 These host commands preserve a later source snapshot inside an already imported,
-held recovery target. They are under runtime validation and are not included in
-alpha.6. Use synthetic data. They do not reconcile charges, restore user access,
+held recovery target. The bounded checks below passed; these commands are not
+included in alpha.6. Use synthetic data. They do not reconcile charges, restore user access,
 resume historical tasks or allow new execution.
 
 First select and import the original [archive](RECOVERY-ARCHIVES.md). The
@@ -48,3 +48,23 @@ The candidate recognizes current SQL024 archives and an explicit SQL023 archive
 profile, including a held SQL023 import upgraded to SQL024. This is not general
 schema conversion or alpha.6/SQL022 upgrade support. Full installed recovery,
 financial reconciliation and permission to start new work remain unfinished.
+
+## Checked scope
+
+[Recovery validation](https://github.com/ArtAndrew/RunVerge/actions/runs/41339253045)
+passed at `5be5a55cdda3105e4cc83d1dd841df0583f7ccd2`: exact baseline checks,
+wrong-pair refusal, immutable batch bounds, before/after COMMIT connection loss,
+fresh CLI inspection, archives produced by the actual pinned SQL023 binary,
+and a previously imported SQL023 target upgraded to SQL024.
+
+[Installed Linux validation](https://github.com/ArtAndrew/RunVerge/actions/runs/41338446042)
+passed on amd64 and arm64 at `a2a0ee2`: a real bound source capture was ingested
+into a separately initialized target, inspected after lost output, and retained
+after target restart. A late organization remained evidence rather than active
+business data. Repeated ingestion was refused and disposable resources were
+removed. No real model was called. The later recovery commit changes only two
+independent test expectations for the new tables.
+
+These checks establish evidence retention under an execution hold. They do not
+establish final provider charges, full source-wide isolation, new-work clearance,
+a native macOS capture path or a released full restore/upgrade procedure.

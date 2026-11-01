@@ -281,6 +281,12 @@ func (s *Store) InspectRecoveryEvidence(ctx context.Context, spec RecoveryTarget
 	if _, _, err = s.evidenceTargetTx(ctx, tx, spec, l.SelectedSnapshotSHA256); err != nil {
 		return result, err
 	}
+	return s.inspectRecoveryEvidenceTx(ctx, tx, spec, verified)
+}
+
+// Caller already holds the exact recovery target gate and validates its catalog.
+func (s *Store) inspectRecoveryEvidenceTx(ctx context.Context, tx pgx.Tx, spec RecoveryTargetSpec, verified *recoveryarchive.VerifiedCaptureLink) (result RecoveryEvidenceReport, err error) {
+	l := verified.Link()
 	q := func(name string) string { return pgx.Identifier{s.runtimeSchema, name}.Sanitize() }
 	var raw, link []byte
 	var payload int64

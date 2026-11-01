@@ -21,7 +21,8 @@ Follow the private-file, key and independently recorded receipt requirements in
 backup directory and any source repository. The selected backup must use the
 current trusted schema or the explicitly recognized SQL023 archive profile. The
 new target always uses the current embedded schema. This candidate compatibility
-path is undergoing runtime validation; it does not convert an alpha.6/SQL022 backup.
+path passed the bounded checks in [evidence recovery](RECOVERY-EVIDENCE.md);
+it does not convert an alpha.6/SQL022 backup.
 
 ```sh
 platform recovery provision-plan \

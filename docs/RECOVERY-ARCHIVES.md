@@ -10,7 +10,8 @@ explicitly recognized SQL023 profile. New live exports require the current schem
 SQL023 compatibility applies to saved archives. Source identity and schema remain
 in the receipt; the target is independently checked against SQL024. Arbitrary
 older schemas and alpha.6/SQL022 archives are not accepted. This compatibility
-path is undergoing runtime validation and is not a supported release upgrade.
+path passed the bounded checks in [evidence recovery](RECOVERY-EVIDENCE.md);
+it is not a supported release upgrade.
 Provision the target with trusted tools or the separate
 [isolated target commands](RECOVERY-PROVISIONING.md). The archive commands below
 never create a database or run migrations.

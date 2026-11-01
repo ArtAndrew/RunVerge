@@ -172,6 +172,10 @@ func TestRecoveryEvidenceAuthorActualSQL023ProducerAndHeldUpgrade(t *testing.T) 
 	if _, err = legacyTarget.InspectRecoveryEvidence(ctx, spec, verified); err != nil {
 		t.Fatal(err)
 	}
+	plan, err := legacyTarget.PlanRecoveryReconciliation(ctx, selected, late, verified, spec, DefaultRecoverySnapshotLimits())
+	if err != nil || plan.SourceSchemaSHA256 != recoverySQL023Schema || plan.EvidenceSchemaSHA256 != recoverySQL023Schema || !plan.RollbackConfirmed {
+		t.Fatal("SQL023 reconciliation plan", err)
+	}
 	pub, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)

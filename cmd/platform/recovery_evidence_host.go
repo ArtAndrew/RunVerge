@@ -13,8 +13,8 @@ import (
 )
 
 func runRecoveryEvidenceHost(ctx context.Context, args []string, out io.Writer) error {
-	usage := errors.New("usage: platform recovery evidence-ingest|evidence-inspect --source-intent-file PRIVATE_PLAN --target-config PRIVATE_TARGET [--confirm-ingest-evidence]")
-	if len(args) == 0 || (args[0] != "evidence-ingest" && args[0] != "evidence-inspect") {
+	usage := errors.New("usage: platform recovery evidence-ingest|evidence-inspect|reconciliation-plan --source-intent-file PRIVATE_PLAN --target-config PRIVATE_TARGET [--confirm-ingest-evidence]")
+	if len(args) == 0 || (args[0] != "evidence-ingest" && args[0] != "evidence-inspect" && args[0] != "reconciliation-plan") {
 		return usage
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
@@ -77,6 +77,16 @@ func runRecoveryEvidenceHost(ctx context.Context, args []string, out io.Writer) 
 		return err
 	}
 	defer late.Close()
+	if args[0] == "reconciliation-plan" {
+		plan, err := s.PlanRecoveryReconciliation(ctx, selected, late, verified, target.spec(), storage.DefaultRecoverySnapshotLimits())
+		if err != nil {
+			return err
+		}
+		if selected.Close() != nil || late.Close() != nil {
+			return errors.New("reconciliation archive cleanup not confirmed")
+		}
+		return json.NewEncoder(out).Encode(plan)
+	}
 	report, err := s.IngestRecoveryEvidence(ctx, selected, late, verified, target.spec(), storage.DefaultRecoverySnapshotLimits())
 	if err != nil {
 		return err

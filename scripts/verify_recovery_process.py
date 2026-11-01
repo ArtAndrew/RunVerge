@@ -417,6 +417,14 @@ def verify_held_evidence(command, env, private, project, source_database,
             raise RuntimeError('Late organization leaked into active business data')
         if json.loads(command(['docker', 'inspect', source_database]))[0]['State']['Running']:
             raise RuntimeError('Target ingestion restarted the source database')
+        plan_args = ['reconciliation-plan', '--source-intent-file', str(source_plan), '--target-config', target]
+        financial_plan = require(cli(plan_args), 'reconciliation-plan')
+        if not financial_plan['rollback_confirmed'] or not financial_plan['execution_held'] or financial_plan['reconciliation_state'] != 'pending':
+            raise RuntimeError('Financial plan changed recovery authority')
+        if not any(item['organization_id'] == late_org and item['before'] is None and item['after'] is not None for item in financial_plan['organizations']):
+            raise RuntimeError('Financial plan omitted late-only organization')
+        if len(financial_plan['plan_sha256']) != 64:
+            raise RuntimeError('Financial plan has no reproducible input digest')
         command(['docker', 'restart', name])
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
@@ -434,6 +442,8 @@ def verify_held_evidence(command, env, private, project, source_database,
             raise RuntimeError('Recovery fixture endpoint changed after restart')
         if require(cli(inspection), 'evidence-target-restarted-inspect') != report:
             raise RuntimeError('Recovery evidence changed after target restart')
+        if require(cli(plan_args), 'reconciliation-plan-after-restart')['plan_sha256'] != financial_plan['plan_sha256']:
+            raise RuntimeError('Financial plan changed across target restart')
         progress('held_evidence_roundtrip_passed')
     finally:
         if created and re.fullmatch(r'[a-f0-9]{64}', created):
