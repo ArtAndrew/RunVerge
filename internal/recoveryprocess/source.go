@@ -77,8 +77,25 @@ func (c *Client) sourceProfile(ctx context.Context, p Intent, image string) (str
 		if len(h.Dns)+len(h.DnsOptions)+len(h.DnsSearch)+len(h.ExtraHosts)+len(h.Links) != 0 {
 			return "", nil, sourceError("dns")
 		}
+		// A healthcheck or a just-finished witness can still appear briefly in
+		// Docker's exec inventory. Require an empty inventory before proceeding;
+		// only read observations are repeated, never execution or stop commands.
 		if len(row.ExecIDs) != 0 {
-			return "", nil, sourceError("active_exec")
+			settled, stop := context.WithTimeout(ctx, 2*time.Second)
+			for len(row.ExecIDs) != 0 {
+				select {
+				case <-settled.Done():
+					stop()
+					return "", nil, sourceError("active_exec")
+				case <-time.After(25 * time.Millisecond):
+				}
+				row, err = c.container(settled, item.ID, p.Project)
+				if err != nil || identity(row) != item {
+					stop()
+					return "", nil, sourceError("active_exec")
+				}
+			}
+			stop()
 		}
 		if item.Service == "admin" || item.Service == "migrate" {
 			if !state(row).Stopped || row.Image != image || !slices.Equal(row.Config.Entrypoint, []string{"/app/bin/platform"}) {

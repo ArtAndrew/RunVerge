@@ -117,7 +117,9 @@ before the shutdown plan can be saved or used.
 This profile requires direct `db:5432/runverge` connections, the restricted
 `runverge` role, one Compose bridge network, and two to eight API/worker processes.
 Proxy databases, extra peers, alternate DNS, active auxiliary containers and
-unrelated exec processes are refused. Stopped admin/migrate containers must have
+unrelated exec processes are refused. A read-only observation may wait up to two
+seconds for a short healthcheck or completed helper to disappear; it never ignores
+an exec that remains present or restarts a command to make the check pass. Stopped admin/migrate containers must have
 restart disabled. The operator must supply the runtime image ID from an independently
 trusted build/deployment record; do not copy it blindly from an untrusted plan.
 The host/Docker/exclusive-operator prerequisites above still apply.

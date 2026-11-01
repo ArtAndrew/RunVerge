@@ -42,7 +42,7 @@ func sourceFixture(t *testing.T) (*Client, *engineFixture, Intent) {
 	return c, e, p
 }
 func TestRecoveryProcessSourceProfileRejectsIndirectOrUnknownExecutors(t *testing.T) {
-	for _, fault := range []string{"none", "missing_endpoint", "wrong_endpoint", "wrong_address", "foreign_peer", "extra_exec", "db_alias", "indirect_database", "pg_override", "wrong_entrypoint", "restarted"} {
+	for _, fault := range []string{"none", "finishing_exec", "missing_endpoint", "wrong_endpoint", "wrong_address", "foreign_peer", "extra_exec", "db_alias", "indirect_database", "pg_override", "wrong_entrypoint", "restarted"} {
 		t.Run(fault, func(t *testing.T) {
 			c, e, p := sourceFixture(t)
 			worker := p.Containers[2].ID
@@ -57,6 +57,9 @@ func TestRecoveryProcessSourceProfileRejectsIndirectOrUnknownExecutors(t *testin
 				members[worker].(map[string]any)["IPv4Address"] = "172.19.0.99/16"
 			case "foreign_peer":
 				members[strings.Repeat("f", 64)] = map[string]any{}
+			case "finishing_exec":
+				r.ExecIDs = []string{strings.Repeat("e", 64)}
+
 			case "extra_exec":
 				r.ExecIDs = []string{strings.Repeat("e", 64)}
 			case "db_alias":
@@ -73,8 +76,17 @@ func TestRecoveryProcessSourceProfileRejectsIndirectOrUnknownExecutors(t *testin
 				r.State.StartedAt = time.Now().UTC().Format(time.RFC3339Nano)
 			}
 			e.rows[worker] = r
+			if fault == "finishing_exec" {
+				time.AfterFunc(100*time.Millisecond, func() {
+					e.mu.Lock()
+					defer e.mu.Unlock()
+					current := e.rows[worker]
+					current.ExecIDs = nil
+					e.rows[worker] = current
+				})
+			}
 			_, _, err := c.sourceProfile(context.Background(), p, "sha256:"+strings.Repeat("a", 64))
-			if (err == nil) != (fault == "none") {
+			if (err == nil) != (fault == "none" || fault == "finishing_exec") {
 				t.Fatalf("fault %s accepted=%t", fault, err == nil)
 			}
 			if len(e.posted()) != 0 {
