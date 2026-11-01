@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -58,18 +59,22 @@ func Start(ctx context.Context, path, role string, witness Witness) (*Server, er
 	}
 	directory := filepath.Dir(path)
 	// Never remove/adopt a preexisting directory or socket, including stale ones.
-	if os.Mkdir(directory, 0700) != nil {
-		return nil, ErrWitness
+	if err := os.Mkdir(directory, 0700); err != nil {
+		stage := "witness directory creation failed"
+		if errors.Is(err, os.ErrExist) {
+			stage = "witness directory already exists"
+		}
+		return nil, fmt.Errorf("%w: %s", ErrWitness, stage)
 	}
 	listener, err := net.Listen("unix", path)
 	if err != nil {
 		_ = os.Remove(directory)
-		return nil, ErrWitness
+		return nil, fmt.Errorf("%w: witness socket listen failed", ErrWitness)
 	}
 	if os.Chmod(path, 0600) != nil {
 		listener.Close()
 		_ = os.Remove(directory)
-		return nil, ErrWitness
+		return nil, fmt.Errorf("%w: witness socket mode failed", ErrWitness)
 	}
 	secret := make([]byte, 16)
 	if _, err = rand.Read(secret); err != nil {

@@ -95,7 +95,15 @@ func TestRecoveryControlPrivateWitnessAndCancellation(t *testing.T) {
 	}
 	<-done
 	close(release)
+	// Cancellation reaches the callback before the handler finishes its deferred
+	// semaphore release. Observe eventual availability, not scheduler ordering.
+	deadline := time.Now().Add(time.Second)
 	r := post(body)
+	for r.StatusCode == http.StatusConflict && time.Now().Before(deadline) {
+		r.Body.Close()
+		time.Sleep(time.Millisecond)
+		r = post(body)
+	}
 	defer r.Body.Close()
 	var reply Reply
 	if r.StatusCode != 200 || json.NewDecoder(r.Body).Decode(&reply) != nil || reply.PID != os.Getpid() || reply.Role != "api" || !noncePattern.MatchString(reply.BootID) {
@@ -141,5 +149,25 @@ func TestRecoveryControlDoesNotExposeCallbackErrors(t *testing.T) {
 	}
 	if _, err = Probe(context.Background(), path, "worker", "inst_"+strings.Repeat("a", 32), strings.Repeat("b", 32)); !errors.Is(err, ErrWitness) {
 		t.Fatal("public socket accepted")
+	}
+}
+
+func TestRecoveryControlCloseRemovesOnlyOwnedEndpointAndAllowsNewBoot(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "rvg-control-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+	path := filepath.Join(root, "owned", "witness.sock")
+	callback := func(context.Context, string, string) error { return nil }
+	for range 20 {
+		s, e := Start(context.Background(), path, "api", callback)
+		if e != nil {
+			t.Fatal(e)
+		}
+		s.Close()
+		if _, e = os.Lstat(filepath.Dir(path)); !errors.Is(e, os.ErrNotExist) {
+			t.Fatal("owned directory survived close", e)
+		}
 	}
 }

@@ -294,7 +294,9 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
                             'permission denied', 'read-only file system', 'native installation',
                             'connection refused', 'password authentication failed',
                             'live runtime source witness not confirmed',
-                            'recovery control requires',
+                            'recovery control requires', 'witness directory already exists',
+                            'witness directory creation failed', 'witness socket listen failed',
+                            'witness socket mode failed',
                             'bootstrap output must be a new private file', 'exec format error',
                             'development auth/fixture profile requires a loopback address',
                             'cannot connect to postgresql'
