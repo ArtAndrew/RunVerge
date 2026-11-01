@@ -48,6 +48,17 @@ def verify(evidence, image):
     def command(args, timeout=180):
         result = subprocess.run(args, env=env, capture_output=True, text=True, timeout=timeout)
         if result.returncode:
+            report['command_exit_code'] = result.returncode
+            diagnostic = (result.stdout + result.stderr).lower()
+            report['command_failure_classes'] = [label for label in (
+                'dependency failed to start', 'is unhealthy', 'exited (0)',
+                'permission denied', 'operation not permitted', 'read-only file system',
+                'no such file or directory', 'file exists', 'address already in use',
+                'failed to create task', 'failed to start', 'failed to stop',
+                'error response from daemon', 'no containers to start',
+                'live runtime source witness not confirmed',
+                'private recovery files unavailable', 'snapshot', 'archive',
+            ) if label in diagnostic]
             # Retain diagnostics privately; never print service logs or settings.
             path = root / ('command-' + secrets.token_hex(4) + '.log')
             with path.open('x') as stream:
@@ -213,10 +224,13 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
             raise RuntimeError('Separate worker fixture execution failed')
         step('separate_worker_result_and_synthetic_cost')
         # Stop applications before PostgreSQL; restart without re-running a task.
-        phase = 'restart_and_compare'
+        phase = 'stop_before_restart'
         command([*compose, 'stop', 'worker', 'api', 'db'])
+        phase = 'start_after_stop'
         command([*compose, 'start', 'db', 'api', 'worker'])
+        phase = 'ready_after_restart'
         wait_ready()
+        phase = 'compare_after_restart'
         if request(route) != task or request(route + '/artifacts') != artifacts or request(route + '/costs') != costs:
             raise RuntimeError('Restart changed completed task, artifact or cost record')
         if request('/api/v1/models') != models:
@@ -251,7 +265,8 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
         command(health)
         step('readiness_refuses_elevated_role_wrong_settings_and_missing_volume_marker')
         phase = 'verify_explicit_container_shutdown'
-        verify_recovery_process.verify(command, compose, env, root, project, database, runtime_url, image)
+        verify_recovery_process.verify(command, compose, env, root, project, database, runtime_url, image,
+                                       lambda name: report.update(recovery_step=name))
         step('bound_source_live_pools_restart_refusal_stop_and_fresh_inspection')
         step('explicit_container_shutdown_lost_output_inspection_and_stopped_synthetic_sender')
         report['passed'] = True
@@ -273,9 +288,13 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
                     # environment values, arguments or other free-form container data.
                     report['service_failures'].append({'service': service,
                         'exit_code': state['State']['ExitCode'],
+                        'status': state['State']['Status'],
+                        'health': state['State'].get('Health', {}).get('Status'),
                         'classifications': [label for label in (
                             'permission denied', 'read-only file system', 'native installation',
                             'connection refused', 'password authentication failed',
+                            'live runtime source witness not confirmed',
+                            'recovery control requires',
                             'bootstrap output must be a new private file', 'exec format error',
                             'development auth/fixture profile requires a loopback address',
                             'cannot connect to postgresql'

@@ -11,7 +11,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
-def verify(command, compose, env, root, project, database, runtime_url, image):
+def verify(command, compose, env, root, project, database, runtime_url, image, progress):
     # The parent created this exact project and owns its cleanup. No saved host
     # settings, user project, real model, tokens or business payloads are used.
     binary = root / 'platform-process-check'
@@ -22,7 +22,7 @@ def verify(command, compose, env, root, project, database, runtime_url, image):
     backup.mkdir(mode=0o700)
     intent = root / 'private/container-stop.json'
     verify_source_binding(command, compose, env, root, project, database, api,
-                          binary, runtime_url, image)
+                          binary, runtime_url, image, progress)
     counter = {'value': 0}
     lock = threading.Lock()
 
@@ -160,8 +160,9 @@ def verify(command, compose, env, root, project, database, runtime_url, image):
 
 
 def verify_source_binding(command, compose, env, root, project, database, api,
-                          binary, runtime_url, image):
+                          binary, runtime_url, image, progress):
     """Installed binary and actual PID1 pools; all inputs belong to this fixture."""
+    progress('prepare_private_source_fixture')
     private = root / 'source-proof'
     private.mkdir(mode=0o700)
     stage = private / 'stage'
@@ -187,12 +188,15 @@ def verify_source_binding(command, compose, env, root, project, database, api,
     if copied.returncode:
         raise RuntimeError('Source witness private fixture preparation failed')
     remote = '/tmp/source-proof/'
+    progress('source_backup_keygen')
     command(['docker', 'exec', api, '/app/bin/platform', 'recovery', 'backup-keygen',
              '--out', remote + 'keys.json'])
+    progress('source_backup_create')
     receipt = json.loads(command(['docker', 'exec', api, '/app/bin/platform', 'recovery',
                          'backup-create', '--database-config', remote + 'database.json',
                          '--keys-file', remote + 'keys.json', '--staging-parent', remote + 'stage',
                          '--out-dir', remote + 'backup']))
+    progress('source_backup_copy')
     command(['docker', 'cp', api + ':' + remote + 'backup', str(private / 'backup')])
     command(['docker', 'cp', api + ':' + remote + 'keys.json', str(private / 'keys.json')])
     image_id = command(['docker', 'image', 'inspect', '--format', '{{.Id}}', image]).strip()
@@ -216,6 +220,7 @@ def verify_source_binding(command, compose, env, root, project, database, api,
               '--staging-parent', str(stage), '--expected-receipt-sha256', receipt['receipt_sha256'],
               '--expected-runtime-image', image_id]
     # An independently running exec is outside this binding's own challenge set.
+    progress('reject_unrelated_exec')
     unrelated = subprocess.Popen(['docker', 'exec', api, '/app/bin/platform', 'recovery',
                                  'source-witness', '--expected-installation', source_id,
                                  '--nonce', 'e' * 32, '--role', 'api'], env=env,
@@ -240,12 +245,14 @@ def verify_source_binding(command, compose, env, root, project, database, api,
         if unrelated.poll() is None:
             unrelated.kill()
             unrelated.communicate(timeout=5)
+    progress('plan_before_restart')
     old = private / 'before-restart.json'
     initial = require(cli(['source-stop-plan', *common, '--out', str(old)]), 'plan-before-restart')
     binding = initial['source_binding']
     if binding['source_id'] != source_id or len(binding['processes']) != 2:
         raise RuntimeError('Live source binding omitted PID1 processes')
     # A stopped/started container has the same ID and image but a different boot.
+    progress('restart_invalidates_binding')
     command([*compose, 'restart', 'api'])
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
@@ -261,11 +268,13 @@ def verify_source_binding(command, compose, env, root, project, database, api,
     if cli(['container-stop-apply', '--intent-file', str(old), '--expected-project', project,
             '--confirm-stop-project']).returncode == 0:
         raise RuntimeError('Unbound command bypassed source revalidation')
+    progress('plan_current')
     current = private / 'source-stop.json'
     require(cli(['source-stop-plan', *common, '--out', str(current)]), 'plan-current')
     saved = json.loads(current.read_text())
     # A wrong installation binding cannot authorize shutdown, even when all
     # container IDs and the authenticated snapshot digest are otherwise exact.
+    progress('reject_wrong_source')
     changed = private / 'wrong-source.json'
     saved['source_binding']['source_id'] = 'inst_' + ('f' if source_id != 'inst_' + 'f' * 32 else 'e') * 32
     changed.write_text(json.dumps(saved))
@@ -275,9 +284,11 @@ def verify_source_binding(command, compose, env, root, project, database, api,
         raise RuntimeError('Wrong source installation authorized a stop')
     apply = ['source-stop-apply', '--intent-file', str(current), '--expected-project', project,
              '--confirm-stop-project']
+    progress('apply_with_lost_output')
     with open('/dev/full', 'wb') as lost_output:
         if cli(apply, stdout=lost_output).returncode == 0:
             raise RuntimeError('Lost source-stop output not reported')
+    progress('inspect_stopped')
     observed = require(cli(['source-stop-inspect', '--intent-file', str(current)]), 'inspect-stopped')
     if not observed['source_installation_bound'] or not observed['bound_source_processes_stopped'] or observed['source_id'] != source_id or observed['external_execution_fenced'] or observed['external_effects_settled']:
         raise RuntimeError('Bound source shutdown scope incorrect')
@@ -285,6 +296,7 @@ def verify_source_binding(command, compose, env, root, project, database, api,
         raise RuntimeError('Source shutdown repeated')
     # No volume replacement: same DB container and data are restarted solely
     # inside this disposable verifier for the existing synthetic-sender check.
+    progress('restart_retained_source_database')
     command([*compose, 'start', 'db'])
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
@@ -300,3 +312,4 @@ def verify_source_binding(command, compose, env, root, project, database, api,
                                '-v ON_ERROR_STOP=1 -c "SELECT installation_id FROM public.runtime_recovery_control WHERE singleton"']).strip()
     if retained_source != source_id:
         raise RuntimeError('Source data identity changed during stop/restart')
+    progress('bound_source_check_passed')
