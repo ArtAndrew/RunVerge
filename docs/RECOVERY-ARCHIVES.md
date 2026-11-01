@@ -7,8 +7,9 @@ closed to ordinary logins and workers; completing an import does not resume work
 
 This is the same-schema path only. The source, target and binary must use the
 same trusted migrations, including migration 023. There is no 022-to-023 archive
-conversion or supported upgrade here. Provision the target with trusted tools
-before using these commands; they never create a database or run migrations.
+conversion or supported upgrade here. Provision the target with trusted tools or the separate
+[isolated target commands](RECOVERY-PROVISIONING.md). The archive commands below
+never create a database or run migrations.
 
 ## Private files and keys
 

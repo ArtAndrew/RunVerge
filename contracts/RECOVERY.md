@@ -12,6 +12,7 @@ The candidate contains these components:
 |---|---|
 | Export and encrypted archive | Consistent bounded data-only snapshot; authenticated encryption; independently selected archive identity |
 | Typed staging | Trusted schema, row and reference checks, selected execution and cost-history checks; rollback on every exit |
+| Target provisioning | Explicit operator plan; new restricted database; trusted migrations and empty-target hold; no automatic recreation after an uncertain outcome |
 | Held import | Atomic same-schema import with a durable receipt and historical-row fences; no hold clearance |
 | Recovery reader | Fresh target-bound, organization-scoped host capabilities; no ordinary login or worker admission |
 | Database disconnection | Selected source database connection ban and session termination; does not establish external execution shutdown |
@@ -27,8 +28,8 @@ boundaries and cannot simply be concatenated into a verified recovery flow.
 
 The importer requires matching trusted migrations, including SQL023. SQL022 and
 SQL023 are immutable. There is no supported conversion of an alpha.6/SQL022 archive
-into the candidate's SQL023 schema. Migration, target provisioning and subsequent
-work enablement need their own acceptance evidence.
+into the candidate's SQL023 schema. Populated upgrade and subsequent work enablement still need their own acceptance
+evidence; target provisioning is documented in its [development guide](../docs/RECOVERY-PROVISIONING.md).
 
 Typed staging continues to report `full_semantic_validation: false`. It verifies
 specific history families and records residual coverage separately; a successful

@@ -89,7 +89,7 @@ func independentCommitProxyStore(t *testing.T, dsn string) (*Store, *independent
 }
 func (p *independentCommitCutProxy) arm(t *testing.T, match, mode string) *independentCommitCutPlan {
 	t.Helper()
-	if match == "" || (mode != "before_commit" && mode != "after_commit") {
+	if match == "" || (mode != "before_commit" && mode != "after_commit" && mode != "before_statement" && mode != "after_statement") {
 		t.Fatal("invalid commit cut plan")
 	}
 	p.mu.Lock()
@@ -254,15 +254,16 @@ func (c *independentPgwireConnection) frontend() {
 		if plan != nil && query != "" && strings.Contains(normalized, plan.match) {
 			c.matched = true
 		}
-		cut := plan != nil && c.matched && normalized == "commit"
+		statementCut := plan != nil && kind == 'Q' && strings.Contains(normalized, plan.match) && (plan.mode == "before_statement" || plan.mode == "after_statement")
+		cut := plan != nil && c.matched && normalized == "commit" || statementCut
 		if cut {
 			c.proxy.plan = nil
 			c.matched = false
 		}
 		c.proxy.mu.Unlock()
 		if cut {
-			if plan.mode == "before_commit" {
-				plan.done <- "before_commit"
+			if plan.mode == "before_commit" || plan.mode == "before_statement" {
+				plan.done <- plan.mode
 				c.close()
 				return
 			}
@@ -283,6 +284,18 @@ func (c *independentPgwireConnection) backend() {
 		}
 		c.mu.Lock()
 		plan := c.pending
+		if plan != nil && plan.mode == "after_statement" && kind == 'C' {
+			// Withhold CommandComplete until the implicit transaction has ended.
+			c.mu.Unlock()
+			continue
+		}
+		if plan != nil && plan.mode == "after_statement" && kind == 'Z' && bytes.Equal(payload, []byte{'I'}) {
+			c.pending = nil
+			c.mu.Unlock()
+			plan.done <- "after_statement"
+			c.close()
+			return
+		}
 		if plan != nil && kind == 'C' && bytes.Equal(payload, []byte("COMMIT\x00")) {
 			c.pending = nil
 			c.mu.Unlock()

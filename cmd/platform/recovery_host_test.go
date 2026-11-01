@@ -136,7 +136,7 @@ func TestRecoveryHostAuthorImportedResultAcrossProcesses(t *testing.T) {
 		if lostOutput {
 			name = "lost_command_output"
 		}
-		t.Run(name, func(t *testing.T) { recoveryHostArchiveRoundTrip(t, lostOutput) })
+		t.Run(name, func(t *testing.T) { recoveryHostArchiveRoundTrip(t, lostOutput, false) })
 	}
 }
 
@@ -148,7 +148,7 @@ func (recoveryHostFailedOutput) Write([]byte) (int, error) { return 0, errRecove
 
 var errRecoveryHostOutput = errors.New("synthetic output unavailable")
 
-func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput bool) {
+func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput, provision bool) {
 	if os.Getenv("RUNVERGE_RECOVERY_OWNED_PG") != "1" || os.Getenv("RUNVERGE_RECOVERY_INDEPENDENT_OWNED_PG") != "1" {
 		t.Skip("requires explicit disposable recovery cluster")
 	}
@@ -256,48 +256,52 @@ func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput bool) {
 	if out, err = recoveryHostCommand(t, ctx, append([]string{"archive-verify"}, wrongPin...)...); err == nil || len(out) != 0 {
 		t.Fatal("wrong receipt accepted")
 	}
-	out, err = recoveryHostCommand(t, ctx, "target-inspect", "--database-config", databaseFile)
-	var inspected storage.RecoveryTargetState
-	if err != nil || json.Unmarshal(out, &inspected) != nil || inspected.InstallationID != state.InstallationID || inspected.State != "normal" {
-		t.Fatal("target selection inspection", err)
-	}
-	prepareArgs := append([]string{"target-prepare"}, selection...)
-	prepareArgs = append(prepareArgs, "--database-config", databaseFile, "--expected-installation-id", state.InstallationID, "--confirm-new-target", "--intent-out", configFile)
-	// Rejections must happen before preparation or creation of credentials inside
-	// a backup, including when its parent is reached through an alias.
-	alias := filepath.Join(t.TempDir(), "parent-alias")
-	if err = os.Symlink(parent, alias); err != nil {
-		t.Fatal(err)
-	}
-	for _, forbidden := range []string{filepath.Join(bundle, "intent.json"), filepath.Join(alias, "backup", "intent.json")} {
-		bad := append([]string(nil), prepareArgs...)
-		bad[len(bad)-1] = forbidden
-		if out, err = recoveryHostCommand(t, ctx, bad...); err == nil || len(out) != 0 {
-			t.Fatal("credential output inside bundle accepted")
+	if provision {
+		target, state, configFile = recoveryHostProvisionedTarget(t, ctx, parent, selection)
+	} else {
+		out, err = recoveryHostCommand(t, ctx, "target-inspect", "--database-config", databaseFile)
+		var inspected storage.RecoveryTargetState
+		if err != nil || json.Unmarshal(out, &inspected) != nil || inspected.InstallationID != state.InstallationID || inspected.State != "normal" {
+			t.Fatal("target selection inspection", err)
 		}
-		if _, err = os.Lstat(forbidden); !errors.Is(err, os.ErrNotExist) {
-			t.Fatal("forbidden intent created")
+		prepareArgs := append([]string{"target-prepare"}, selection...)
+		prepareArgs = append(prepareArgs, "--database-config", databaseFile, "--expected-installation-id", state.InstallationID, "--confirm-new-target", "--intent-out", configFile)
+		// Rejections must happen before preparation or creation of credentials inside
+		// a backup, including when its parent is reached through an alias.
+		alias := filepath.Join(t.TempDir(), "parent-alias")
+		if err = os.Symlink(parent, alias); err != nil {
+			t.Fatal(err)
+		}
+		for _, forbidden := range []string{filepath.Join(bundle, "intent.json"), filepath.Join(alias, "backup", "intent.json")} {
+			bad := append([]string(nil), prepareArgs...)
+			bad[len(bad)-1] = forbidden
+			if out, err = recoveryHostCommand(t, ctx, bad...); err == nil || len(out) != 0 {
+				t.Fatal("credential output inside bundle accepted")
+			}
+			if _, err = os.Lstat(forbidden); !errors.Is(err, os.ErrNotExist) {
+				t.Fatal("forbidden intent created")
+			}
+			if current, e := target.InspectRecoveryTarget(ctx); e != nil || current.State != "normal" {
+				t.Fatal("rejected intent changed target", e)
+			}
+		}
+		// A pre-existing output must never be overwritten or trigger preparation.
+		existing := recoveryHostPrivateJSON(t, filepath.Join(parent, "existing.json"), map[string]string{"sentinel": "preserve"})
+		bad := append([]string(nil), prepareArgs...)
+		bad[len(bad)-1] = existing
+		if _, err = recoveryHostCommand(t, ctx, bad...); err == nil {
+			t.Fatal("existing intent accepted")
 		}
 		if current, e := target.InspectRecoveryTarget(ctx); e != nil || current.State != "normal" {
-			t.Fatal("rejected intent changed target", e)
+			t.Fatal("existing intent prepared target", e)
 		}
-	}
-	// A pre-existing output must never be overwritten or trigger preparation.
-	existing := recoveryHostPrivateJSON(t, filepath.Join(parent, "existing.json"), map[string]string{"sentinel": "preserve"})
-	bad := append([]string(nil), prepareArgs...)
-	bad[len(bad)-1] = existing
-	if _, err = recoveryHostCommand(t, ctx, bad...); err == nil {
-		t.Fatal("existing intent accepted")
-	}
-	if current, e := target.InspectRecoveryTarget(ctx); e != nil || current.State != "normal" {
-		t.Fatal("existing intent prepared target", e)
-	}
-	if lostOutput {
-		if err = runRecoveryHost(ctx, prepareArgs, recoveryHostFailedOutput{}); !errors.Is(err, errRecoveryHostOutput) {
-			t.Fatal("prepare output failure not observed", err)
+		if lostOutput {
+			if err = runRecoveryHost(ctx, prepareArgs, recoveryHostFailedOutput{}); !errors.Is(err, errRecoveryHostOutput) {
+				t.Fatal("prepare output failure not observed", err)
+			}
+		} else if _, err = recoveryHostCommand(t, ctx, prepareArgs...); err != nil {
+			t.Fatal("prepare command", err)
 		}
-	} else if _, err = recoveryHostCommand(t, ctx, prepareArgs...); err != nil {
-		t.Fatal("prepare command", err)
 	}
 	var config recoveryHostTarget
 	if err = readPrivateJSON(configFile, &config); err != nil || config.ReceiptSHA256 != receipt.ReceiptSHA256 || config.TargetInstallationID != state.InstallationID {

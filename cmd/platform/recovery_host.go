@@ -52,6 +52,8 @@ func runRecoveryHost(ctx context.Context, args []string, out io.Writer) error {
 		return recoveryUsage
 	}
 	switch args[0] {
+	case "provision-plan", "provision-apply", "provision-inspect":
+		return runRecoveryProvisionHost(ctx, args, out)
 	case "container-stop-plan", "container-stop-inspect", "container-stop-apply":
 		return runRecoveryProcessHost(ctx, args, out)
 	case "database-fence-plan", "database-fence-inspect", "database-fence-apply", "database-fence-drain":
