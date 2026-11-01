@@ -310,7 +310,7 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
                 command([*compose, '--profile', 'admin', 'down', '--volumes', '--remove-orphans'])
                 auxiliaries = command(['docker', 'ps', '-aq', '--filter', 'label=runverge.check.owner=' + project]).split()
                 if auxiliaries:
-                    command(['docker', 'rm', '-f', *auxiliaries])
+                    command(['docker', 'rm', '-f', '-v', *auxiliaries])
                 image_tag = project + '-process-check'
                 if command(['docker', 'image', 'ls', '-q', image_tag]).strip():
                     command(['docker', 'image', 'rm', image_tag])

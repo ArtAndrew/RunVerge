@@ -3,6 +3,8 @@
 """Exercise container shutdown only inside the caller's disposable Compose project."""
 import json
 import os
+import re
+import secrets
 from pathlib import Path
 import subprocess
 import threading
@@ -187,6 +189,10 @@ def verify_source_binding(command, compose, env, root, project, database, api,
                          '--database-config', '/source/database.json',
                          '--keys-file', '/source/keys.json', '--staging-parent', '/source/stage',
                          '--out-dir', '/source/backup']))
+    # A real late-only organization must survive as evidence, without becoming
+    # active business data in the target selected from the older backup.
+    command([*admin[:-1], 'bootstrap', '--name', 'Synthetic post-backup organization',
+             '--out', '/source/late-owner.json'])
     image_id = command(['docker', 'image', 'inspect', '--format', '{{.Id}}', image]).strip()
     source_id = receipt['manifest']['metadata']['source_id']
 
@@ -296,6 +302,8 @@ def verify_source_binding(command, compose, env, root, project, database, api,
         raise RuntimeError('Source evidence capture not authenticated after lost output')
     if cli(apply).returncode == 0:
         raise RuntimeError('Source shutdown repeated')
+    verify_held_evidence(command, env, private, project, database, current,
+                         receipt, cli, require, progress)
     # No volume replacement: same DB container and data are restarted solely
     # inside this disposable verifier for the existing synthetic-sender check.
     progress('restart_retained_source_database')
@@ -315,3 +323,104 @@ def verify_source_binding(command, compose, env, root, project, database, api,
     if retained_source != source_id:
         raise RuntimeError('Source data identity changed during stop/restart')
     progress('bound_source_check_passed')
+
+
+def verify_held_evidence(command, env, private, project, source_database,
+                         source_plan, receipt, cli, require, progress):
+    """Real captured archive -> separately provisioned target; execution held."""
+    progress('provision_separate_evidence_target')
+    name = project + '-recovery-target'
+    # Reuse the exact pinned PostgreSQL image, not source data or its volume.
+    pg_image = json.loads(command(['docker', 'inspect', source_database]))[0]['Image']
+    password = secrets.token_hex(24)
+    settings = private / 'target-postgres.env'
+    with settings.open('x') as stream:
+        settings.chmod(0o600)
+        stream.write('POSTGRES_USER=runverge_recovery_operator\nPOSTGRES_PASSWORD=' + password +
+                     '\nPOSTGRES_DB=postgres\nPOSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C\n')
+    # Only this fixture creates/deletes this container and its anonymous volume.
+    # Its port is allocated by Docker and bound only to the runner's loopback.
+    created = None
+    try:
+        created = command(['docker', 'run', '-d', '--name', name,
+                           '--label', 'runverge.check.owner=' + project,
+                           '--env-file', str(settings), '-p', '127.0.0.1::5432', pg_image]).strip()
+        if not re.fullmatch(r'[a-f0-9]{64}', created):
+            raise RuntimeError('Disposable recovery container identity missing')
+        deadline = time.monotonic() + 40
+        while time.monotonic() < deadline:
+            probe = subprocess.run(['docker', 'exec', name, 'pg_isready', '-h', '127.0.0.1', '-U',
+                                    'runverge_recovery_operator', '-d', 'postgres'],
+                                   env=env, capture_output=True, timeout=10)
+            if probe.returncode == 0:
+                break
+            time.sleep(0.2)
+        else:
+            raise RuntimeError('Disposable recovery database did not start')
+        ports = json.loads(command(['docker', 'inspect', name]))[0]['NetworkSettings']['Ports']['5432/tcp']
+        if len(ports) != 1 or ports[0]['HostIp'] != '127.0.0.1':
+            raise RuntimeError('Recovery fixture listener is not loopback-only')
+        config = private / 'target-maintenance.json'
+        with config.open('x') as stream:
+            config.chmod(0o600)
+            json.dump({'database_url': 'postgres://runverge_recovery_operator:' + password +
+                       '@127.0.0.1:' + ports[0]['HostPort'] + '/postgres?sslmode=disable'}, stream)
+        plan = private / 'provision.json'
+        selection = ['--backup-dir', str(private / 'backup'), '--keys-file', str(private / 'keys.json'),
+                     '--staging-parent', str(private / 'stage')]
+        planned = require(cli(['provision-plan', '--admin-config', str(config), *selection,
+                               '--expected-receipt-sha256', receipt['receipt_sha256'],
+                               '--out', str(plan)]), 'evidence-target-plan')
+        require(cli(['provision-apply', '--intent-file', str(plan), '--expected-database',
+                     planned['database'], '--confirm-create-target']), 'evidence-target-create')
+        target = str(plan) + '.target.json'
+        require(cli(['archive-import', '--target-config', target, *selection]), 'evidence-target-import')
+        ingest = ['evidence-ingest', '--source-intent-file', str(source_plan),
+                  '--target-config', target, '--confirm-ingest-evidence']
+        progress('ingest_real_captured_evidence')
+        with open('/dev/full', 'wb') as lost:
+            if cli(ingest, stdout=lost).returncode == 0:
+                raise RuntimeError('Evidence output loss was not reported')
+        inspection = ['evidence-inspect', '--source-intent-file', str(source_plan), '--target-config', target]
+        report = require(cli(inspection), 'evidence-target-inspect')
+        if int(report['added']) < 1 or not report['execution_held'] or report['reconciliation_state'] != 'pending':
+            raise RuntimeError('Late source facts were not preserved under hold')
+        if report['selected_snapshot_sha256'] != receipt['manifest']['plaintext_sha256']:
+            raise RuntimeError('Evidence target selected a different original snapshot')
+        if cli(ingest).returncode == 0:
+            raise RuntimeError('Installed evidence ingestion replayed')
+        late_org = json.loads((private / 'late-owner.json').read_text())['organization_id']
+        if not re.fullmatch(r'org_[a-f0-9]{32}', late_org):
+            raise RuntimeError('Unexpected synthetic organization identifier')
+        query = ("SELECT (SELECT state='held' FROM runtime_recovery_control WHERE singleton) "
+                 "AND NOT EXISTS(SELECT 1 FROM organizations WHERE id='" + late_org + "') "
+                 "AND EXISTS(SELECT 1 FROM recovery_evidence_changes WHERE table_name='organizations' "
+                 "AND organization_id='" + late_org + "' AND classification='added')")
+        result = command(['docker', 'exec', name, 'sh', '-ec',
+                          'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -X -w -h 127.0.0.1 '
+                          '-U runverge_recovery_operator -d "$1" -At -v ON_ERROR_STOP=1 -c "$2"',
+                          'recovery-check', planned['database'], query]).strip()
+        if result != 't':
+            raise RuntimeError('Late organization leaked into active business data')
+        if json.loads(command(['docker', 'inspect', source_database]))[0]['State']['Running']:
+            raise RuntimeError('Target ingestion restarted the source database')
+        command(['docker', 'restart', name])
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            probe = subprocess.run(['docker', 'exec', name, 'pg_isready', '-h', '127.0.0.1', '-U',
+                                    'runverge_recovery_operator', '-d', planned['database']],
+                                   env=env, capture_output=True, timeout=10)
+            if probe.returncode == 0:
+                break
+            time.sleep(0.2)
+        else:
+            raise RuntimeError('Recovery target did not restart')
+        if require(cli(inspection), 'evidence-target-restarted-inspect') != report:
+            raise RuntimeError('Recovery evidence changed after target restart')
+        progress('held_evidence_roundtrip_passed')
+    finally:
+        if created and re.fullmatch(r'[a-f0-9]{64}', created):
+            owned = json.loads(command(['docker', 'inspect', created]))[0]
+            if owned['Config']['Labels'].get('runverge.check.owner') != project:
+                raise RuntimeError('Recovery fixture ownership changed')
+            command(['docker', 'rm', '-f', '-v', created])

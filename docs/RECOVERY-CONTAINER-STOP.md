@@ -201,8 +201,9 @@ archives. The signed link attests evidence capture, not final database shutdown.
 Only after saving that link does apply stop PostgreSQL.
 
 `source-stop-inspect` rechecks the signed link and encrypted archive and reports
-`evidence_captured`. It always reports `evidence_reconciled: false`: importing and
-reconciling these late facts into a held target is not implemented yet. Neither
+`evidence_captured`. It always reports `evidence_reconciled: false`. The candidate
+[evidence ingestion commands](RECOVERY-EVIDENCE.md) preserve the late snapshot
+inside a held target; financial reconciliation remains unfinished. Neither
 capture nor local shutdown proves that external requests have settled. An
 uncertain request remains uncertain; historical work must not be resent.
 
