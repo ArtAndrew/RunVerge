@@ -56,8 +56,8 @@ func WriteHostCaptureLink(path, keysFile string, link CaptureLink) error {
 	raw, _ := json.Marshal(link)
 	return WriteHostJSON(path, signedCapture{link, ed25519.Sign(key, append([]byte(captureDomain), raw...))})
 }
-func ReadHostCaptureLink(path, keysFile string) (CaptureLink, error) {
-	var zero CaptureLink
+func VerifyHostCaptureLink(path, keysFile string) (*VerifiedCaptureLink, error) {
+	var zero *VerifiedCaptureLink
 	raw, err := ReadHostPrivateFile(path)
 	if err != nil {
 		return zero, err
@@ -80,5 +80,37 @@ func ReadHostCaptureLink(path, keysFile string) (CaptureLink, error) {
 	if !ed25519.Verify(key.Public().(ed25519.PublicKey), append([]byte(captureDomain), body...), signed.Signature) {
 		return zero, ErrInvalid
 	}
-	return signed.Link, nil
+	return &VerifiedCaptureLink{link: signed.Link, raw: append([]byte(nil), raw...)}, nil
+}
+
+// VerifiedCaptureLink cannot be constructed from unauthenticated caller fields.
+type VerifiedCaptureLink struct {
+	link CaptureLink
+	raw  []byte
+}
+
+func (v *VerifiedCaptureLink) Link() CaptureLink {
+	if v == nil {
+		return CaptureLink{}
+	}
+	return v.link
+}
+func (v *VerifiedCaptureLink) Bytes() []byte {
+	if v == nil {
+		return nil
+	}
+	return append([]byte(nil), v.raw...)
+}
+func (v *VerifiedCaptureLink) SHA256() string {
+	if v == nil {
+		return ""
+	}
+	return digest(v.raw)
+}
+func ReadHostCaptureLink(path, keysFile string) (CaptureLink, error) {
+	v, err := VerifyHostCaptureLink(path, keysFile)
+	if err != nil {
+		return CaptureLink{}, err
+	}
+	return v.Link(), nil
 }

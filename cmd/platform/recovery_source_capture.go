@@ -114,25 +114,41 @@ func inspectSourceCapture(ctx context.Context, saved recoveryProcessFile, path s
 	if _, err := os.Lstat(path + ".capture"); errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
-	link, err := recoveryarchive.ReadHostCaptureLink(path+".capture", saved.Capture.Keys)
-	if err != nil || link.OperationID != saved.Intent.OperationID || link.SourceID != saved.Binding.SourceID || link.BindingSHA256 != captureHash(saved.Binding) || link.SelectedReceiptSHA256 != saved.Capture.SelectedReceipt || link.SelectedSnapshotSHA256 != saved.Binding.SnapshotSHA256 || link.SelectedCutUTC != saved.Capture.SelectedCut {
-		return false, errors.New("source evidence link not authenticated for this plan")
+	verified, err := loadSourceCaptureLink(saved, path)
+	if err != nil {
+		return false, err
 	}
-	var stopped recoveryprocess.Observation
-	if readRecoveryFenceJSON(path+".capture-state", &stopped) != nil || captureHash(stopped) != link.StoppedExecutorsSHA256 || stopped.OperationID != saved.Intent.OperationID {
-		return false, errors.New("capture observation differs from signed link")
-	}
+	link := verified.Link()
 	archive, err := recoveryarchive.VerifyHostBackup(ctx, saved.Capture.Directory, saved.Capture.Keys, link.EvidenceReceiptSHA256, saved.Capture.Stage)
 	if err != nil {
 		return false, err
 	}
 	defer archive.Close()
 	m := archive.Manifest()
-	if m.PlaintextSHA256 != link.EvidenceSnapshotSHA256 || m.Metadata.SourceID != link.SourceID || m.Metadata.CutUTC != link.EvidenceCutUTC || m.Metadata.SchemaSHA256 != storage.EmbeddedSchemaSHA256() {
+	if m.PlaintextSHA256 != link.EvidenceSnapshotSHA256 || m.Metadata.SourceID != link.SourceID || m.Metadata.CutUTC != link.EvidenceCutUTC || !storage.SupportedRecoverySourceSchema(m.Metadata.SchemaSHA256) {
 		return false, errors.New("source evidence differs from signed link")
 	}
 	if err = archive.Close(); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+func loadSourceCaptureLink(saved recoveryProcessFile, path string) (*recoveryarchive.VerifiedCaptureLink, error) {
+	if saved.Capture == nil || saved.Binding == nil {
+		return nil, errors.New("source evidence plan required")
+	}
+	verified, err := recoveryarchive.VerifyHostCaptureLink(path+".capture", saved.Capture.Keys)
+	if err != nil {
+		return nil, err
+	}
+	link := verified.Link()
+	if link.OperationID != saved.Intent.OperationID || link.SourceID != saved.Binding.SourceID || link.BindingSHA256 != captureHash(saved.Binding) || link.SelectedReceiptSHA256 != saved.Capture.SelectedReceipt || link.SelectedSnapshotSHA256 != saved.Binding.SnapshotSHA256 || link.SelectedCutUTC != saved.Capture.SelectedCut {
+		return nil, errors.New("source evidence link not authenticated for this plan")
+	}
+	var stopped recoveryprocess.Observation
+	if readRecoveryFenceJSON(path+".capture-state", &stopped) != nil || captureHash(stopped) != link.StoppedExecutorsSHA256 || stopped.OperationID != saved.Intent.OperationID {
+		return nil, errors.New("capture observation differs from signed link")
+	}
+	return verified, nil
 }

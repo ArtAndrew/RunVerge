@@ -323,7 +323,7 @@ func (s *Store) InspectRecoveryImport(ctx context.Context, spec RecoveryTargetSp
 	if err != nil {
 		return RecoveryImportInspection{}, recoverySnapshotError(ctx, ErrRecoveryImport)
 	}
-	if r.Profile != "pg18-held-import-v1" || r.TargetInstallationID != spec.TargetInstallationID || r.RestoreID != spec.RestoreID || r.BackupID != spec.BackupID || r.SourceID != spec.SourceID || r.CutUTC != spec.CutUTC || r.SchemaSHA256 != spec.SchemaSHA256 || r.SnapshotSHA256 != snapshotSHA256 || r.CatalogSHA256 != recoverySemanticCatalogSHA256 || r.InventorySHA256 != recoverySnapshotInventorySHA256 {
+	if r.Profile != "pg18-held-import-v1" || r.TargetInstallationID != spec.TargetInstallationID || r.RestoreID != spec.RestoreID || r.BackupID != spec.BackupID || r.SourceID != spec.SourceID || r.CutUTC != spec.CutUTC || r.SchemaSHA256 != spec.SchemaSHA256 || r.SnapshotSHA256 != snapshotSHA256 || !recoveryImportProfileSupported(r) {
 		return RecoveryImportInspection{}, ErrRecoveryImport
 	}
 	if err = recoveryCheckMarkerCounts(ctx, tx, s.runtimeSchema, r.Tables); err != nil {

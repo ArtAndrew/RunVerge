@@ -207,7 +207,7 @@ func runRecoveryArchiveHost(ctx context.Context, args []string, out io.Writer) e
 		}{"authenticated_envelope_and_snapshot_framing", false, expectedReceipt, manifest})
 	}
 	if args[0] == "target-prepare" {
-		if !confirmed || output == "" || expectedInstallation == "" || manifest.Metadata.SchemaSHA256 != storage.EmbeddedSchemaSHA256() {
+		if !confirmed || output == "" || expectedInstallation == "" || !storage.SupportedRecoverySourceSchema(manifest.Metadata.SchemaSHA256) {
 			return recoveryArchiveUsage
 		}
 		if err = archive.Close(); err != nil {

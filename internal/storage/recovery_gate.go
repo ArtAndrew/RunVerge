@@ -181,7 +181,7 @@ func (s *Store) PrepareRecoveryTarget(ctx context.Context, spec RecoveryTargetSp
 	if err != nil || cut.UTC().Format(time.RFC3339Nano) != spec.CutUTC || cut.Nanosecond()%1000 != 0 ||
 		!validRecoveryID(spec.TargetInstallationID, "inst") ||
 		!validRecoveryID(spec.RestoreID, "restore") || !validRecoveryID(spec.BackupID, "bak") ||
-		!validRecoveryID(spec.SourceID, "inst") || spec.SchemaSHA256 != EmbeddedSchemaSHA256() {
+		!validRecoveryID(spec.SourceID, "inst") || !SupportedRecoverySourceSchema(spec.SchemaSHA256) {
 		return empty, domain.Err("invalid_request", "Invalid recovery target specification", 400)
 	}
 	tx, err := s.Pool.Begin(ctx)

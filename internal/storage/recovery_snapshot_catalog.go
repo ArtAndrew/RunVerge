@@ -316,12 +316,10 @@ func recoverySnapshotReadState(ctx context.Context, tx pgx.Tx, schema string, l 
 }
 
 func recoverySnapshotValidateHeader(h recoverySnapshotHeader) error {
-	raw, _ := json.Marshal(h.Inventory)
 	if h.Kind != "header" || h.Format != RecoverySnapshotFormat || h.APIVersion != domain.ContractVersion ||
 		!recoverySnapshotSourceID.MatchString(h.Metadata.SourceID) || !recoverySnapshotBackupID.MatchString(h.Metadata.BackupID) ||
-		h.Metadata.SchemaSHA256 != recoverySchemaSHA256() || !reflect.DeepEqual(h.Migrations, EmbeddedSchemaIdentity()) ||
+		!recoverySourceHeaderProfile(h) ||
 		h.PostgreSQLVersion < 180000 || h.PostgreSQLVersion >= 190000 || h.Encoding != "UTF8" ||
-		h.InventorySHA256 != recoverySnapshotInventorySHA256 || Hash(raw) != recoverySnapshotInventorySHA256 ||
 		len(h.MVCCSnapshot) == 0 || len(h.MVCCSnapshot) > 65536 {
 		return ErrRecoverySnapshotSchema
 	}

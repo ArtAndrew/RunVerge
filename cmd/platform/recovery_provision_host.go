@@ -78,7 +78,7 @@ func runRecoveryProvisionHost(ctx context.Context, args []string, out io.Writer)
 		}
 		m := report.Metadata
 		manifest := archive.Manifest()
-		if manifest.Metadata != (recoveryarchive.Metadata{BackupID: m.BackupID, SourceID: m.SourceID, CutUTC: m.CutUTC, SchemaSHA256: m.SchemaSHA256}) || manifest.PlaintextSHA256 != report.SHA256 || manifest.PlaintextBytes != report.WireBytes || m.SchemaSHA256 != storage.EmbeddedSchemaSHA256() {
+		if manifest.Metadata != (recoveryarchive.Metadata{BackupID: m.BackupID, SourceID: m.SourceID, CutUTC: m.CutUTC, SchemaSHA256: m.SchemaSHA256}) || manifest.PlaintextSHA256 != report.SHA256 || manifest.PlaintextBytes != report.WireBytes || !storage.SupportedRecoverySourceSchema(m.SchemaSHA256) {
 			return errors.New("provisioning requires a matching authenticated snapshot")
 		}
 		if err = archive.Close(); err != nil {

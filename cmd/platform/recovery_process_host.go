@@ -86,7 +86,7 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 				return errors.New("selected snapshot framing invalid")
 			}
 			m, manifest := report.Metadata, archive.Manifest()
-			if manifest.Metadata != (recoveryarchive.Metadata{BackupID: m.BackupID, SourceID: m.SourceID, CutUTC: m.CutUTC, SchemaSHA256: m.SchemaSHA256}) || manifest.PlaintextSHA256 != report.SHA256 || manifest.PlaintextBytes != report.WireBytes || m.SchemaSHA256 != storage.EmbeddedSchemaSHA256() {
+			if manifest.Metadata != (recoveryarchive.Metadata{BackupID: m.BackupID, SourceID: m.SourceID, CutUTC: m.CutUTC, SchemaSHA256: m.SchemaSHA256}) || manifest.PlaintextSHA256 != report.SHA256 || manifest.PlaintextBytes != report.WireBytes || !storage.SupportedRecoverySourceSchema(m.SchemaSHA256) {
 				return errors.New("source binding requires a matching authenticated snapshot")
 			}
 			if err = archive.Close(); err != nil {

@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -160,9 +159,9 @@ func (s *Store) stageRecoverySnapshotTx(ctx context.Context, tx pgx.Tx, archive 
 	if err != nil {
 		return recoveryStagedData{}, err
 	}
-	encoded, _ := json.Marshal(inventory)
-	if Hash(encoded) != snapshot.InventorySHA256 || snapshot.InventorySHA256 != recoverySnapshotInventorySHA256 {
-		return recoveryStagedData{}, ErrRecoveryStageSchema
+	inventory, err = recoverySourceInventory(inventory, snapshot.InventorySHA256)
+	if err != nil {
+		return recoveryStagedData{}, err
 	}
 	for _, table := range inventory.Tables {
 		if !table.Exported {
@@ -173,6 +172,13 @@ func (s *Store) stageRecoverySnapshotTx(ctx context.Context, tx pgx.Tx, archive 
 			return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageTarget)
 		}
 	}
+	return s.stageRecoveryTypedDataTx(ctx, tx, archive, snapshot, limits, held, catalog, inventory)
+}
+
+// Only temporary typed relations are created here. Callers independently prove
+// either empty-target import authority or exact imported-target evidence scope.
+func (s *Store) stageRecoveryTypedDataTx(ctx context.Context, tx pgx.Tx, archive *recoveryarchive.VerifiedArchive, snapshot RecoverySnapshotReport, limits RecoverySnapshotLimits, held RecoveryTargetState, catalog RecoverySemanticCatalog, inventory RecoverySnapshotInventory) (recoveryStagedData, error) {
+	var err error
 	var occupied bool
 	if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_class WHERE relnamespace=pg_catalog.pg_my_temp_schema())").Scan(&occupied); err != nil || occupied {
 		return recoveryStagedData{}, recoverySnapshotError(ctx, ErrRecoveryStageTarget)

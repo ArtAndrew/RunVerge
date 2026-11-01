@@ -181,7 +181,7 @@ func (r *RecoveryReader) read(ctx context.Context, token, org string, read func(
 		var cut time.Time
 		e = tx.QueryRow(ctx, `SELECT profile,target_installation_id,restore_id,backup_id,source_id,cut_at,snapshot_sha256,schema_sha256,inventory_sha256,catalog_sha256 FROM `+pgx.Identifier{s.runtimeSchema, "recovery_import_receipts"}.Sanitize()+` WHERE singleton`).Scan(&receipt.Profile, &receipt.TargetInstallationID, &receipt.RestoreID, &receipt.BackupID, &receipt.SourceID, &cut, &receipt.SnapshotSHA256, &receipt.SchemaSHA256, &receipt.InventorySHA256, &receipt.CatalogSHA256)
 		receipt.CutUTC = cut.UTC().Format(time.RFC3339Nano)
-		if e != nil || receipt.Profile != "pg18-held-import-v1" || receipt.TargetInstallationID != held.InstallationID || receipt.RestoreID != held.RestoreID || receipt.BackupID != held.BackupID || receipt.SourceID != held.SourceID || receipt.CutUTC != held.CutUTC || receipt.SchemaSHA256 != held.SchemaSHA256 || receipt.SchemaSHA256 != EmbeddedSchemaSHA256() || receipt.CatalogSHA256 != recoverySemanticCatalogSHA256 || receipt.InventorySHA256 != recoverySnapshotInventorySHA256 || receipt.SnapshotSHA256 != c.Binding.SnapshotSHA256 {
+		if e != nil || receipt.Profile != "pg18-held-import-v1" || receipt.TargetInstallationID != held.InstallationID || receipt.RestoreID != held.RestoreID || receipt.BackupID != held.BackupID || receipt.SourceID != held.SourceID || receipt.CutUTC != held.CutUTC || receipt.SchemaSHA256 != held.SchemaSHA256 || !recoveryImportProfileSupported(receipt) || receipt.SnapshotSHA256 != c.Binding.SnapshotSHA256 {
 			return ErrRecoveryRead
 		}
 		// Only this small header reaches a scoped reader; receipt reports contain

@@ -43,7 +43,7 @@ type RecoveryProvisionObservation struct {
 var recoveryProvisionName = regexp.MustCompile(`^rvg_(target|owner)_[a-f0-9]{32}$`)
 
 func validRecoveryProvision(p RecoveryProvisionIntent) bool {
-	return p.Version == 1 && validRecoveryID(p.OperationID, "restore") && p.SystemID != "" && p.MaintenanceOID != 0 && p.AdminOID != 0 && !p.ServerStartedAt.IsZero() && !p.CreatedAt.IsZero() && recoveryProvisionName.MatchString(p.Database) && recoveryProvisionName.MatchString(p.Owner) && p.Database == "rvg_target_"+p.OperationID[8:] && p.Owner == "rvg_owner_"+p.OperationID[8:] && validRecoveryID(p.BackupID, "bak") && validRecoveryID(p.SourceID, "inst") && validDigest(p.SnapshotSHA256) && p.SchemaSHA256 == EmbeddedSchemaSHA256()
+	return p.Version == 1 && validRecoveryID(p.OperationID, "restore") && p.SystemID != "" && p.MaintenanceOID != 0 && p.AdminOID != 0 && !p.ServerStartedAt.IsZero() && !p.CreatedAt.IsZero() && recoveryProvisionName.MatchString(p.Database) && recoveryProvisionName.MatchString(p.Owner) && p.Database == "rvg_target_"+p.OperationID[8:] && p.Owner == "rvg_owner_"+p.OperationID[8:] && validRecoveryID(p.BackupID, "bak") && validRecoveryID(p.SourceID, "inst") && validDigest(p.SnapshotSHA256) && SupportedRecoverySourceSchema(p.SchemaSHA256)
 }
 
 func recoveryProvisionMarker(p RecoveryProvisionIntent) string {
