@@ -102,3 +102,14 @@ The private files explain how far initialization reached:
 A database creation acknowledgment can be lost independently of application output.
 Partial objects remain available for operator investigation. No command here
 repairs a partial creation, resumes an old queue or declares recovery complete.
+
+## Verification of this candidate
+
+[The disposable PostgreSQL run](https://github.com/ArtAndrew/RunVerge/actions/runs/41316164535)
+passed creation, authenticated import, exact result reading with fresh access,
+revocation and retained execution hold. It also checked raw connection denial for
+restricted application credentials, isolation checks on reconnect, and wire loss
+before and after the database creation statement. Commands ran through compiled
+test helper processes. This is not an installed-package restore drill, a test of a
+specific old application binary, a macOS deployment check or permission to enable
+new work. The later source change only corrects this test's explanatory comment.

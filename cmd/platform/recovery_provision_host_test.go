@@ -18,8 +18,8 @@ func TestRecoveryHostAuthorProvisionedResultAcrossProcesses(t *testing.T) {
 	recoveryHostArchiveRoundTrip(t, true, true)
 }
 
-// Extend the installed-command archive/read test with a physically separate
-// database, rather than calling the creator and checker in the same process.
+// Extend the archive/read command test with a physically separate database.
+// Inspection and subsequent commands run in separate test helper processes.
 func recoveryHostProvisionedTarget(t *testing.T, ctx context.Context, parent string, selection []string) (*storage.Store, storage.RecoveryTargetState, string) {
 	t.Helper()
 	admin, err := pgx.Connect(ctx, os.Getenv("TEST_DATABASE_URL"))
