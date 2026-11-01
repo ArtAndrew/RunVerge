@@ -1,7 +1,7 @@
 # Stop a source Compose project — development candidate
 
 These host commands stop every container in a reviewed local Docker Compose
-project and disable its automatic restart. They are not included in alpha.5.
+project and disable its automatic restart. They are not included in alpha.6.
 Evaluate them only on disposable installations. They leave database volumes intact
 and never start a container, delete data, revoke an external credential or release
 the restored target's hold.

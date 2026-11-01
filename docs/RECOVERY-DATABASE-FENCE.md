@@ -1,7 +1,7 @@
 # Disconnect the source database — development candidate
 
 This recovery component stops new connections to a selected source database and
-terminates its existing database sessions. It is not in alpha.5. Use disposable
+terminates its existing database sessions. It is not in alpha.6. Use disposable
 test installations while evaluating it. The restored target remains held.
 
 **A disconnected database does not prove that all old agents stopped.** An agent

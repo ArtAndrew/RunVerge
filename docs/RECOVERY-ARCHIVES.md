@@ -2,7 +2,7 @@
 
 These host commands create an encrypted database snapshot, verify a selected
 backup and import it into a new, held target. They are not included in the
-published alpha.5 package. Use synthetic data for evaluation. The target stays
+published alpha.6 package. Use synthetic data for evaluation. The target stays
 closed to ordinary logins and workers; completing an import does not resume work.
 
 This is the same-schema path only. The source, target and binary must use the
