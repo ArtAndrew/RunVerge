@@ -97,6 +97,9 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
  CASE WHEN c.relname IN('recovery_import_receipts','recovery_historical_rows') THEN
  EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname IN('recovery_receipt_insert','recovery_mark_insert') AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_import_metadata_guard')
  AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname IN('recovery_receipt_permanent','recovery_mark_permanent') AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_import_metadata_guard')
+ WHEN c.relname IN('recovery_evidence_batches','recovery_evidence_chunks','recovery_evidence_changes') THEN
+ EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_evidence_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_evidence_guard')
+ AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_evidence_permanent' AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_evidence_guard')
  ELSE EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid
  WHERE t.tgrelid=c.oid AND t.tgname='recovery_runtime_write' AND t.tgenabled='O'
  AND t.tgtype=62 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='runtime_recovery_write_guard') END
@@ -140,7 +143,14 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
 				"TRUNCATE " + name + " CASCADE",
 			} {
 				_, err := s.Pool.Exec(ctx, statement)
-				independentRecoverySQLState(t, err, "55000")
+				expected := "55000"
+				if strings.HasPrefix(statement, "INSERT ") && (r.name == "recovery_evidence_batches" || r.name == "recovery_evidence_chunks" || r.name == "recovery_evidence_changes") {
+					// SQL024's guard requires an already committed import. On
+					// this empty held target its STRICT receipt lookup refuses
+					// the insert before any default/null constraint is checked.
+					expected = "P0002"
+				}
+				independentRecoverySQLState(t, err, expected)
 			}
 		})
 	}
