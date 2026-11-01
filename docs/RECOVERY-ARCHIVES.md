@@ -5,9 +5,13 @@ backup and import it into a new, held target. They are not included in the
 published alpha.6 package. Use synthetic data for evaluation. The target stays
 closed to ordinary logins and workers; completing an import does not resume work.
 
-This is the same-schema path only. The source, target and binary must use the
-same trusted migrations, including migration 023. There is no 022-to-023 archive
-conversion or supported upgrade here. Provision the target with trusted tools or the separate
+The candidate imports archives from its current trusted schema (SQL024) or the
+explicitly recognized SQL023 profile. New live exports require the current schema;
+SQL023 compatibility applies to saved archives. Source identity and schema remain
+in the receipt; the target is independently checked against SQL024. Arbitrary
+older schemas and alpha.6/SQL022 archives are not accepted. This compatibility
+path is undergoing runtime validation and is not a supported release upgrade.
+Provision the target with trusted tools or the separate
 [isolated target commands](RECOVERY-PROVISIONING.md). The archive commands below
 never create a database or run migrations.
 

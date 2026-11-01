@@ -1,7 +1,7 @@
 # Reading a held recovery target — development candidate
 
 These commands are part of an unreleased recovery component. They read a target
-already imported and held by the matching-schema recovery importer. They do not
+already imported and held by the supported-profile recovery importer. They do not
 create backups, import archives, upgrade an installation, stop the source server,
 reconcile later costs or enable new work. The published alpha support limits still
 apply. Use synthetic data while evaluating this candidate.

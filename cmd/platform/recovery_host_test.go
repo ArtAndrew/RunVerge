@@ -342,6 +342,9 @@ func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput, provision bool) {
 	if err != nil || !reflect.DeepEqual(report.Tables, afterReport.Tables) || !reflect.DeepEqual(report.Sequences, afterReport.Sequences) {
 		t.Fatal("source business data changed", err)
 	}
+	if lostOutput && !provision {
+		recoveryHostEvidenceRoundTrip(t, ctx, source, sourceFile, parent, stage, keys, bundle, configFile, receipt)
+	}
 	scopesFile := filepath.Join(parent, "scopes.json")
 	if err = os.WriteFile(scopesFile, []byte(`{"scopes":[{"subject":"current-owner","organization_id":"`+principal.OrganizationID+`"}]}`), 0600); err != nil {
 		t.Fatal(err)
