@@ -18,6 +18,7 @@ import (
 type engineFixture struct {
 	mu        sync.Mutex
 	rows      map[string]inspect
+	network   map[string]any
 	daemon    string
 	posts     []string
 	drop      string
@@ -62,6 +63,10 @@ func (e *engineFixture) serve(w http.ResponseWriter, r *http.Request) {
 	defer e.mu.Unlock()
 	path := strings.TrimPrefix(r.URL.Path, "/v1.45")
 	w.Header().Set("Content-Type", "application/json")
+	if path == "/networks/"+strings.Repeat("c", 64) {
+		json.NewEncoder(w).Encode(e.network)
+		return
+	}
 	if path == "/info" {
 		json.NewEncoder(w).Encode(map[string]any{"ID": e.daemon, "OSType": "linux", "Swarm": map[string]string{"LocalNodeState": "inactive"}})
 		return

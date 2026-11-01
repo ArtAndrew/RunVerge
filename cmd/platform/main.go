@@ -81,6 +81,13 @@ func run() error {
 			return e
 		}
 	}
+	if os.Args[1] == "serve" || os.Args[1] == "worker" {
+		closeControl, err := startRecoveryControl(ctx, s, os.Args[1])
+		if err != nil {
+			return err
+		}
+		defer closeControl()
+	}
 	switch os.Args[1] {
 	case "install-webhook-destination", "retire-webhook-destination":
 		return runWebhookHost(ctx, s, os.Args[1], os.Args[2:], os.Stdout)

@@ -9,8 +9,9 @@ the restored target's hold.
 This is a process-shutdown component, not a complete recovery procedure. A project
 name or Docker label does not prove which RunVerge installation owns the processes.
 The operator must identify the source independently and review every container in
-the plan. Verified source/target identity binding, target connection isolation,
-external credentials and post-backup reconciliation are still unfinished.
+the plan. The separate `source-stop-*` candidate below adds live source binding. Target connection
+isolation is covered by the provisioning component; external credentials,
+post-backup reconciliation and complete recovery remain unfinished.
 
 ## Boundary and prerequisites
 
@@ -51,7 +52,7 @@ platform recovery container-stop-plan \
 ```
 
 Planning captures the daemon identity and full container IDs, names, creation times,
-image identities and services. It performs no container mutation. Review that exact
+image identities, services, process start times and restart counts. It performs no container mutation. Review that exact
 inventory before applying within 15 minutes:
 
 ```sh
@@ -79,10 +80,10 @@ platform recovery container-stop-inspect --intent-file "$PRIVATE/container-stop.
 `project_processes_stopped: true` means the exact bound inventory was observed
 stopped, without live PIDs or exec instances and with automatic restart disabled.
 It is not a permanent certificate: an operator can still start or recreate a
-container. A later manual start is reported as not stopped; replacement, removal,
+container. A later manual start invalidates the saved process identity; replacement, removal,
 extra containers or a changed daemon identity refuse the observation.
 
-The command always reports `source_installation_bound: false`,
+The unbound `container-stop-*` commands always report `source_installation_bound: false`,
 `external_execution_fenced: false` and `external_effects_settled: false`.
 Requests already delivered to a remote service may finish or incur costs after the
 local process stops. Do not release reservations or resend historical work based
@@ -99,3 +100,57 @@ synthetic sender issues requests without a database connection, then stops with 
 project. The check loses command output, inspects from a new process, refuses a
 second apply and detects a deliberately restarted sender. Its short observation
 window does not prove settlement of external work or full restoration.
+
+## Bind shutdown to a selected backup and live installation
+
+The new `source-stop-*` commands require this candidate's Compose API and workers,
+with the explicit `RUNVERGE_RECOVERY_CONTROL=container_v1` setting. Each PID1 runtime
+serves a read-only witness on a private Unix socket; it is not an HTTP API feature.
+The helper uses the running process's database pool, not a substitute connection.
+The observer in the pinned database container matches fresh challenges and peer
+addresses against the planned API and worker endpoints. All helpers must finish
+before the shutdown plan can be saved or used.
+
+This profile requires direct `db:5432/runverge` connections, the restricted
+`runverge` role, one Compose bridge network, and two to eight API/worker processes.
+Proxy databases, extra peers, alternate DNS, active auxiliary containers and
+unrelated exec processes are refused. Stopped admin/migrate containers must have
+restart disabled. The operator must supply the runtime image ID from an independently
+trusted build/deployment record; do not copy it blindly from an untrusted plan.
+The host/Docker/exclusive-operator prerequisites above still apply.
+
+```sh
+platform recovery source-stop-plan \
+  --docker-socket /var/run/docker.sock --project "$SOURCE_PROJECT" \
+  --backup-dir "$PRIVATE/backup-001" --keys-file "$PRIVATE/archive-keys.json" \
+  --staging-parent "$PRIVATE/staging" \
+  --expected-receipt-sha256 "$RECORDED_RECEIPT_SHA256" \
+  --expected-runtime-image "$TRUSTED_RUNTIME_IMAGE_ID" \
+  --out "$PRIVATE/source-stop.json"
+
+platform recovery source-stop-apply \
+  --intent-file "$PRIVATE/source-stop.json" \
+  --expected-project "$SOURCE_PROJECT" --confirm-stop-project
+
+platform recovery source-stop-inspect --intent-file "$PRIVATE/source-stop.json"
+```
+
+Planning authenticates the selected archive and validates its snapshot framing and
+schema digest. It saves the snapshot digest, source installation ID, observed
+PostgreSQL system/database identity, exact inventory and live process boot IDs.
+Apply repeats the live witness before recording its one-use attempt and stopping
+containers. Restarting even the same container invalidates the old plan. Bound and
+unbound command families cannot be mixed to bypass this check.
+
+A successful bound inspection reports `source_installation_bound: true` and, only
+when every selected process is stopped, `bound_source_processes_stopped: true`.
+It still reports `external_execution_fenced: false` and
+`external_effects_settled: false`: this does not locate every possible executor on
+other hosts, settle already dispatched requests, or authorize new work on a
+restored target. The archive cutoff and stop time are different events.
+
+Local protocol/profile tests cover malformed requests, cancellation, concurrent
+witness refusal, changed endpoints, foreign peers, indirect connections and
+restarted identities. An installed Compose check is included for live binding,
+restart refusal and fresh-process stop inspection; this candidate is not accepted
+as a supported restore path until that check and the remaining recovery steps pass.

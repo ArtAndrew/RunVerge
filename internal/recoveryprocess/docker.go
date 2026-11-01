@@ -33,11 +33,13 @@ var projectName = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,62}$`)
 var operationID = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 type Container struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Service string `json:"service"`
-	Created string `json:"created"`
-	Image   string `json:"image"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Service      string `json:"service"`
+	Created      string `json:"created"`
+	Image        string `json:"image"`
+	StartedAt    string `json:"started_at"`
+	RestartCount int    `json:"restart_count"`
 }
 type Intent struct {
 	Version     int         `json:"version"`
@@ -48,14 +50,16 @@ type Intent struct {
 	Containers  []Container `json:"containers"`
 }
 type Observation struct {
-	OperationID             string           `json:"operation_id"`
-	Project                 string           `json:"project"`
-	ObservedAt              time.Time        `json:"observed_at"`
-	ProjectProcessesStopped bool             `json:"project_processes_stopped"`
-	SourceInstallationBound bool             `json:"source_installation_bound"`
-	ExternalExecutionFenced bool             `json:"external_execution_fenced"`
-	ExternalEffectsSettled  bool             `json:"external_effects_settled"`
-	Containers              []ContainerState `json:"containers"`
+	OperationID                 string           `json:"operation_id"`
+	Project                     string           `json:"project"`
+	ObservedAt                  time.Time        `json:"observed_at"`
+	ProjectProcessesStopped     bool             `json:"project_processes_stopped"`
+	SourceInstallationBound     bool             `json:"source_installation_bound"`
+	ExternalExecutionFenced     bool             `json:"external_execution_fenced"`
+	ExternalEffectsSettled      bool             `json:"external_effects_settled"`
+	BoundSourceProcessesStopped bool             `json:"bound_source_processes_stopped"`
+	SourceID                    string           `json:"source_id,omitempty"`
+	Containers                  []ContainerState `json:"containers"`
 }
 type ContainerState struct {
 	ID            string `json:"id"`
@@ -74,14 +78,18 @@ type inspect struct {
 	ID                   string `json:"Id"`
 	Name, Created, Image string
 	ExecIDs              []string
+	RestartCount         int
 	Config               *struct {
-		User   string
-		Labels map[string]string
+		User                 string
+		Image                string
+		Entrypoint, Cmd, Env []string
+		Labels               map[string]string
 	}
 	HostConfig *struct {
 		Privileged, AutoRemove, ReadonlyRootfs                           bool
 		PidMode, IpcMode, UTSMode, UsernsMode, CgroupnsMode, NetworkMode string
 		CapAdd, CapDrop, VolumesFrom, DeviceCgroupRules                  []string
+		Dns, DnsSearch, DnsOptions, ExtraHosts, Links                    []string
 		Devices, DeviceRequests                                          []json.RawMessage
 		RestartPolicy                                                    struct {
 			Name              string
@@ -92,6 +100,13 @@ type inspect struct {
 		Status                            string
 		Running, Paused, Restarting, Dead bool
 		Pid                               int
+		StartedAt                         string
+	}
+	NetworkSettings struct {
+		Networks map[string]struct {
+			NetworkID, EndpointID, IPAddress string
+			Aliases                          []string
+		}
 	}
 	Mounts []struct {
 		Type, Name, Source, Destination string
@@ -228,7 +243,7 @@ func (c *Client) container(ctx context.Context, id, project string) (inspect, er
 	return row, nil
 }
 func identity(r inspect) Container {
-	return Container{r.ID, r.Name, r.Config.Labels["com.docker.compose.service"], r.Created, r.Image}
+	return Container{r.ID, r.Name, r.Config.Labels["com.docker.compose.service"], r.Created, r.Image, r.State.StartedAt, r.RestartCount}
 }
 func state(r inspect) ContainerState {
 	s, h := r.State, r.HostConfig

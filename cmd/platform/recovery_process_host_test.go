@@ -23,7 +23,7 @@ func TestRecoveryProcessHostRequiresExactConsentBeforeDocker(t *testing.T) {
 	}
 	for _, flags := range [][]string{nil, {"--confirm-stop-project"}, {"--expected-project", "synthetic"}, {"--confirm-stop-project", "--expected-project", "different"}} {
 		args := append([]string{"container-stop-apply", "--intent-file", path}, flags...)
-		if err := runRecoveryHost(context.Background(), args, io.Discard); err == nil || err.Error() != "usage: platform recovery container-stop-plan|container-stop-inspect|container-stop-apply [explicit private file options]" {
+		if err := runRecoveryHost(context.Background(), args, io.Discard); err == nil || err.Error() != "usage: platform recovery container-stop-plan|container-stop-inspect|container-stop-apply|source-stop-plan|source-stop-inspect|source-stop-apply [explicit private file options]" {
 			t.Fatalf("consent not refused before connection: %v", err)
 		}
 	}

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Elastic-2.0
 """Exercise container shutdown only inside the caller's disposable Compose project."""
+import io
 import json
+import tarfile
 from pathlib import Path
 import subprocess
 import threading
@@ -9,7 +11,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
-def verify(command, compose, env, root, project, database):
+def verify(command, compose, env, root, project, database, runtime_url, image):
     # The parent created this exact project and owns its cleanup. No saved host
     # settings, user project, real model, tokens or business payloads are used.
     binary = root / 'platform-process-check'
@@ -19,6 +21,8 @@ def verify(command, compose, env, root, project, database):
     backup = root / 'transport-exclusion'
     backup.mkdir(mode=0o700)
     intent = root / 'private/container-stop.json'
+    verify_source_binding(command, compose, env, root, project, database, api,
+                          binary, runtime_url, image)
     counter = {'value': 0}
     lock = threading.Lock()
 
@@ -133,7 +137,7 @@ def verify(command, compose, env, root, project, database):
         # report non-stopped, even with its automatic restart policy disabled.
         command(['docker', 'start', sender])
         inspected = cli(['container-stop-inspect', '--intent-file', str(intent)])
-        if inspected.returncode or json.loads(inspected.stdout)['project_processes_stopped']:
+        if inspected.returncode == 0 and json.loads(inspected.stdout)['project_processes_stopped']:
             raise RuntimeError('Inspection accepted a manually restarted source process')
     finally:
         cleanup_errors = []
@@ -153,3 +157,146 @@ def verify(command, compose, env, root, project, database):
                 cleanup_errors.append(type(error).__name__)
         if cleanup_errors:
             raise RuntimeError('Synthetic shutdown resources were not fully removed')
+
+
+def verify_source_binding(command, compose, env, root, project, database, api,
+                          binary, runtime_url, image):
+    """Installed binary and actual PID1 pools; all inputs belong to this fixture."""
+    private = root / 'source-proof'
+    private.mkdir(mode=0o700)
+    stage = private / 'stage'
+    stage.mkdir(mode=0o700)
+    # The runtime has no shell. Copy a tiny UID-owned tar through Docker's
+    # archive API; do not add privileged tools or disclose credentials in argv.
+    data = json.dumps({'database_url': runtime_url}).encode()
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode='w') as archive:
+        for name in ('source-proof', 'source-proof/stage'):
+            member = tarfile.TarInfo(name)
+            member.type = tarfile.DIRTYPE
+            member.mode = 0o700
+            member.uid = member.gid = 10001
+            archive.addfile(member)
+        member = tarfile.TarInfo('source-proof/database.json')
+        member.mode = 0o600
+        member.uid = member.gid = 10001
+        member.size = len(data)
+        archive.addfile(member, io.BytesIO(data))
+    copied = subprocess.run(['docker', 'cp', '-a', '-', api + ':/tmp/'],
+                            input=buf.getvalue(), env=env, capture_output=True, timeout=30)
+    if copied.returncode:
+        raise RuntimeError('Source witness private fixture preparation failed')
+    remote = '/tmp/source-proof/'
+    command(['docker', 'exec', api, '/app/bin/platform', 'recovery', 'backup-keygen',
+             '--out', remote + 'keys.json'])
+    receipt = json.loads(command(['docker', 'exec', api, '/app/bin/platform', 'recovery',
+                         'backup-create', '--database-config', remote + 'database.json',
+                         '--keys-file', remote + 'keys.json', '--staging-parent', remote + 'stage',
+                         '--out-dir', remote + 'backup']))
+    command(['docker', 'cp', api + ':' + remote + 'backup', str(private / 'backup')])
+    command(['docker', 'cp', api + ':' + remote + 'keys.json', str(private / 'keys.json')])
+    image_id = command(['docker', 'image', 'inspect', '--format', '{{.Id}}', image]).strip()
+    source_id = receipt['manifest']['metadata']['source_id']
+
+    def cli(args, stdout=subprocess.PIPE):
+        return subprocess.run([str(binary), 'recovery', *args], env=env, stdout=stdout,
+                              stderr=subprocess.PIPE, timeout=150)
+
+    def require(result, label):
+        if result.returncode:
+            # Private stderr stays local; no raw archive/settings/secret output.
+            diagnostic = private / (label + '.stderr')
+            diagnostic.write_bytes(result.stderr)
+            diagnostic.chmod(0o600)
+            raise RuntimeError('Source binding fixture failed: ' + label)
+        return json.loads(result.stdout)
+
+    common = ['--docker-socket', '/var/run/docker.sock', '--project', project,
+              '--backup-dir', str(private / 'backup'), '--keys-file', str(private / 'keys.json'),
+              '--staging-parent', str(stage), '--expected-receipt-sha256', receipt['receipt_sha256'],
+              '--expected-runtime-image', image_id]
+    # An independently running exec is outside this binding's own challenge set.
+    unrelated = subprocess.Popen(['docker', 'exec', api, '/app/bin/platform', 'recovery',
+                                 'source-witness', '--expected-installation', source_id,
+                                 '--nonce', 'e' * 32, '--role', 'api'], env=env,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    try:
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if json.loads(command(['docker', 'inspect', api]))[0].get('ExecIDs'):
+                break
+            if unrelated.poll() is not None:
+                raise RuntimeError('Independent live witness failed to start')
+            time.sleep(0.05)
+        else:
+            raise RuntimeError('Independent live exec not observable')
+        refused = private / 'unknown-exec.json'
+        if cli(['source-stop-plan', *common, '--out', str(refused)]).returncode == 0 or refused.exists():
+            raise RuntimeError('Unrelated exec admitted into source binding')
+        unrelated.communicate(timeout=35)
+        if unrelated.returncode:
+            raise RuntimeError('Independent live witness did not finish')
+    finally:
+        if unrelated.poll() is None:
+            unrelated.kill()
+            unrelated.communicate(timeout=5)
+    old = private / 'before-restart.json'
+    initial = require(cli(['source-stop-plan', *common, '--out', str(old)]), 'plan-before-restart')
+    binding = initial['source_binding']
+    if binding['source_id'] != source_id or len(binding['processes']) != 2:
+        raise RuntimeError('Live source binding omitted PID1 processes')
+    # A stopped/started container has the same ID and image but a different boot.
+    command([*compose, 'restart', 'api'])
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        if json.loads(command(['docker', 'inspect', api]))[0]['State'].get('Health', {}).get('Status') == 'healthy':
+            break
+        time.sleep(0.2)
+    else:
+        raise RuntimeError('Source API did not restart')
+    apply = ['source-stop-apply', '--intent-file', str(old), '--expected-project', project,
+             '--confirm-stop-project']
+    if cli(apply).returncode == 0 or Path(str(old) + '.apply').exists():
+        raise RuntimeError('Old source process plan survived restart')
+    if cli(['container-stop-apply', '--intent-file', str(old), '--expected-project', project,
+            '--confirm-stop-project']).returncode == 0:
+        raise RuntimeError('Unbound command bypassed source revalidation')
+    current = private / 'source-stop.json'
+    require(cli(['source-stop-plan', *common, '--out', str(current)]), 'plan-current')
+    saved = json.loads(current.read_text())
+    # A wrong installation binding cannot authorize shutdown, even when all
+    # container IDs and the authenticated snapshot digest are otherwise exact.
+    changed = private / 'wrong-source.json'
+    saved['source_binding']['source_id'] = 'inst_' + ('f' if source_id != 'inst_' + 'f' * 32 else 'e') * 32
+    changed.write_text(json.dumps(saved))
+    changed.chmod(0o600)
+    if cli(['source-stop-apply', '--intent-file', str(changed), '--expected-project', project,
+            '--confirm-stop-project']).returncode == 0 or Path(str(changed) + '.apply').exists():
+        raise RuntimeError('Wrong source installation authorized a stop')
+    apply = ['source-stop-apply', '--intent-file', str(current), '--expected-project', project,
+             '--confirm-stop-project']
+    with open('/dev/full', 'wb') as lost_output:
+        if cli(apply, stdout=lost_output).returncode == 0:
+            raise RuntimeError('Lost source-stop output not reported')
+    observed = require(cli(['source-stop-inspect', '--intent-file', str(current)]), 'inspect-stopped')
+    if not observed['source_installation_bound'] or not observed['bound_source_processes_stopped'] or observed['source_id'] != source_id or observed['external_execution_fenced'] or observed['external_effects_settled']:
+        raise RuntimeError('Bound source shutdown scope incorrect')
+    if cli(apply).returncode == 0:
+        raise RuntimeError('Source shutdown repeated')
+    # No volume replacement: same DB container and data are restarted solely
+    # inside this disposable verifier for the existing synthetic-sender check.
+    command([*compose, 'start', 'db'])
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        if json.loads(command(['docker', 'inspect', database]))[0]['State'].get('Health', {}).get('Status') == 'healthy':
+            break
+        time.sleep(0.2)
+    else:
+        raise RuntimeError('Stopped source database did not restart')
+    command([*compose, 'start', 'api', 'worker'])
+    retained_source = command(['docker', 'exec', database, 'sh', '-ec',
+                               'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -X -w '
+                               '-h 127.0.0.1 -U runverge_admin -d runverge -At '
+                               '-v ON_ERROR_STOP=1 -c "SELECT installation_id FROM public.runtime_recovery_control WHERE singleton"']).strip()
+    if retained_source != source_id:
+        raise RuntimeError('Source data identity changed during stop/restart')
