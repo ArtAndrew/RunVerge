@@ -106,6 +106,9 @@ window does not prove settlement of external work or full restoration.
 The new `source-stop-*` commands require this candidate's Compose API and workers,
 with the explicit `RUNVERGE_RECOVERY_CONTROL=container_v1` setting. Each PID1 runtime
 serves a read-only witness on a private Unix socket; it is not an HTTP API feature.
+Compose pins the temporary filesystem owner/group to `10001` and mode to `0700`,
+including after restart. Do not substitute a one-time chmod: [Docker documents
+permission resets for tmpfs mounts](https://docs.docker.com/engine/storage/tmpfs/).
 The helper uses the running process's database pool, not a substitute connection.
 The observer in the pinned database container matches fresh challenges and peer
 addresses against the planned API and worker endpoints. All helpers must finish

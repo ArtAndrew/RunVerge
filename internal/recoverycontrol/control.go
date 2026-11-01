@@ -64,6 +64,9 @@ func Start(ctx context.Context, path, role string, witness Witness) (*Server, er
 		if errors.Is(err, os.ErrExist) {
 			stage = "witness directory already exists"
 		}
+		if errors.Is(err, os.ErrPermission) {
+			stage = "witness directory permission denied"
+		}
 		return nil, fmt.Errorf("%w: %s", ErrWitness, stage)
 	}
 	listener, err := net.Listen("unix", path)

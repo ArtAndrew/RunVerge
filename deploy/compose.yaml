@@ -11,7 +11,8 @@ x-application: &application
   read_only: true
   cap_drop: [ALL]
   security_opt: ["no-new-privileges:true"]
-  tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16m"]
+  # Explicit mount ownership survives restart; chmod of a prior tmpfs does not.
+  tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16m,uid=10001,gid=10001,mode=0700"]
   pids_limit: 128
   stop_grace_period: 30s
   env_file:
