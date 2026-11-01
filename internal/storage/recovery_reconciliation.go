@@ -307,7 +307,11 @@ func (s *Store) recoveryFinancialPlan(ctx context.Context, tx pgx.Tx, lateSchema
 			if r.Before.ImmutableSHA256 != r.After.ImmutableSHA256 {
 				block("reservation_identity_changed", key.org, key.id)
 			}
-			if !recoveryCostContinues(ctx, histories[0][key], histories[1][key], continuationWork) {
+			continuous, err := recoveryCostContinuationChecked(ctx, histories[0][key], histories[1][key], continuationWork)
+			if err != nil {
+				return err
+			}
+			if !continuous {
 				block("financial_history_not_contiguous", key.org, key.id)
 			}
 		}

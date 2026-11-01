@@ -6,6 +6,19 @@ import (
 	"strings"
 )
 
+// Exhaustion is not evidence of a broken financial history. Refuse the entire
+// plan so map iteration order cannot decide which reservations get blockers.
+func recoveryCostContinuationChecked(ctx context.Context, before, after *recoveryCostHistory, work *recoveryCostWork) (bool, error) {
+	if ctx.Err() != nil || work.hashes > recoveryCostMaxHashWork {
+		return false, ErrRecoveryReconciliation
+	}
+	valid := recoveryCostContinues(ctx, before, after, work)
+	if ctx.Err() != nil || work.hashes > recoveryCostMaxHashWork {
+		return false, ErrRecoveryReconciliation
+	}
+	return valid, nil
+}
+
 // Both histories have already passed recoveryCostCheck. This additional check
 // starts at the actual old checkpoint: validity of two independent snapshots
 // alone must not reorder a new unknown marker ahead of an old settlement.

@@ -201,6 +201,28 @@ func TestRecoveryReconciliationHistoryRequiresCheckpointContinuity(t *testing.T)
 		}
 		return h
 	}
+	t.Run("exhaustion_is_not_a_financial_blocker", func(t *testing.T) {
+		before, after := makeHistory(false, false, false), makeHistory(true, false, false)
+		work := &recoveryCostWork{hashes: recoveryCostMaxHashWork}
+		if valid, err := recoveryCostContinuationChecked(context.Background(), before, after, work); valid || err == nil {
+			t.Fatal("exhausted check returned a financial conclusion")
+		}
+		if valid, err := recoveryCostContinuationChecked(context.Background(), before, before, work); valid || err == nil {
+			t.Fatal("later unchanged history hid prior exhaustion")
+		}
+		if valid, err := recoveryCostContinuationChecked(context.Background(), before, after, &recoveryCostWork{}); !valid || err != nil {
+			t.Fatal("complete valid history was refused", err)
+		}
+		invalidBefore, invalidAfter := makeHistory(true, false, false), makeHistory(true, true, false)
+		if valid, err := recoveryCostContinuationChecked(context.Background(), invalidBefore, invalidAfter, &recoveryCostWork{}); valid || err != nil {
+			t.Fatal("actual discontinuity not distinguished from exhaustion", err)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		if valid, err := recoveryCostContinuationChecked(ctx, before, before, &recoveryCostWork{}); valid || err == nil {
+			t.Fatal("cancelled check returned a financial conclusion")
+		}
+	})
 	for _, scenario := range []struct {
 		name          string
 		before, after *recoveryCostHistory
