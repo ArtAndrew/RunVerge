@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/netip"
@@ -50,9 +51,13 @@ func planDigest(p Intent) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// Stage names are fixed classifications: never include Docker payloads, command
+// output, connection strings or archive data in an operator-facing error.
+func sourceError(stage string) error { return fmt.Errorf("%w (source:%s)", ErrProfile, stage) }
+
 func (c *Client) sourceProfile(ctx context.Context, p Intent, image string) (string, []Container, error) {
 	if !strings.HasPrefix(image, "sha256:") || !fullID.MatchString(strings.TrimPrefix(image, "sha256:")) {
-		return "", nil, ErrProfile
+		return "", nil, sourceError("image_id")
 	}
 	if _, err := c.Inspect(ctx, p); err != nil {
 		return "", nil, err
@@ -70,87 +75,87 @@ func (c *Client) sourceProfile(ctx context.Context, p Intent, image string) (str
 		}
 		h := row.HostConfig
 		if len(h.Dns)+len(h.DnsOptions)+len(h.DnsSearch)+len(h.ExtraHosts)+len(h.Links) != 0 {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("dns")
 		}
 		if len(row.ExecIDs) != 0 {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("active_exec")
 		}
 		if item.Service == "admin" || item.Service == "migrate" {
 			if !state(row).Stopped || row.Image != image || !slices.Equal(row.Config.Entrypoint, []string{"/app/bin/platform"}) {
-				return "", nil, ErrProfile
+				return "", nil, sourceError("auxiliary_state")
 			}
 			continue
 		}
 		started, err := time.Parse(time.RFC3339Nano, row.State.StartedAt)
 		if err != nil || started.IsZero() || !row.State.Running || len(row.NetworkSettings.Networks) != 1 {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("runtime_state")
 		}
 		endpoint, ok := row.NetworkSettings.Networks[p.Project+"_default"]
 		if !ok || !fullID.MatchString(endpoint.NetworkID) || !fullID.MatchString(endpoint.EndpointID) {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("network_endpoint")
 		}
 		ip, e := netip.ParseAddr(endpoint.IPAddress)
 		if e != nil || !ip.Is4() || ip.IsUnspecified() || ip.IsLoopback() {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("network_address")
 		}
 		active[item.ID] = endpoint.EndpointID
 		addresses[item.ID] = ip.String()
 		if network == "" {
 			network = endpoint.NetworkID
 		} else if network != endpoint.NetworkID {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("network_identity")
 		}
 		if item.Service == "db" {
 			if row.Config.Image != sourceDatabaseImage || !slices.Contains(endpoint.Aliases, "db") {
-				return "", nil, ErrProfile
+				return "", nil, sourceError("database_image")
 			}
 			db = item.ID
 			continue
 		}
 		if slices.Contains(endpoint.Aliases, "db") || row.Image != image || !slices.Equal(row.Config.Entrypoint, []string{"/app/bin/platform"}) {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("runtime_image")
 		}
 		if item.Service == "api" && !slices.Equal(row.Config.Cmd, []string{"serve", "--container-preview", "--listen", "0.0.0.0:8080"}) {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("api_command")
 		}
 		if item.Service == "worker" {
 			if len(row.Config.Cmd) != 3 || row.Config.Cmd[0] != "worker" || row.Config.Cmd[1] != "--concurrency" {
-				return "", nil, ErrProfile
+				return "", nil, sourceError("worker_command")
 			}
 			n, err := strconv.Atoi(row.Config.Cmd[2])
 			if err != nil || n < 1 || n > 64 || strconv.Itoa(n) != row.Config.Cmd[2] {
-				return "", nil, ErrProfile
+				return "", nil, sourceError("worker_concurrency")
 			}
 		}
 		env := map[string]string{}
 		for _, entry := range row.Config.Env {
 			key, value, ok := strings.Cut(entry, "=")
 			if !ok {
-				return "", nil, ErrProfile
+				return "", nil, sourceError("environment_shape")
 			}
 			if _, exists := env[key]; exists {
-				return "", nil, ErrProfile
+				return "", nil, sourceError("environment_duplicate")
 			}
 			env[key] = value
 			if strings.HasPrefix(key, "PG") && value != "" {
-				return "", nil, ErrProfile
+				return "", nil, sourceError("pg_environment")
 			}
 			if key == "POSTGRES_PASSWORD" || key == "RUNVERGE_APP_VERIFIER" {
-				return "", nil, ErrProfile
+				return "", nil, sourceError("admin_environment")
 			}
 		}
 		u, err := url.Parse(env["DATABASE_URL"])
 		if err != nil || u.Scheme != "postgres" || u.Host != "db:5432" || u.Path != "/runverge" || u.RawQuery != "sslmode=disable" || u.Fragment != "" || u.User == nil || u.User.Username() != "runverge" || env["RUNVERGE_RECOVERY_CONTROL"] != "container_v1" {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("database_url")
 		}
 		password, present := u.User.Password()
 		if !present || password == "" {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("database_password")
 		}
 		apps = append(apps, item)
 	}
 	if db == "" || len(apps) < 2 || len(apps) > 8 {
-		return "", nil, ErrProfile
+		return "", nil, sourceError("service_count")
 	}
 	var n struct {
 		ID, Name, Driver, Scope string
@@ -158,17 +163,17 @@ func (c *Client) sourceProfile(ctx context.Context, p Intent, image string) (str
 		Labels                  map[string]string
 	}
 	if c.call(ctx, "GET", "/networks/"+network, nil, &n, 200) != nil || n.ID != network || n.Name != p.Project+"_default" || n.Driver != "bridge" || n.Scope != "local" || n.Labels["com.docker.compose.project"] != p.Project {
-		return "", nil, ErrProfile
+		return "", nil, sourceError("network_inspection")
 	}
 	for id := range n.Containers {
 		if !members[id] || active[id] == "" {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("network_members")
 		}
 	}
 	for id, endpoint := range active {
 		peer, exists := n.Containers[id]
 		if !exists || peer.EndpointID != endpoint || strings.Split(peer.IPv4Address, "/")[0] != addresses[id] {
-			return "", nil, ErrProfile
+			return "", nil, sourceError("network_endpoint_match")
 		}
 	}
 	return db, apps, nil
@@ -326,7 +331,12 @@ func (c *Client) BindSource(ctx context.Context, p Intent, source, snapshot, ima
 	defer deadline.Stop()
 	for !proved {
 		observed, err = c.observeSource(bounded, db, nonces)
-		if err != nil || observed.SourceID != source {
+		if err != nil {
+			err = sourceError("database_observation")
+			break
+		}
+		if observed.SourceID != source {
+			err = sourceError("installation_identity")
 			break
 		}
 		proved = slices.Equal(observed.Nonces, expected)
@@ -335,7 +345,7 @@ func (c *Client) BindSource(ctx context.Context, p Intent, source, snapshot, ima
 				row, e := c.container(bounded, app.ID, p.Project)
 				if e != nil || observed.Peers["rvg_witness_"+nonces[i]] != row.NetworkSettings.Networks[p.Project+"_default"].IPAddress {
 					proved = false
-					err = ErrProfile
+					err = sourceError("database_peer")
 					break
 				}
 			}
@@ -348,7 +358,7 @@ func (c *Client) BindSource(ctx context.Context, p Intent, source, snapshot, ima
 			case <-bounded.Done():
 				err = ErrProfile
 			case <-deadline.C:
-				err = ErrProfile
+				err = sourceError("challenge_not_observed")
 			case <-time.After(150 * time.Millisecond):
 			}
 			if err != nil {
@@ -362,16 +372,19 @@ func (c *Client) BindSource(ctx context.Context, p Intent, source, snapshot, ima
 	for range apps {
 		select {
 		case result := <-replies:
-			if result.err != nil {
-				err = ErrProfile
+			if result.err != nil && err == nil {
+				err = sourceError("runtime_witness_response")
 			}
 			binding.Processes[result.index] = SourceProcess{apps[result.index].ID, result.reply.BootID}
 		case <-bounded.Done():
 			return zero, ErrProfile
 		}
 	}
-	if err != nil || !proved {
-		return zero, ErrProfile
+	if err != nil {
+		return zero, err
+	}
+	if !proved {
+		return zero, sourceError("challenge_not_observed")
 	}
 	if _, _, err = c.sourceProfile(bounded, p, image); err != nil {
 		return zero, err

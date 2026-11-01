@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -110,6 +111,9 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 	if operation == "container-stop-plan" {
 		saved.Intent, err = c.Plan(ctx, project)
 		if err != nil {
+			if bound {
+				return fmt.Errorf("%w (source:container_inventory)", err)
+			}
 			return err
 		}
 		if bound {

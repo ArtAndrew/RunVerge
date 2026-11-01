@@ -196,6 +196,16 @@ def verify_source_binding(command, compose, env, root, project, database, api,
 
     def require(result, label):
         if result.returncode:
+            fixed = ('container_inventory', 'image_id', 'dns', 'active_exec', 'auxiliary_state', 'runtime_state',
+                     'network_endpoint', 'network_address', 'network_identity', 'database_image',
+                     'runtime_image', 'api_command', 'worker_command', 'worker_concurrency',
+                     'environment_shape', 'environment_duplicate', 'pg_environment',
+                     'admin_environment', 'database_url', 'database_password', 'service_count',
+                     'network_inspection', 'network_members', 'network_endpoint_match',
+                     'database_observation', 'installation_identity', 'database_peer',
+                     'challenge_not_observed', 'runtime_witness_response')
+            code = next((name for name in fixed if ('(source:' + name + ')').encode() in result.stderr), 'unclassified')
+            progress(label + '_failed_' + code)
             # Private stderr stays local; no raw archive/settings/secret output.
             diagnostic = private / (label + '.stderr')
             diagnostic.write_bytes(result.stderr)
