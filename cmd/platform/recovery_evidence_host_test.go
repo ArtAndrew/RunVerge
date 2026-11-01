@@ -35,9 +35,13 @@ func recoveryHostEvidenceRoundTrip(t *testing.T, ctx context.Context, source *st
 	// This fixture authenticates a synthetic operator capture attestation.
 	// Actual live Docker/process binding belongs to the installed Compose gate.
 	op := strings.Repeat("c", 32)
-	saved := recoveryProcessFile{Intent: recoveryprocess.Intent{OperationID: op}, Binding: &recoveryprocess.SourceBinding{SourceID: old.Manifest.Metadata.SourceID, SnapshotSHA256: old.Manifest.PlaintextSHA256}, Capture: &recoverySourceCapture{Directory: lateDir, Keys: keys, Stage: stage, SelectedDirectory: selected, SelectedReceipt: old.ReceiptSHA256, SelectedCut: old.Manifest.Metadata.CutUTC}}
+	saved := recoveryProcessFile{Intent: recoveryprocess.Intent{OperationID: op, Containers: []recoveryprocess.Container{}}, Binding: &recoveryprocess.SourceBinding{SourceID: old.Manifest.Metadata.SourceID, SnapshotSHA256: old.Manifest.PlaintextSHA256, Processes: []recoveryprocess.SourceProcess{}}, Capture: &recoverySourceCapture{Directory: lateDir, Keys: keys, Stage: stage, SelectedDirectory: selected, SelectedReceipt: old.ReceiptSHA256, SelectedCut: old.Manifest.Metadata.CutUTC}}
 	path := recoveryHostPrivateJSON(t, filepath.Join(parent, "capture-plan.json"), saved)
-	state := recoveryprocess.Observation{OperationID: op}
+	var decoded recoveryProcessFile
+	if err := readRecoveryFenceJSON(path, &decoded); err != nil {
+		t.Fatal("synthetic capture plan shape", err)
+	}
+	state := recoveryprocess.Observation{OperationID: op, Containers: []recoveryprocess.ContainerState{}}
 	recoveryHostPrivateJSON(t, path+".capture-state", state)
 	link := recoveryarchive.CaptureLink{Version: 1, OperationID: op, SourceID: old.Manifest.Metadata.SourceID, SelectedReceiptSHA256: old.ReceiptSHA256, SelectedSnapshotSHA256: old.Manifest.PlaintextSHA256, SelectedCutUTC: old.Manifest.Metadata.CutUTC, BindingSHA256: captureHash(saved.Binding), StoppedExecutorsSHA256: captureHash(state), EvidenceReceiptSHA256: late.ReceiptSHA256, EvidenceSnapshotSHA256: late.Manifest.PlaintextSHA256, EvidenceCutUTC: late.Manifest.Metadata.CutUTC, CapturedAt: time.Now().UTC()}
 	if err = recoveryarchive.WriteHostCaptureLink(path+".capture", keys, link); err != nil {
