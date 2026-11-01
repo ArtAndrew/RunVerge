@@ -33,7 +33,7 @@ def verify(evidence, image):
     container = project + '-bootstrap'
     root = Path(tempfile.mkdtemp(prefix='runverge-compose-check-'))
     report = {'scope': 'disposable_linux_container_fixture_and_restart', 'passed': False,
-              'steps': [], 'cleanup_complete': False,
+              'steps': [], 'recovery_checks': [], 'cleanup_complete': False,
               'not_proven': ['real_model_quality', 'named_cloud_provider', 'backup_restore',
                              'upgrades', 'multi_user_security', 'production_readiness']}
     with socket.socket() as listener:
@@ -265,8 +265,13 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
         command(health)
         step('readiness_refuses_elevated_role_wrong_settings_and_missing_volume_marker')
         phase = 'verify_explicit_container_shutdown'
+        def recovery_progress(name):
+            report['recovery_step'] = name
+            if name.endswith('_passed'):
+                report['recovery_checks'].append(name)
+
         verify_recovery_process.verify(command, compose, env, root, project, database, runtime_url, image,
-                                       lambda name: report.update(recovery_step=name))
+                                       recovery_progress)
         step('bound_source_live_pools_restart_refusal_stop_and_fresh_inspection')
         step('explicit_container_shutdown_lost_output_inspection_and_stopped_synthetic_sender')
         report['passed'] = True

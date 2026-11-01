@@ -444,6 +444,7 @@ def verify_held_evidence(command, env, private, project, source_database,
             raise RuntimeError('Recovery evidence changed after target restart')
         if require(cli(plan_args), 'reconciliation-plan-after-restart')['plan_sha256'] != financial_plan['plan_sha256']:
             raise RuntimeError('Financial plan changed across target restart')
+        progress('reconciliation_plan_restart_passed')
         progress('held_evidence_roundtrip_passed')
     finally:
         if created and re.fullmatch(r'[a-f0-9]{64}', created):
