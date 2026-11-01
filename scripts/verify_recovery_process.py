@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Elastic-2.0
 """Exercise container shutdown only inside the caller's disposable Compose project."""
-import io
 import json
-import tarfile
+import os
 from pathlib import Path
 import subprocess
 import threading
@@ -170,38 +169,24 @@ def verify_source_binding(command, compose, env, root, project, database, api,
     private.mkdir(mode=0o700)
     stage = private / 'stage'
     stage.mkdir(mode=0o700)
-    # The runtime has no shell. Copy a tiny UID-owned tar through Docker's
-    # archive API; do not add privileged tools or disclose credentials in argv.
-    data = json.dumps({'database_url': runtime_url}).encode()
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode='w') as archive:
-        for name in ('source-proof', 'source-proof/stage'):
-            member = tarfile.TarInfo(name)
-            member.type = tarfile.DIRTYPE
-            member.mode = 0o700
-            member.uid = member.gid = 10001
-            archive.addfile(member)
-        member = tarfile.TarInfo('source-proof/database.json')
-        member.mode = 0o600
-        member.uid = member.gid = 10001
-        member.size = len(data)
-        archive.addfile(member, io.BytesIO(data))
-    copied = subprocess.run(['docker', 'cp', '-a', '-', api + ':/tmp/'],
-                            input=buf.getvalue(), env=env, capture_output=True, timeout=30)
-    if copied.returncode:
-        raise RuntimeError('Source witness private fixture preparation failed')
-    remote = '/tmp/source-proof/'
+    # Create the archive through the existing operator CLI, in a private host
+    # directory mounted into a disposable admin container. Do not copy private
+    # inputs into the read-only application runtime through Docker's archive API.
+    # Matching the host UID preserves private file ownership without chmod 777.
+    config = private / 'database.json'
+    with config.open('x') as stream:
+        config.chmod(0o600)
+        json.dump({'database_url': runtime_url}, stream)
+    admin = [*compose, '--profile', 'admin', 'run', '--rm', '--no-deps',
+             '--user', str(os.getuid()) + ':' + str(os.getgid()),
+             '--volume', str(private) + ':/source', 'admin', 'recovery']
     progress('source_backup_keygen')
-    command(['docker', 'exec', api, '/app/bin/platform', 'recovery', 'backup-keygen',
-             '--out', remote + 'keys.json'])
+    command([*admin, 'backup-keygen', '--out', '/source/keys.json'])
     progress('source_backup_create')
-    receipt = json.loads(command(['docker', 'exec', api, '/app/bin/platform', 'recovery',
-                         'backup-create', '--database-config', remote + 'database.json',
-                         '--keys-file', remote + 'keys.json', '--staging-parent', remote + 'stage',
-                         '--out-dir', remote + 'backup']))
-    progress('source_backup_copy')
-    command(['docker', 'cp', api + ':' + remote + 'backup', str(private / 'backup')])
-    command(['docker', 'cp', api + ':' + remote + 'keys.json', str(private / 'keys.json')])
+    receipt = json.loads(command([*admin, 'backup-create',
+                         '--database-config', '/source/database.json',
+                         '--keys-file', '/source/keys.json', '--staging-parent', '/source/stage',
+                         '--out-dir', '/source/backup']))
     image_id = command(['docker', 'image', 'inspect', '--format', '{{.Id}}', image]).strip()
     source_id = receipt['manifest']['metadata']['source_id']
 
