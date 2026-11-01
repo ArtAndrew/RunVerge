@@ -86,12 +86,14 @@ func stageIndependentCapture(t *testing.T, s *Store) stageIndependentImage {
 		} else if v.name != "schema_migrations" && v.name != "runtime_recovery_control" && v.name != "recovery_import_receipts" && v.name != "recovery_historical_rows" {
 			var count int64
 			if err := s.Pool.QueryRow(ctx, "SELECT count(*) FROM "+name).Scan(&count); err != nil || count != 0 {
-				t.Fatal("held target contains business rows", v.name, err)
+				t.Fatal("held target contains business or evidence rows", v.name, err)
 			}
 			image.Rows[v.name] = count
 		}
 	}
-	if len(image.Rows) != 68 || len(image.Seq) != 2 || image.Control.State != "held" {
+	// Observe all 68 business tables plus the three target-local evidence
+	// tables. Validation of an empty target must leave every one empty.
+	if len(image.Rows) != 71 || len(image.Seq) != 2 || image.Control.State != "held" {
 		t.Fatal("unexpected target observation coverage", len(image.Rows), len(image.Seq))
 	}
 	return image
