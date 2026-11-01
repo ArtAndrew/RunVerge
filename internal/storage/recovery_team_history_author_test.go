@@ -3,6 +3,7 @@ package storage
 
 import (
 	"agentplatform.local/platform/internal/domain"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -142,7 +143,61 @@ func TestRecoveryTeamHistoryAuthorNestedRetry(t *testing.T) {
 	if err = tx.Rollback(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	// Exercise the entire signed staging path, including nested alpha.6 feedback.
 	recoveryConfigurationObservedStage(t, source)
+	var snapshot bytes.Buffer
+	if _, err = source.ExportRecoverySnapshot(context.Background(), &snapshot, DefaultRecoverySnapshotLimits()); err != nil {
+		t.Fatal(err)
+	}
+	var childRun string
+	if err = source.Pool.QueryRow(context.Background(), `SELECT m.child_run_id FROM team_members m WHERE m.organization_id=$1 AND m.parent_run_id=$2 AND m.member_id='last'`, p.OrganizationID, root.CurrentRunID).Scan(&childRun); err != nil {
+		t.Fatal(err)
+	}
+	target, spec, held := recoveryStageAuthorTarget(t, snapshot.Bytes())
+	for _, scenario := range []struct {
+		name, feedback string
+		valid          bool
+	}{
+		{"legacy_child_with_exact_parent", "", true},
+		{"invented_feedback_with_valid_digest", "Unrecorded instruction", false},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			modified := recoveryStageAuthorRewrite(t, snapshot.Bytes(), func(f *recoveryStageAuthorFixture) {
+				id := recoveryAuthorColumn(t, f.header, "runs", "id")
+				body := recoveryAuthorColumn(t, f.header, "runs", "input_context")
+				digest := recoveryAuthorColumn(t, f.header, "runs", "input_digest")
+				found := false
+				for _, row := range f.rows["runs"] {
+					if string(row[id]) != childRun {
+						continue
+					}
+					var input domain.RunInput
+					if err := json.Unmarshal(row[body], &input); err != nil || input.Feedback != "Use the same frozen plan" {
+						t.Fatal("revised child feedback fixture missing", err)
+					}
+					input.Feedback = scenario.feedback
+					text, hash, err := BuildRunInput(input)
+					if err != nil {
+						t.Fatal(err)
+					}
+					row[body], row[digest] = []byte(text), []byte(hash)
+					found = true
+				}
+				if !found {
+					t.Fatal("revised child missing from snapshot")
+				}
+			})
+			report, err := target.CheckRecoverySnapshotData(context.Background(), recoveryStageAuthorArchive(t, modified), spec, DefaultRecoverySnapshotLimits())
+			if scenario.valid {
+				if err != nil || !report.RollbackConfirmed || report.FullSemanticValidation {
+					t.Fatal("legacy exact input rejected", err)
+				}
+			} else if !errors.Is(err, ErrRecoveryTeamHistory) {
+				t.Fatal("rehashed unrecorded feedback accepted", err)
+			}
+			recoveryStageAuthorAssertUntouched(t, target, held)
+		})
+	}
 }
 
 func TestRecoveryTeamHistoryAuthorLongDefinition(t *testing.T) {

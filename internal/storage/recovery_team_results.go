@@ -59,12 +59,14 @@ func validateRecoveryTeamResults(ctx context.Context, tx pgx.Tx, schema string, 
 			return recoverySnapshotError(ctx, ErrRecoveryTeamHistory)
 		}
 		originalGoal := parentGoal
+		parentFeedback := ""
 		if parentInput != "" {
 			var previous domain.RunInput
 			if decodeRecoveryHistoryJSON([]byte(parentInput), &previous, domain.MaxRunInputBytes) != nil {
 				return ErrRecoveryTeamHistory
 			}
 			originalGoal = previous.OriginalGoal
+			parentFeedback = previous.Feedback
 		}
 		rows, err := tx.Query(ctx, `SELECT member_id,child_task_id,COALESCE(child_run_id,''),status,COALESCE(selected_candidate_id,''),COALESCE(selected_artifact_id,''),COALESCE(selected_artifact_version,0),COALESCE(selected_content_digest,'') FROM `+q("team_members")+` WHERE organization_id=$1 AND parent_run_id=$2 ORDER BY ordinal`, e.org, e.run)
 		if err != nil {
@@ -125,8 +127,7 @@ func validateRecoveryTeamResults(ctx context.Context, tx pgx.Tx, schema string, 
 					input.Sources = []domain.RunSource{*previous.Source}
 					sourceID = previous.Source.CandidateID
 				}
-				body, digest, err := BuildRunInput(input)
-				if err != nil || body != actualInput || digest != actualDigest || sourceID != actualSource || principal != parentPrincipal || feedback != "" || attempt != 1 {
+				if !recoveryTeamInputMatches(input, parentFeedback, actualInput, actualDigest) || sourceID != actualSource || principal != parentPrincipal || feedback != "" || attempt != 1 {
 					return ErrRecoveryTeamHistory
 				}
 			}
@@ -265,4 +266,22 @@ func recoveryCheckInheritedSelection(ctx context.Context, tx pgx.Tx, schema stri
 		}
 	}
 	return nil
+}
+
+// Alpha.6 copies the parent's feedback into each child input. Earlier runs kept
+// it only inside the exact parent context. Neither representation has a format
+// marker: accept only these two exact serializations, without rewriting history
+// or inferring which release produced it. All other input fields remain bound.
+func recoveryTeamInputMatches(input domain.RunInput, parentFeedback, actualInput, actualDigest string) bool {
+	input.Feedback = parentFeedback
+	body, digest, err := BuildRunInput(input)
+	if err == nil && body == actualInput && digest == actualDigest {
+		return true
+	}
+	if parentFeedback == "" {
+		return false
+	}
+	input.Feedback = ""
+	body, digest, err = BuildRunInput(input)
+	return err == nil && body == actualInput && digest == actualDigest
 }
