@@ -156,6 +156,22 @@ restored target. The archive cutoff and stop time are different events.
 
 Local protocol/profile tests cover malformed requests, cancellation, concurrent
 witness refusal, changed endpoints, foreign peers, indirect connections and
-restarted identities. An installed Compose check is included for live binding,
-restart refusal and fresh-process stop inspection; this candidate is not accepted
-as a supported restore path until that check and the remaining recovery steps pass.
+restarted identities. The installed Compose verifier passed on native Linux amd64
+and arm64 at commit `f7cb1bc7d2c39069c38ce750e9591bf2716dcb6d` in
+[GitHub Actions run 41323599315](https://github.com/ArtAndrew/RunVerge/actions/runs/41323599315).
+Both architectures used source digest
+`7beaf1e90c8727c4f5ed2edbea1805ff68bc6464762772b4d1f1d9dc6f09cabe`.
+
+That check created an authenticated backup using the installed operator CLI,
+obtained witnesses from the live API and worker, refused a persistent unrelated
+exec, invalidated a plan after an API restart, refused a wrong source ID and a
+command-family bypass, then lost shutdown output and inspected from a fresh
+process. Repeated apply was refused. Restarting the database retained its source
+installation identity. The existing task/result/cost restart check and synthetic
+sender shutdown also passed. Disposable resources were removed; no real model or
+working installation was used.
+
+This accepts the source-binding/process-shutdown component within its declared
+Linux profile. It does not accept complete restoration, external-effect settlement,
+post-backup accounting reconciliation, enabling new work, a populated alpha.6
+upgrade or native macOS source shutdown. Published alpha.6 is unchanged.
