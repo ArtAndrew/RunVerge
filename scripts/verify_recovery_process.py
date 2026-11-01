@@ -5,6 +5,7 @@ import json
 import os
 import re
 import secrets
+import socket
 from pathlib import Path
 import subprocess
 import threading
@@ -212,6 +213,14 @@ def verify_source_binding(command, compose, env, root, project, database, api,
                      'database_observation', 'installation_identity', 'database_peer',
                      'challenge_not_observed', 'runtime_witness_response')
             code = next((name for name in fixed if ('(source:' + name + ')').encode() in result.stderr), 'unclassified')
+            if code == 'unclassified':
+                reasons = {
+                    b'explicit recovery target unavailable': 'target_unavailable',
+                    b'recovery evidence not accepted': 'evidence_rejected',
+                    b'unsupported recovery semantic catalogue': 'target_catalogue',
+                    b'explicit private source and target selectors required': 'private_selectors',
+                }
+                code = next((label for message, label in reasons.items() if message in result.stderr), code)
             progress(label + '_failed_' + code)
             # Private stderr stays local; no raw archive/settings/secret output.
             diagnostic = private / (label + '.stderr')
@@ -339,12 +348,16 @@ def verify_held_evidence(command, env, private, project, source_database,
         stream.write('POSTGRES_USER=runverge_recovery_operator\nPOSTGRES_PASSWORD=' + password +
                      '\nPOSTGRES_DB=postgres\nPOSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C\n')
     # Only this fixture creates/deletes this container and its anonymous volume.
-    # Its port is allocated by Docker and bound only to the runner's loopback.
+    # Use an explicit loopback port across restart. A Docker-allocated host
+    # port is not a durable endpoint for the saved private target intent.
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        target_port = listener.getsockname()[1]
     created = None
     try:
         created = command(['docker', 'run', '-d', '--name', name,
                            '--label', 'runverge.check.owner=' + project,
-                           '--env-file', str(settings), '-p', '127.0.0.1::5432', pg_image]).strip()
+                           '--env-file', str(settings), '-p', '127.0.0.1:' + str(target_port) + ':5432', pg_image]).strip()
         if not re.fullmatch(r'[a-f0-9]{64}', created):
             raise RuntimeError('Disposable recovery container identity missing')
         deadline = time.monotonic() + 40
@@ -358,7 +371,7 @@ def verify_held_evidence(command, env, private, project, source_database,
         else:
             raise RuntimeError('Disposable recovery database did not start')
         ports = json.loads(command(['docker', 'inspect', name]))[0]['NetworkSettings']['Ports']['5432/tcp']
-        if len(ports) != 1 or ports[0]['HostIp'] != '127.0.0.1':
+        if len(ports) != 1 or ports[0]['HostIp'] != '127.0.0.1' or ports[0]['HostPort'] != str(target_port):
             raise RuntimeError('Recovery fixture listener is not loopback-only')
         config = private / 'target-maintenance.json'
         with config.open('x') as stream:
@@ -415,6 +428,10 @@ def verify_held_evidence(command, env, private, project, source_database,
             time.sleep(0.2)
         else:
             raise RuntimeError('Recovery target did not restart')
+        restarted_ports = json.loads(command(['docker', 'inspect', created]))[0]['NetworkSettings']['Ports']['5432/tcp']
+        if restarted_ports != ports:
+            progress('evidence_target_endpoint_changed')
+            raise RuntimeError('Recovery fixture endpoint changed after restart')
         if require(cli(inspection), 'evidence-target-restarted-inspect') != report:
             raise RuntimeError('Recovery evidence changed after target restart')
         progress('held_evidence_roundtrip_passed')
