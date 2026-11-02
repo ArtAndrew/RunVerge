@@ -106,6 +106,14 @@ func (s *Store) PlanRecoveryUsageReadback(ctx context.Context, selected, late *r
 		result.RollbackConfirmed = true
 		result.PlanSHA256 = digestValue(result)
 	}()
+	return s.planRecoveryUsageReadbackTx(ctx, tx, selected, late, verified, spec, limits, selection, original, later)
+}
+
+// The caller owns the transaction and its outcome. This builder does not report
+// rollback or seal a display digest; the public planning wrapper does that only
+// after successful rollback. Durable admission separately reconstructs the
+// acquired plan's commitment and never reports its write transaction as rolled back.
+func (s *Store) planRecoveryUsageReadbackTx(ctx context.Context, tx pgx.Tx, selected, late *recoveryarchive.VerifiedArchive, verified *recoveryarchive.VerifiedCaptureLink, spec RecoveryTargetSpec, limits RecoverySnapshotLimits, selection RecoveryUsageSelection, original, later RecoverySnapshotReport) (result RecoveryUsageReadbackPlan, resultErr error) {
 	held, catalog, err := s.evidenceTargetTx(ctx, tx, spec, original.SHA256)
 	if err != nil {
 		return result, err

@@ -103,6 +103,10 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
  WHEN c.relname IN('recovery_accounting_batches','recovery_accounting_mutations','recovery_accounting_applied') THEN
  EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_accounting_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_accounting_metadata_guard')
  AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_accounting_permanent' AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_accounting_metadata_guard')
+ AND (c.relname<>'recovery_accounting_batches' OR EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_accounting_profile_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_accounting_profile_guard'))
+ WHEN c.relname='recovery_usage_observations' THEN
+ EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_usage_observation_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_usage_observation_guard')
+ AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_usage_observation_permanent' AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_usage_observation_guard')
  ELSE EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid
  WHERE t.tgrelid=c.oid AND t.tgname='recovery_runtime_write' AND t.tgenabled='O'
  AND t.tgtype=62 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='runtime_recovery_write_guard') END
@@ -121,7 +125,7 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !guarded {
-			t.Errorf("business relation %s lacks complete statement guard", r.name)
+			t.Errorf("relation %s lacks its complete recovery guards", r.name)
 		}
 		relations = append(relations, r)
 	}
@@ -129,8 +133,10 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if len(relations) < 60 {
-		t.Fatal("unexpectedly narrow business inventory", len(relations))
+	// SQL026 has 68 business relations plus nine target-local metadata
+	// relations here; schema_migrations and runtime_recovery_control are separate.
+	if len(relations) != 77 {
+		t.Fatal("unexpected recovery relation inventory", len(relations))
 	}
 	if _, err := s.PrepareRecoveryTarget(ctx, independentRecoverySpec(t, s)); err != nil {
 		t.Fatal(err)
@@ -147,8 +153,8 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
 			} {
 				_, err := s.Pool.Exec(ctx, statement)
 				expected := "55000"
-				if strings.HasPrefix(statement, "INSERT ") && (r.name == "recovery_evidence_batches" || r.name == "recovery_evidence_chunks" || r.name == "recovery_evidence_changes" || r.name == "recovery_accounting_batches" || r.name == "recovery_accounting_mutations" || r.name == "recovery_accounting_applied") {
-					// The evidence/accounting guard requires an already committed import. On
+				if strings.HasPrefix(statement, "INSERT ") && (r.name == "recovery_evidence_batches" || r.name == "recovery_evidence_chunks" || r.name == "recovery_evidence_changes" || r.name == "recovery_accounting_batches" || r.name == "recovery_accounting_mutations" || r.name == "recovery_accounting_applied" || r.name == "recovery_usage_observations") {
+					// Evidence, accounting and usage guards require a committed import. On
 					// this empty held target its STRICT receipt lookup refuses
 					// the insert before any default/null constraint is checked.
 					expected = "P0002"
@@ -173,7 +179,7 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
 	if err := s.CheckRuntimeAdmission(ctx); !errors.Is(err, RecoveryHeld) {
 		t.Fatal("migration replay cleared hold", err)
 	}
-	t.Logf("checked four raw statement classes on %d business relations", len(relations))
+	t.Logf("checked four raw statement classes on %d business and recovery metadata relations", len(relations))
 }
 
 func TestRecoveryGateIndependentMissingControlIsNotReinitialized(t *testing.T) {

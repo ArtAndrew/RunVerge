@@ -29,12 +29,15 @@ func (s *Store) AcquireRecoveryUsage(ctx context.Context, selected, late *recove
 	if plan.State != "request_identity_available" || !plan.ExecutionHeld || !plan.RollbackConfirmed {
 		return recoveryaccess.AcquiredUsageObservation{}, ErrRecoveryUsageBinding
 	}
-	request := recoveryaccess.UsageRequest{
+	return recoveryaccess.ObserveHostUsage(ctx, authorityPath, recoveryUsageRequestFromPlan(plan))
+}
+
+func recoveryUsageRequestFromPlan(plan RecoveryUsageReadbackPlan) recoveryaccess.UsageRequest {
+	return recoveryaccess.UsageRequest{
 		Binding:          recoveryaccess.Binding{TargetID: plan.TargetID, RestoreID: plan.RestoreID, SnapshotSHA256: plan.SelectedSnapshotSHA256},
 		SourcePlanSHA256: plan.PlanSHA256, SourceID: plan.SourceID, OrganizationID: plan.Selection.OrganizationID,
 		ModelConnectionID: plan.ModelConnectionID, ModelConnectionVersion: plan.ModelConnectionVersion,
 		ConnectionIdentitySHA256: plan.ConnectionIdentitySHA, ArchivedProviderAccount: plan.ArchivedProviderAccount,
 		GenerationID: plan.GenerationID, Model: plan.Model,
 	}
-	return recoveryaccess.ObserveHostUsage(ctx, authorityPath, request)
 }

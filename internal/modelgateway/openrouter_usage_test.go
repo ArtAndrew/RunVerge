@@ -28,6 +28,40 @@ import (
 
 const usageFixtureJSON = `{"data":{"id":"gen-fixture-123","model":"example/model","total_cost":0.000003,"is_byok":false,"upstream_inference_cost":null}}`
 
+func TestUsageRetainedRepresentation(t *testing.T) {
+	for _, cost := range []string{"0", "3e-6", "0.0000001", "9223372036854775808", "1.0000000"} {
+		t.Run(cost, func(t *testing.T) {
+			raw := []byte(fmt.Sprintf(`{"data":{"id":"gen-retained","model":"example/model","total_cost":%s,"is_byok":true}}`, cost))
+			o, err := decodeOpenRouterUsage(raw, "gen-retained", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := o.Record()
+			r.ObservedAt = time.Now().UTC()
+			if !UsageObservationMatchesBytes(raw, r) || r.TotalCostCredits != cost || !r.IsBYOK || r.SettlementState != "unverified" {
+				t.Fatal("retained representation lost")
+			}
+			mutations := []func(*UsageObservationRecord){
+				func(r *UsageObservationRecord) { r.ExactMicroUSD = "999" },
+				func(r *UsageObservationRecord) { r.TotalCostCredits = "0.1" },
+				func(r *UsageObservationRecord) { r.IsBYOK = false },
+				func(r *UsageObservationRecord) { r.SettlementState = "settled" },
+				func(r *UsageObservationRecord) { r.ObservedAt = time.Time{} },
+			}
+			for _, mutate := range mutations {
+				wrong := r
+				mutate(&wrong)
+				if UsageObservationMatchesBytes(raw, wrong) {
+					t.Fatal("altered representation accepted")
+				}
+			}
+			if UsageObservationMatchesBytes(append(bytes.Clone(raw), ' '), r) {
+				t.Fatal("different raw bytes accepted")
+			}
+		})
+	}
+}
+
 // Keep the production HTTP transport, URL, hostname verification and redirect
 // policy. Only DNS/dial and trust roots select this owned TLS peer.
 func usagePeer(t *testing.T, handler http.HandlerFunc, trust bool) (*OpenRouterUsageReader, *atomic.Int32) {

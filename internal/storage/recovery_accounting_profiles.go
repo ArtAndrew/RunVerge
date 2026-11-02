@@ -6,7 +6,7 @@ const recoveryAccountingMutationV2 = "sql026-exact-mutation-v1"
 
 // Seal from the reviewed SQL026 reference and retain literally forever.
 // Do not alias the moving current-catalog constant for historical replay.
-const recoveryAccountingSourceV2CatalogSHA256 = "UNSEALED"
+const recoveryAccountingSourceV2CatalogSHA256 = "873463718e42a33e7df8ba9eff916260ca46370d49affafc609423338674a9b8"
 
 func recoveryAccountingCommitmentProfile(profile, kind string) (string, string, bool) {
 	if kind != "fact" && kind != "resolution" {

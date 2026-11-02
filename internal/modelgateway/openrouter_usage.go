@@ -68,6 +68,22 @@ type UsageObservationRecord struct {
 func (o UsageObservation) Record() UsageObservationRecord { return o.record }
 func (o UsageObservation) RawResponse() []byte            { return bytes.Clone(o.raw) }
 
+// UsageObservationMatchesBytes checks retained representation consistency only.
+// It establishes no network acquisition, credential ownership or final invoice,
+// and deliberately does not manufacture an opaque acquisition from caller JSON.
+func UsageObservationMatchesBytes(raw []byte, record UsageObservationRecord) bool {
+	_, offset := record.ObservedAt.Zone()
+	if record.ObservedAt.IsZero() || offset != 0 || len(record.GenerationID) > 128 || !openRouterGenerationID.MatchString(record.GenerationID) {
+		return false
+	}
+	parsed, err := decodeOpenRouterUsage(raw, record.GenerationID, "")
+	if err != nil {
+		return false
+	}
+	parsed.record.ObservedAt = record.ObservedAt
+	return parsed.record == record
+}
+
 func NewOpenRouterUsageReader(apiKey string, timeout time.Duration) (*OpenRouterUsageReader, error) {
 	if !safeASCII(apiKey, 8192) || timeout <= 0 || timeout > 30*time.Second {
 		return nil, &UsageReadError{Code: "invalid_configuration"}
