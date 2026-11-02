@@ -152,7 +152,7 @@ func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput, provision bool) {
 	if os.Getenv("RUNVERGE_RECOVERY_OWNED_PG") != "1" || os.Getenv("RUNVERGE_RECOVERY_INDEPENDENT_OWNED_PG") != "1" {
 		t.Skip("requires explicit disposable recovery cluster")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	source, sourceDSN, bootstrap := independentCLIDB(t)
 	principal, err := source.Authenticate(ctx, bootstrap.Token, bootstrap.OrganizationID)
@@ -186,6 +186,10 @@ func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput, provision bool) {
 	var candidate string
 	if err = source.Pool.QueryRow(ctx, "SELECT id FROM task_candidates WHERE organization_id=$1", principal.OrganizationID).Scan(&candidate); err != nil {
 		t.Fatal(err)
+	}
+	var accountingFixture *recoveryHostAccountingFixture
+	if lostOutput && !provision {
+		accountingFixture = prepareRecoveryHostAccountingFixture(t, ctx, source)
 	}
 	var snapshot bytes.Buffer
 	report, err := source.ExportRecoverySnapshot(ctx, &snapshot, storage.DefaultRecoverySnapshotLimits())
@@ -343,7 +347,7 @@ func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput, provision bool) {
 		t.Fatal("source business data changed", err)
 	}
 	if lostOutput && !provision {
-		recoveryHostEvidenceRoundTrip(t, ctx, source, sourceFile, parent, stage, keys, bundle, configFile, receipt)
+		recoveryHostEvidenceRoundTrip(t, ctx, source, sourceFile, parent, stage, keys, bundle, configFile, receipt, accountingFixture)
 	}
 	scopesFile := filepath.Join(parent, "scopes.json")
 	if err = os.WriteFile(scopesFile, []byte(`{"scopes":[{"subject":"current-owner","organization_id":"`+principal.OrganizationID+`"}]}`), 0600); err != nil {

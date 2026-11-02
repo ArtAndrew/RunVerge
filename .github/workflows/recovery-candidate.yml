@@ -20,6 +20,7 @@ on:
       - 'cmd/platform/recovery_database_fence_host*'
       - 'cmd/platform/recovery_host*'
       - 'cmd/platform/recovery_evidence_host*'
+      - 'cmd/platform/recovery_accounting_host*'
       - 'cmd/platform/recovery_provision_host*'
       - 'internal/modelruntime/intent_snapshot*'
       - '.github/workflows/recovery-candidate.yml'

@@ -21,11 +21,12 @@ func TestRecoveryHostAuthorEvidenceConsentBeforeFiles(t *testing.T) {
 	}
 }
 
-func recoveryHostEvidenceRoundTrip(t *testing.T, ctx context.Context, source *storage.Store, sourceFile, parent, stage, keys, selected, targetConfig string, old recoveryarchive.HostBackupReceipt) {
+func recoveryHostEvidenceRoundTrip(t *testing.T, ctx context.Context, source *storage.Store, sourceFile, parent, stage, keys, selected, targetConfig string, old recoveryarchive.HostBackupReceipt, accountingFixture *recoveryHostAccountingFixture) {
 	t.Helper()
 	if _, err := source.Bootstrap(ctx, "late synthetic organization", 1000); err != nil {
 		t.Fatal(err)
 	}
+	appendRecoveryHostAccountingFacts(t, ctx, source, accountingFixture)
 	lateDir := filepath.Join(parent, "late")
 	raw, err := recoveryHostCommand(t, ctx, "backup-create", "--database-config", sourceFile, "--keys-file", keys, "--staging-parent", stage, "--out-dir", lateDir)
 	var late recoveryarchive.HostBackupReceipt
@@ -70,4 +71,5 @@ func recoveryHostEvidenceRoundTrip(t *testing.T, ctx context.Context, source *st
 	if err != nil || json.Unmarshal(raw, &repeated) != nil || repeated.PlanSHA256 != plan.PlanSHA256 {
 		t.Fatal("plan CLI is not reproducible", err)
 	}
+	recoveryHostAccountingRoundTrip(t, ctx, accountingFixture, path, targetConfig, parent)
 }

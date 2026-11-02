@@ -14,6 +14,7 @@ import (
 type RecoveryAccountingInspection struct {
 	OperationID       string `json:"operation_id"`
 	RequestSHA256     string `json:"request_sha256"`
+	PlanSHA256        string `json:"plan_sha256"`
 	State             string `json:"state"`
 	HeadID            string `json:"head_id"`
 	HeadOrdinal       int64  `json:"head_ordinal,string"`
@@ -87,7 +88,7 @@ func (s *Store) InspectRecoveryAccounting(ctx context.Context, selected *recover
 	}
 	result = RecoveryAccountingInspection{OperationID: operationID, RequestSHA256: requestSHA256, State: "not_recorded", HeadID: head.ID, HeadOrdinal: head.Ordinal, ExecutionHeld: true}
 	var storedHash, batch string
-	err = tx.QueryRow(ctx, "SELECT request_sha256,evidence_batch_id,ordinal,mutation_count FROM "+pgx.Identifier{s.runtimeSchema, "recovery_accounting_batches"}.Sanitize()+" WHERE id=$1 AND restore_id=$2 AND target_installation_id=$3", operationID, held.RestoreID, held.InstallationID).Scan(&storedHash, &batch, &result.BatchOrdinal, &result.MutationCount)
+	err = tx.QueryRow(ctx, "SELECT request_sha256,plan_sha256,evidence_batch_id,ordinal,mutation_count FROM "+pgx.Identifier{s.runtimeSchema, "recovery_accounting_batches"}.Sanitize()+" WHERE id=$1 AND restore_id=$2 AND target_installation_id=$3", operationID, held.RestoreID, held.InstallationID).Scan(&storedHash, &result.PlanSHA256, &batch, &result.BatchOrdinal, &result.MutationCount)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return result, nil
 	}
