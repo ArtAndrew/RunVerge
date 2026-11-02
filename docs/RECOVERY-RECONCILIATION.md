@@ -54,13 +54,14 @@ This candidate refuses plans exceeding 10,000 organizations, reservations,
 changed financial records or blockers, or 8 MiB of output. It does not truncate
 the report and describe the remainder as reconciled.
 
-No apply command is implemented yet. The subsequent apply must recompute the
-plan, verify trusted operator authority and fact provenance, and record separate
-append-only resolutions. Authentic financial facts must remain recordable while
-external coverage is unresolved and execution stays held. Source fencing,
-external coverage and fresh ordinary authority are separate prerequisites for
-permitting new work. Editing this JSON or presenting its digest alone must never
-authorize accounting changes or replay historical tasks.
+A separate development [accounting command](RECOVERY-ACCOUNTING.md) selects a
+captured source record and recomputes its provenance and target state before
+recording it. This comparison JSON is not an apply request. Authentic captured
+financial facts can be recorded while external coverage is unresolved and
+execution stays held. Source fencing, external coverage and fresh ordinary
+authority are separate prerequisites for permitting new work. Editing this JSON
+or presenting its digest alone cannot authorize accounting changes or replay
+historical tasks.
 
 ## Checked development candidate
 
@@ -83,7 +84,8 @@ permission, macOS recovery or full restore support.
 The development branch also contains a private financial executor and a verifier
 that checks the original snapshot, each recorded change and the current database.
 It changes financial records while keeping historical actions, task versions,
-events and execution permissions unchanged. It does not expose an apply command.
+events and execution permissions unchanged. The separate trusted-host commands
+are described in the [accounting guide](RECOVERY-ACCOUNTING.md).
 
 The [full recovery check at e8a9935](https://github.com/ArtAndrew/RunVerge/actions/runs/41408623291)
 passed settlement, negative correction, confirmed zero, duplicate/conflicting
@@ -97,13 +99,15 @@ The [accounting-only check at ac6212a](https://github.com/ArtAndrew/RunVerge/act
 cut the database connection before and after COMMIT. A fresh connection verified
 the complete baseline and reported whether the exact operation was recorded,
 without reapplying it. The storage inspector checks an operation ID and request
-digest; it is not yet exposed as a host command. Verification uses temporary
-tables and rolls back; it does not modify persistent business data.
+digest. The later `accounting-inspect` host command also reconstructs the selected
+source fact's mapping. Verification uses temporary tables and rolls back; it
+does not modify persistent business data.
 
 These are synthetic financial facts in disposable PostgreSQL databases, with no
 model or provider requests. The accounting-only runs are development checks,
-not full release gates. A usable host apply path still needs authenticated fact
-selection, ordering and source-to-target revision binding. The existing
+not full release gates. Captured source fact selection, ordering and
+source-to-target revision binding have since been implemented in the development
+commands; independent provider facts after capture are still unsupported. The existing
 `reconciliation-plan` command still requires the original target baseline; it
 does not yet plan subsequent work on a financially reconciled target. None of
 these components permits new execution or constitutes full restore support.
