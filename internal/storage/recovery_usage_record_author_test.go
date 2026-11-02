@@ -8,8 +8,10 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"net/http"
@@ -24,6 +26,7 @@ import (
 
 	"agentplatform.local/platform/internal/recoveryaccess"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const recoveryUsagePeerKey = "synthetic-owned-usage-peer-key"
@@ -141,6 +144,128 @@ func recoveryUsageBusinessState(t *testing.T, s *Store) string {
 	return Hash([]byte(result.String()))
 }
 
+func recoveryUsageSQLRefusals(t *testing.T, s *Store, originalID string) {
+	t.Helper()
+	ctx := context.Background()
+	q := pgx.Identifier{s.runtimeSchema, "recovery_usage_observations"}.Sanitize()
+	stored, err := scanRecoveryUsageStored(s.Pool.QueryRow(ctx, "SELECT "+recoveryUsageStoredColumns+" FROM "+q+" WHERE id=$1", originalID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	type obj = map[string]any
+	cases := []struct {
+		name   string
+		mutate func(obj, obj, obj, obj)
+	}{
+		{"control", func(p, a, d, r obj) {}},
+		{"paired_null_model", func(p, a, d, r obj) {
+			p["model"] = nil
+			a["request"].(obj)["model"] = nil
+			a["observation"].(obj)["model"] = nil
+			r["data"].(obj)["model"] = nil
+		}},
+		{"paired_missing_generation", func(p, a, d, r obj) {
+			delete(p, "generation_id")
+			delete(a["request"].(obj), "generation_id")
+			delete(a["observation"].(obj), "generation_id")
+			delete(r["data"].(obj), "id")
+		}},
+		{"paired_null_account", func(p, a, d, r obj) {
+			p["archived_provider_account"] = nil
+			a["request"].(obj)["archived_provider_account"] = nil
+			a["policy"].(obj)["archived_provider_account"] = nil
+		}},
+		{"string_connection_version", func(p, a, d, r obj) {
+			p["model_connection_version"] = "1"
+			a["request"].(obj)["model_connection_version"] = "1"
+			a["policy"].(obj)["model_connection_version"] = "1"
+		}},
+		{"string_policy_epoch", func(p, a, d, r obj) { a["policy_epoch"] = "1"; d["policy_epoch"] = "1" }},
+		{"paired_missing_catalog", func(p, a, d, r obj) { delete(p, "target_catalog_sha256"); delete(d, "target_catalog_sha256") }},
+		{"missing_credential_digest", func(p, a, d, r obj) { delete(a["policy"].(obj), "credential_sha256") }},
+		{"response_identity", func(p, a, d, r obj) { r["data"].(obj)["id"] = "gen-wrong" }},
+		{"settled_observation", func(p, a, d, r obj) { a["observation"].(obj)["settlement_state"] = "settled" }},
+		{"wrong_task", func(p, a, d, r obj) { p["task_id"] = "task-other" }},
+		{"missing_operator_time", func(p, a, d, r obj) { delete(a, "policy_confirmed_at") }},
+	}
+	for index, c := range cases {
+		t.Run("sql_"+c.name, func(t *testing.T) {
+			var p, a, d, r obj
+			for raw, target := range map[string]*obj{string(stored.plan): &p, string(stored.acquisition): &a, string(stored.admission): &d, string(stored.response): &r} {
+				if json.Unmarshal([]byte(raw), target) != nil {
+					t.Fatal("fixture JSON")
+				}
+			}
+			op := fmt.Sprintf("%032x", index+1)
+			d["operation_id"] = op
+			// Give the attempted row a distinct acquisition digest, so uniqueness
+			// cannot substitute for refusal by the identity/scope trigger.
+			a["operator_reference"] = "operator:guard-" + c.name
+			c.mutate(p, a, d, r)
+			raw, _ := json.Marshal(r)
+			responseSHA := Hash(raw)
+			a["observation"].(obj)["response_sha256"] = responseSHA
+			plan, _ := json.Marshal(p)
+			planSHA := Hash(plan)
+			a["request"].(obj)["source_plan_sha256"] = planSHA
+			acquisition, _ := json.Marshal(a)
+			acquisitionSHA := Hash(acquisition)
+			d["source_plan_sha256"], d["acquisition_sha256"], d["response_sha256"] = planSHA, acquisitionSHA, responseSHA
+			admission, _ := json.Marshal(d)
+			tx, err := s.Pool.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var recorded time.Time
+			started := time.Now().Add(-5 * time.Second)
+			err = tx.QueryRow(ctx, "INSERT INTO "+q+`(id,restore_id,target_installation_id,evidence_batch_id,organization_id,reservation_id,source_plan_sha256,source_plan_commitment,acquisition_sha256,acquisition_commitment,response_sha256,response,admission_sha256,admission_commitment,recorded_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'2001-01-01T00:00:00Z') RETURNING recorded_at`, op, stored.restore, stored.target, stored.batch, stored.org, stored.reservation, planSHA, plan, acquisitionSHA, acquisition, responseSHA, raw, Hash(admission), admission).Scan(&recorded)
+			var pgErr *pgconn.PgError
+			guarded := errors.As(err, &pgErr) && pgErr.Code == "55000"
+			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+				t.Fatal("guard test rollback", rollbackErr)
+			}
+			if c.name == "control" {
+				if err != nil || recorded.Before(started) {
+					t.Fatal("SQL fixture control or server timestamp failed", err)
+				}
+			} else if !guarded {
+				t.Fatal("exact identity guard did not refuse", err)
+			}
+		})
+	}
+}
+
+// Advance the verified accounting chain by an exact financial-hold mutation.
+// This is the existing typed executor, not a forged source invoice or settlement.
+func recoveryUsageAdvanceAccounting(t *testing.T, f *evidenceAuthorFixture, selection RecoveryUsageSelection) {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := f.target.Pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	held, _, err := f.target.evidenceTargetTx(ctx, tx, f.spec, f.before.SHA256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := func(n string) string { return pgx.Identifier{f.target.runtimeSchema, n}.Sanitize() }
+	b := recoveryAccountingBatch{id: strings.Repeat("e", 32), evidenceBatchID: f.verified.Link().OperationID, organizationID: selection.OrganizationID, reservationID: selection.ReservationID, requestSHA256: strings.Repeat("a", 64), planSHA256: strings.Repeat("b", 64)}
+	if err = tx.QueryRow(ctx, "SELECT revision FROM "+q("reservations")+" WHERE organization_id=$1 AND id=$2", selection.OrganizationID, selection.ReservationID).Scan(&b.expectedRevision); err != nil {
+		t.Fatal(err)
+	}
+	m := recoveryAccountingMutation{table: "organizations"}
+	if err = tx.QueryRow(ctx, "SELECT to_jsonb(o),to_jsonb(o)||jsonb_build_object('financial_hold',true) FROM "+q("organizations")+" o WHERE id=$1 AND NOT financial_hold", selection.OrganizationID).Scan(&m.before, &m.after); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.target.recordRecoveryAccountingMutationsTx(ctx, tx, held, b, []recoveryAccountingMutation{m}); err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRecoveryUsageAuthorOwnedAcquisitionPersistence(t *testing.T) {
 	calls := recoveryUsageOwnedHTTPS(t)
 	t.Run("record_duplicate_conflict_revoke_fresh_inspect", func(t *testing.T) {
@@ -157,6 +282,7 @@ func TestRecoveryUsageAuthorOwnedAcquisitionPersistence(t *testing.T) {
 		if err != nil || got.State != "recorded" || got.ObservationState != "observed_unverified" || !got.ExecutionHeld {
 			t.Fatal("record", err)
 		}
+		recoveryUsageSQLRefusals(t, f.target, op)
 		duplicate, err := record(f.target, strings.Repeat("b", 32), o)
 		if err != nil || duplicate.State != "already_recorded" || duplicate.OperationID != op || duplicate.AdmissionSHA256 != got.AdmissionSHA256 {
 			t.Fatal("duplicate", err)
@@ -181,6 +307,14 @@ func TestRecoveryUsageAuthorOwnedAcquisitionPersistence(t *testing.T) {
 			t.Fatal("rollback failure returned duplicate success", err)
 		}
 		proxy.wait(t, cut)
+		if recoveryUsageBusinessState(t, f.target) != before {
+			t.Fatal("observation changed business state")
+		}
+		recoveryUsageAdvanceAccounting(t, f, selection)
+		before = recoveryUsageBusinessState(t, f.target)
+		if result, err := record(f.target, strings.Repeat("f", 32), second); !errors.Is(err, ErrRecoveryUsageRecording) || !reflect.DeepEqual(result, RecoveryUsageRecording{}) {
+			t.Fatal("stale acquisition head admitted", err)
+		}
 		info, err := recoveryaccess.InspectHost(ctx, path)
 		if err != nil {
 			t.Fatal(err)
