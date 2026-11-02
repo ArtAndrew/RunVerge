@@ -485,9 +485,10 @@ def verify_held_evidence(command, env, private, project, source_database,
 def verify_installed_accounting(command, env, private, name, identifier, ports, database,
                                  source_plan, target, cli, require, progress):
     """Installed platform CLI, retained DB restart, synthetic ordinary-API facts."""
+    progress('verify_installed_financial_identifiers')
     fixture = json.loads((private / 'financial-after.json').read_text())
     for key, prefix in (('organization_id', 'org'), ('reservation_id', 'res'),
-                        ('task_id', 'task'), ('invoice_id', 'evi'), ('correction_id', 'evi')):
+                        ('task_id', 'tsk'), ('invoice_id', 'evi'), ('correction_id', 'evi')):
         if not re.fullmatch(prefix + r'_[a-f0-9]{32}', fixture[key]):
             raise RuntimeError('Invalid owned financial fixture identifier')
     org, reservation = fixture['organization_id'], fixture['reservation_id']
@@ -510,6 +511,7 @@ def verify_installed_accounting(command, env, private, name, identifier, ports, 
                                   ('actions', 'to_jsonb(r)', 'id'), ('events', 'to_jsonb(r)', 'sequence'),
                                   ('outbox', 'to_jsonb(r)', 'sequence'))
     ) + ")::text,'UTF8')),'hex')"
+    progress('read_installed_financial_baseline')
     before = sql(execution_sql)
     if not re.fullmatch(r'[a-f0-9]{64}', before):
         raise RuntimeError('Missing execution baseline')
