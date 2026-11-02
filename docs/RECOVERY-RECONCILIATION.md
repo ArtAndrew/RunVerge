@@ -2,8 +2,8 @@
 
 `reconciliation-plan` compares the original restored snapshot with the later
 source snapshot already saved through [evidence ingestion](RECOVERY-EVIDENCE.md).
-The command is undergoing runtime validation. It is not in alpha.6 and does not
-apply financial changes or permit new work.
+The read-only command has passed the bounded checks described below. It is not
+in alpha.6 and does not apply financial changes or permit new work.
 
 Use the same private selectors, archive directories, keys and staging directory
 as evidence ingestion. Run on the trusted operator host:
@@ -55,6 +55,25 @@ changed financial records or blockers, or 8 MiB of output. It does not truncate
 the report and describe the remainder as reconciled.
 
 No apply command is implemented yet. The subsequent apply must recompute the
-plan, verify current authority and external coverage, and record separate
-append-only resolutions. Editing this JSON or presenting its digest alone must
-never authorize accounting changes or replay historical tasks.
+plan, verify trusted operator authority and fact provenance, and record separate
+append-only resolutions. Authentic financial facts must remain recordable while
+external coverage is unresolved and execution stays held. Source fencing,
+external coverage and fresh ordinary authority are separate prerequisites for
+permitting new work. Editing this JSON or presenting its digest alone must never
+authorize accounting changes or replay historical tasks.
+
+## Checked development candidate
+
+At `a3e4e49e8bba4180ba6952aa531d25e1a0f5e573`, the
+[PostgreSQL checks](https://github.com/ArtAndrew/RunVerge/actions/runs/41342270302)
+passed original/late comparison, refusal without a committed evidence batch,
+rewritten immutable facts, financial history continuation, resource exhaustion,
+saved SQL023 compatibility and fresh-process CLI checks.
+
+The [installed Linux checks](https://github.com/ArtAndrew/RunVerge/actions/runs/41342276244)
+passed on amd64 and arm64. A real captured archive was ingested into a separately
+provisioned disposable target; its financial plan remained identical after a
+database restart. Both receipts record `reconciliation_plan_restart_passed`,
+retain execution hold and confirm fixture cleanup. No real model was called.
+These checks do not establish financial apply, external coverage, new-work
+permission, macOS recovery or full restore support.
