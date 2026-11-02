@@ -148,10 +148,12 @@ func recoveryUsageAuthorFixture(t *testing.T, mode string) (*evidenceAuthorFixtu
 			if mode == "original_collision_disappeared" {
 				wanted = other.ID
 			}
+			found := false
 			for _, row := range stage.rows["artifacts"] {
 				if string(row[idColumn]) != wanted {
 					continue
 				}
+				found = true
 				var provenance map[string]any
 				if len(row[column]) < 2 || row[column][0] != 1 || json.Unmarshal(row[column][1:], &provenance) != nil {
 					t.Fatal("binary jsonb fixture")
@@ -162,7 +164,15 @@ func recoveryUsageAuthorFixture(t *testing.T, mode string) (*evidenceAuthorFixtu
 					provenance["provider_request_id"] = "gen-another"
 				}
 				encoded, _ := json.Marshal(provenance)
-				row[column] = append([]byte{1}, encoded...)
+				// A typed archive must retain PostgreSQL's canonical binary
+				// representation. Go JSON key order/spacing would fail the
+				// stage round-trip digest before the identity checks run.
+				if err := s.Pool.QueryRow(ctx, "SELECT pg_catalog.jsonb_send($1::jsonb)", string(encoded)).Scan(&row[column]); err != nil {
+					t.Fatal("canonical binary jsonb fixture", err)
+				}
+			}
+			if !found {
+				t.Fatal("fixture artifact missing")
 			}
 		})
 	}
@@ -230,8 +240,8 @@ func TestRecoveryUsageAuthorRejectsRewrittenAndAmbiguousIdentity(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			f, selection := recoveryUsageAuthorFixture(t, mode)
 			plan, err := f.target.PlanRecoveryUsageReadback(context.Background(), f.selected, f.late, f.verified, f.spec, DefaultRecoverySnapshotLimits(), selection)
-			if err == nil || !reflect.DeepEqual(plan, RecoveryUsageReadbackPlan{}) {
-				t.Fatal("rewritten or ambiguous identity accepted")
+			if err != ErrRecoveryUsageBinding || !reflect.DeepEqual(plan, RecoveryUsageReadbackPlan{}) {
+				t.Fatal("expected request binding refusal with no partial plan", err)
 			}
 		})
 	}
