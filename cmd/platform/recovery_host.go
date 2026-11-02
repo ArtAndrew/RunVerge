@@ -54,7 +54,7 @@ func runRecoveryHost(ctx context.Context, args []string, out io.Writer) error {
 	switch args[0] {
 	case "accounting-plan", "accounting-apply", "accounting-inspect":
 		return runRecoveryAccountingHost(ctx, args, out)
-	case "evidence-ingest", "evidence-inspect", "reconciliation-plan":
+	case "evidence-ingest", "evidence-inspect", "reconciliation-plan", "accounting-review":
 		return runRecoveryEvidenceHost(ctx, args, out)
 	case "source-witness":
 		return runRecoverySourceWitness(ctx, args[1:], out)

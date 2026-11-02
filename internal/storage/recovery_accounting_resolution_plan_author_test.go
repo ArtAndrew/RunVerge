@@ -61,6 +61,18 @@ func recoveryAccountingResolutionFixture(t *testing.T, mode string) (*evidenceAu
 			t.Fatal("original quarantine", err)
 		}
 		v.invoice, quarantine = small.EvidenceID, small.QuarantineID
+		if mode == "original_resolved" {
+			c = fact
+			c.Reference, c.ActualMicroUSD, c.Reason = "original-capacity-clear", 0, "owned original correction"
+			capacity, err = s.AccountAdjustment(ctx, org, v.zeroReservation, domain.CostAdjustment{Evidence: c, ExpectedRevision: capacity.Reservation.Revision})
+			if err != nil || capacity.Status != "settled" {
+				t.Fatal("original capacity cleared", err)
+			}
+			small, err = s.ResolveCostQuarantine(ctx, org, quarantine, small.Reservation.Revision)
+			if err != nil || small.Status != "settled" {
+				t.Fatal("original resolution", err)
+			}
+		}
 	}, func(s *Store) {
 		c := fact
 		c.Reference, c.ActualMicroUSD, c.Reason = "resolution-capacity-cleared", 0, "owned capacity correction"
@@ -75,7 +87,7 @@ func recoveryAccountingResolutionFixture(t *testing.T, mode string) (*evidenceAu
 		if mode == "captured_direct" {
 			small, err = s.AccountCost(ctx, org, v.reservation, fact)
 			v.invoice = small.EvidenceID
-		} else {
+		} else if mode != "original_resolved" {
 			small, err = s.ResolveCostQuarantine(ctx, org, quarantine, small.Reservation.Revision)
 		}
 		if err != nil || small.Status != "settled" {

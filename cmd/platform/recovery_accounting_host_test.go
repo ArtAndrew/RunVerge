@@ -187,6 +187,26 @@ func recoveryHostAccountingRoundTrip(t *testing.T, ctx context.Context, fixture 
 		t.Fatal("host replay double charge", err)
 	}
 	recoveryHostResolutionRoundTrip(t, ctx, fixture.resolution, sourcePlan, targetConfig, parent)
+	reviewArgs := []string{"accounting-review", "--source-intent-file", sourcePlan, "--target-config", targetConfig}
+	raw, err = recoveryHostCommand(t, ctx, reviewArgs...)
+	var review storage.RecoveryAccountingReview
+	if err != nil || json.Unmarshal(raw, &review) != nil || !review.RollbackConfirmed || !review.ExecutionHeld || len(review.ReviewSHA256) != 64 {
+		t.Fatal("host post-apply review", err)
+	}
+	again, err := recoveryHostCommand(t, ctx, reviewArgs...)
+	if err != nil || string(again) != string(raw) {
+		t.Fatal("fresh host review differs", err)
+	}
+	found := false
+	for _, fact := range review.Facts {
+		if fact.OrganizationID == fixture.resolution.org && fact.SourceEvidenceID == fixture.resolution.invoice {
+			found = fact.TargetQuarantineState == "resolved" && fact.ResolutionOrigin == "recovery" && fact.ResolutionOperationID != ""
+		}
+	}
+	if !found {
+		t.Fatal("host review omitted original quarantine resolution")
+	}
+
 }
 
 func recoveryHostResolutionRoundTrip(t *testing.T, ctx context.Context, fixture *recoveryHostAccountingFixture, sourcePlan, targetConfig, parent string) {

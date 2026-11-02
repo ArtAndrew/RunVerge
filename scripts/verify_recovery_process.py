@@ -526,12 +526,23 @@ def verify_installed_accounting(command, env, private, name, identifier, ports, 
         return cli(['accounting-apply', '--intent-file', str(path),
                     '--confirm-record-financial-fact'], **kwargs)
 
+    def review():
+        value = require(cli(['accounting-review', '--source-intent-file', str(source_plan),
+                             '--target-config', target]), 'installed-accounting-review')
+        if not value['execution_held'] or not value['rollback_confirmed'] or value['reconciliation_state'] != 'pending':
+            raise RuntimeError('Financial review implied clearance')
+        return value
+
+    original_review = review()
+    if original_review['receipts']:
+        raise RuntimeError('Original review invented accounting receipts')
     invoice_path = private / 'installed-invoice.json'
     invoice = plan(fixture['invoice_id'], invoice_path)
     progress('installed_financial_apply_before_restart')
     with open('/dev/full', 'wb') as lost:
         if apply(invoice_path, stdout=lost).returncode == 0:
             raise RuntimeError('Installed financial output loss was not reported')
+    before_restart_review = review()
     command(['docker', 'restart', identifier])
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
@@ -550,6 +561,8 @@ def verify_installed_accounting(command, env, private, name, identifier, ports, 
                         'installed-accounting-inspection')
     if inspected['state'] != 'recorded' or inspected['operation_id'] != invoice['operation_id'] or inspected['plan_sha256'] != invoice['plan_sha256'] or not inspected['execution_held']:
         raise RuntimeError('Installed financial receipt did not survive restart')
+    if review()['review_sha256'] != before_restart_review['review_sha256']:
+        raise RuntimeError('Financial review changed across database restart')
     if apply(invoice_path).returncode == 0:
         raise RuntimeError('Installed one-use financial intent reapplied')
     correction_path = private / 'installed-correction.json'
@@ -572,4 +585,16 @@ def verify_installed_accounting(command, env, private, name, identifier, ports, 
              "AND (SELECT count(*)=2 FROM recovery_accounting_batches WHERE organization_id='" + org + "')")
     if sql(query) != 't' or sql(execution_sql) != before:
         raise RuntimeError('Installed financial state or execution invariants differ')
+    final_review = review()
+    positions = [item for item in final_review['reservations']
+                 if item['organization_id'] == org and item['reservation_id'] == reservation]
+    invoices = [item for item in final_review['facts']
+                if item['organization_id'] == org and item['source_evidence_id'] == fixture['invoice_id']]
+    if len(positions) != 1 or positions[0]['original']['actual_microusd'] is not None or positions[0]['captured']['actual_microusd'] != '3' or positions[0]['target']['actual_microusd'] != '3':
+        raise RuntimeError('Financial review mixed its three views')
+    if len(invoices) != 1 or invoices[0]['actual_microusd'] != '7' or invoices[0]['fact_operation_id'] != invoice['operation_id']:
+        raise RuntimeError('Financial review replaced the historical invoice')
+    if len(final_review['receipts']) != 2 or any(item['attribution'] != 'source_fact' for item in final_review['receipts']):
+        raise RuntimeError('Financial review omitted receipt attribution')
+    progress('financial_review_restart_passed')
     progress('financial_apply_restart_correction_passed')
