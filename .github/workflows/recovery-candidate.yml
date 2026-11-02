@@ -11,6 +11,10 @@ on:
         description: 'Development check of recovery accounting only; NOT the full candidate gate'
         type: boolean
         default: false
+      usage_only:
+        description: 'Development check of provider usage source binding; NOT the full candidate gate'
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'internal/storage/recovery_*'
@@ -23,6 +27,8 @@ on:
       - 'cmd/platform/recovery_accounting_host*'
       - 'cmd/platform/recovery_provision_host*'
       - 'internal/modelruntime/intent_snapshot*'
+      - 'internal/modelgateway/openrouter_usage*'
+      - 'internal/modelgateway/usage_decimal*'
       - '.github/workflows/recovery-candidate.yml'
 permissions:
   contents: read
@@ -49,35 +55,43 @@ jobs:
       RUNVERGE_RECOVERY_INDEPENDENT_OWNED_PG: '1'
       GOTOOLCHAIN: local
     steps:
+      - name: Refuse conflicting development modes
+        if: ${{ (inputs.usage_only && inputs.accounting_only) || (inputs.schema_reference && (inputs.usage_only || inputs.accounting_only)) }}
+        run: exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - name: Read the exact previously verified SQL023 producer
-        if: ${{ !inputs.schema_reference && !inputs.accounting_only }}
+        if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: a81956505f3463276bcd86e585d74a467e46a202
           path: _legacy_sql023
           persist-credentials: false
       - name: Build the old producer for real archive and upgrade compatibility
-        if: ${{ !inputs.schema_reference && !inputs.accounting_only }}
+        if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only }}
         run: |
           go -C _legacy_sql023 build -mod=readonly -o "$RUNNER_TEMP/platform-sql023" ./cmd/platform
           echo "RUNVERGE_RECOVERY_SQL023_BINARY=$RUNNER_TEMP/platform-sql023" >> "$GITHUB_ENV"
       - name: Read the exact previously verified SQL024 producer
-        if: ${{ !inputs.schema_reference && !inputs.accounting_only }}
+        if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: 9e91fcf179ce65d53a61601f105c55a5aefa9079
           path: _legacy_sql024
           persist-credentials: false
       - name: Build SQL024 archive and populated held-upgrade fixture
-        if: ${{ !inputs.schema_reference && !inputs.accounting_only }}
+        if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only }}
         run: |
           go -C _legacy_sql024 build -mod=readonly -o "$RUNNER_TEMP/platform-sql024" ./cmd/platform
           echo "RUNVERGE_RECOVERY_SQL024_BINARY=$RUNNER_TEMP/platform-sql024" >> "$GITHUB_ENV"
-      - name: Check model intent serialization and recovery snapshot validation
+      - name: Check provider usage transport and archived source binding
         if: ${{ !inputs.schema_reference && !inputs.accounting_only }}
+        run: |
+          go test -mod=readonly -race ./internal/modelgateway -count=1 -v
+          go test -mod=readonly ./internal/storage -run '^TestRecoveryUsageAuthor' -timeout=10m -count=1 -v
+      - name: Check model intent serialization and recovery snapshot validation
+        if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only }}
         run: |
           go test -mod=readonly ./internal/modelruntime -count=1
           go test -mod=readonly -race ./internal/recoveryarchive -count=1 -v
@@ -89,10 +103,10 @@ jobs:
       # Keep all accounting tests in both the full and accounting-only gates.
       # Complementary selectors preserve coverage and the per-process 10m bound.
       - name: Check recovery accounting facts and mutation guards
-        if: ${{ !inputs.schema_reference }}
+        if: ${{ !inputs.schema_reference && !inputs.usage_only }}
         run: go test -mod=readonly ./internal/storage -run '^TestRecoveryAccountingAuthor' -skip '^TestRecoveryAccountingAuthor(Review|SourceBoundResolution|ResolutionCommitLoss)' -timeout=10m -count=1 -v
       - name: Check recovery accounting resolution and review
-        if: ${{ !inputs.schema_reference }}
+        if: ${{ !inputs.schema_reference && !inputs.usage_only }}
         run: go test -mod=readonly ./internal/storage -run '^TestRecoveryAccountingAuthor(Review|SourceBoundResolution|ResolutionCommitLoss)' -timeout=10m -count=1 -v
       - name: Capture unsealed schema reference metadata only
         if: ${{ inputs.schema_reference }}
