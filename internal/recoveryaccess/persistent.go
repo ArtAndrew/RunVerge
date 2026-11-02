@@ -22,14 +22,16 @@ var ErrPending = errors.New("recovery authority change pending; inspect and expl
 // HostInfo contains no signing secret or bearer token. Reference is a trusted
 // local operator's current-scope attestation, not proof from an identity service.
 type HostInfo struct {
-	Version           int     `json:"version"`
-	Binding           Binding `json:"binding"`
-	Epoch             uint64  `json:"epoch"`
-	OperationID       string  `json:"operation_id"`
-	Scopes            []Scope `json:"scopes"`
-	OperatorReference string  `json:"operator_reference"`
-	ConfirmedAt       string  `json:"confirmed_at"`
-	PublicKeySHA256   string  `json:"public_key_sha256"`
+	Version           int              `json:"version"`
+	Binding           Binding          `json:"binding"`
+	Epoch             uint64           `json:"epoch"`
+	OperationID       string           `json:"operation_id"`
+	Scopes            []Scope          `json:"scopes"`
+	OperatorReference string           `json:"operator_reference"`
+	ConfirmedAt       string           `json:"confirmed_at"`
+	PublicKeySHA256   string           `json:"public_key_sha256"`
+	Purpose           string           `json:"purpose,omitempty"`
+	Usage             *UsageHostPolicy `json:"usage,omitempty"`
 }
 
 type HostInspection struct {
@@ -39,8 +41,9 @@ type HostInspection struct {
 }
 
 type hostState struct {
-	Info HostInfo `json:"info"`
-	Seed []byte   `json:"seed"`
+	Info            HostInfo `json:"info"`
+	Seed            []byte   `json:"seed,omitempty"`
+	UsageCredential string   `json:"usage_credential,omitempty"`
 }
 type hostIntent struct {
 	PreviousSHA256 string    `json:"previous_sha256"`
@@ -67,6 +70,9 @@ func freshState(binding Binding, epoch uint64, scopes []Scope, reference string)
 }
 
 func (s hostState) policy() (Policy, error) {
+	if s.Info.Purpose != "" || s.Info.Usage != nil || s.UsageCredential != "" {
+		return Policy{}, ErrHostState
+	}
 	if s.Info.Version != 1 || len(s.Seed) != ed25519.SeedSize || !label(s.Info.OperatorReference) || !lowerHex(s.Info.OperationID, 32) {
 		return Policy{}, ErrHostState
 	}
@@ -85,6 +91,16 @@ func (s hostState) policy() (Policy, error) {
 	return p, nil
 }
 
+// State decoding and durable transitions preserve purpose. A usage credential
+// must never become a bearer-signing authority (or vice versa).
+func (s hostState) validate() error {
+	if s.Info.Purpose == usageHostPurpose {
+		return validateUsageState(s)
+	}
+	_, err := s.policy()
+	return err
+}
+
 func stateHash(raw []byte) string   { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
 func stateBytes(s hostState) []byte { raw, _ := json.Marshal(s); return raw }
 
@@ -93,7 +109,7 @@ func decodeState(raw []byte) (hostState, error) {
 	if json.Unmarshal(raw, &s) != nil || !bytes.Equal(stateBytes(s), raw) {
 		return hostState{}, ErrHostState
 	}
-	if _, err := s.policy(); err != nil {
+	if err := s.validate(); err != nil {
 		return hostState{}, err
 	}
 	return s, nil
@@ -108,7 +124,7 @@ func decodeIntent(raw []byte) (hostIntent, error) {
 	if !bytes.Equal(canonical, raw) || !lowerHex(i.PreviousSHA256, 64) {
 		return hostIntent{}, ErrHostState
 	}
-	if _, err := i.Next.policy(); err != nil {
+	if err := i.Next.validate(); err != nil {
 		return hostIntent{}, err
 	}
 	return i, nil
@@ -170,6 +186,9 @@ func ReplaceHost(ctx context.Context, path string, expectedEpoch uint64, scopes 
 	if pending != nil {
 		return HostInfo{}, ErrPending
 	}
+	if s.Info.Purpose != "" {
+		return HostInfo{}, ErrHostState
+	}
 	if s.Info.Epoch != expectedEpoch || expectedEpoch == ^uint64(0) {
 		return HostInfo{}, ErrHostState
 	}
@@ -224,6 +243,9 @@ func IssueHost(ctx context.Context, path, subject, org string, lifetime time.Dur
 	}
 	if pending != nil {
 		return "", ErrPending
+	}
+	if s.Info.Purpose != "" {
+		return "", ErrDenied
 	}
 	now := time.Now()
 	c := Claims{Version: 1, Binding: s.Info.Binding, Issuer: "host-v1", Subject: subject, OrganizationID: org, Epoch: s.Info.Epoch, IssuedAt: now.Unix(), ExpiresAt: now.Add(lifetime).Unix()}

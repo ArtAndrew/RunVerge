@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"agentplatform.local/platform/internal/domain"
 	"agentplatform.local/platform/internal/modelgateway"
 	"agentplatform.local/platform/internal/modelruntime"
+	"agentplatform.local/platform/internal/recoveryaccess"
 )
 
 // Ordinary admission and candidate APIs build synthetic model history. No
@@ -214,6 +217,23 @@ func TestRecoveryUsageAuthorSourceBindings(t *testing.T) {
 				again, err := f.target.PlanRecoveryUsageReadback(ctx, f.selected, f.late, f.verified, f.spec, DefaultRecoverySnapshotLimits(), selection)
 				if err != nil || !reflect.DeepEqual(plan, again) {
 					t.Fatal("nondeterministic plan", err)
+				}
+				// A valid archived request must still consult CURRENT host
+				// authority. This disabled policy holds no key and cannot send.
+				parent := t.TempDir()
+				if os.Chmod(parent, 0700) != nil {
+					t.Fatal("private usage authority parent")
+				}
+				authority := filepath.Join(parent, "usage")
+				_, err = recoveryaccess.InitUsageHost(ctx, authority, recoveryaccess.Binding{TargetID: plan.TargetID, RestoreID: plan.RestoreID, SnapshotSHA256: plan.SelectedSnapshotSHA256}, recoveryaccess.UsageHostPolicy{
+					SourceID: plan.SourceID, OrganizationID: plan.Selection.OrganizationID, ModelConnectionID: plan.ModelConnectionID, ModelConnectionVersion: plan.ModelConnectionVersion, ConnectionIdentitySHA256: plan.ConnectionIdentitySHA, ArchivedProviderAccount: plan.ArchivedProviderAccount, CredentialReference: "synthetic-disabled", CredentialSHA256: Hash([]byte("synthetic-unused-credential")), ExpiresAt: time.Now().UTC().Add(time.Hour), Enabled: false,
+				}, "", "operator:synthetic")
+				if err != nil {
+					t.Fatal("disabled current authority", err)
+				}
+				observation, err := f.target.AcquireRecoveryUsage(ctx, f.selected, f.late, f.verified, f.spec, DefaultRecoverySnapshotLimits(), selection, authority)
+				if err != recoveryaccess.ErrUsageDenied || !reflect.DeepEqual(observation, recoveryaccess.AcquiredUsageObservation{}) {
+					t.Fatal("archive bypassed current usage authority", err)
 				}
 				wrong := selection
 				wrong.OrganizationID = "org-other"

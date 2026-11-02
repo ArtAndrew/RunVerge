@@ -255,7 +255,7 @@ func (d *hostDirectory) load() (hostState, *hostIntent, error) {
 	}
 	nextSHA := stateHash(stateBytes(i.Next))
 	currentSHA := stateHash(stateBytes(s))
-	if i.Next.Info.Binding != s.Info.Binding || i.Next.Info.Epoch < 2 || i.PreviousSHA256 == nextSHA || (currentSHA != i.PreviousSHA256 && currentSHA != nextSHA) {
+	if i.Next.Info.Purpose != s.Info.Purpose || i.Next.Info.Binding != s.Info.Binding || i.Next.Info.Epoch < 2 || i.PreviousSHA256 == nextSHA || (currentSHA != i.PreviousSHA256 && currentSHA != nextSHA) {
 		return hostState{}, nil, ErrHostState
 	}
 	if currentSHA == i.PreviousSHA256 && (s.Info.Epoch == ^uint64(0) || i.Next.Info.Epoch != s.Info.Epoch+1) {
@@ -335,7 +335,7 @@ func (d *hostDirectory) writeState(s hostState) error {
 }
 
 func (d *hostDirectory) finish(i hostIntent) error {
-	if _, err := i.Next.policy(); err != nil {
+	if err := i.Next.validate(); err != nil {
 		return err
 	}
 	// Resolve may follow an uncertain intent-write outcome. Establish the durable
