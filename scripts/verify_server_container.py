@@ -312,13 +312,15 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
     finally:
         if attempted:
             try:
-                command([*compose, '--profile', 'admin', 'down', '--volumes', '--remove-orphans'])
+                # Remove owned network peers first: a surviving fixture helper
+                # must not prevent Compose from removing its private network.
                 auxiliaries = command(['docker', 'ps', '-aq', '--filter', 'label=runverge.check.owner=' + project]).split()
                 if auxiliaries:
                     command(['docker', 'rm', '-f', '-v', *auxiliaries])
-                image_tag = project + '-process-check'
-                if command(['docker', 'image', 'ls', '-q', image_tag]).strip():
-                    command(['docker', 'image', 'rm', image_tag])
+                command([*compose, '--profile', 'admin', 'down', '--volumes', '--remove-orphans'])
+                for image_tag in (project + '-process-check', project + '-financial-seed'):
+                    if command(['docker', 'image', 'ls', '-q', image_tag]).strip():
+                        command(['docker', 'image', 'rm', image_tag])
                 containers = command(['docker', 'ps', '-aq', '--filter', 'label=com.docker.compose.project=' + project])
                 volumes = command(['docker', 'volume', 'ls', '-q', '--filter', 'label=com.docker.compose.project=' + project])
                 remaining_aux = command(['docker', 'ps', '-aq', '--filter', 'label=runverge.check.owner=' + project])

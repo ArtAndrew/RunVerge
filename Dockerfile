@@ -58,6 +58,15 @@ RUN node /usr/local/lib/node_modules/npm/bin/npm-cli.js ci --prefix /opt/browser
     chmod -R a+rX /opt/browser-tools
 USER postgres
 
+# Opt-in fixture tool; the runtime image has no seed or test executable.
+FROM build AS recovery-fixture-tools
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/recovery-accounting-source ./tests/fixtures/recovery-accounting-source
+
+FROM scratch AS recovery-fixture-runtime
+COPY --from=recovery-fixture-tools /out/recovery-accounting-source /recovery-accounting-source
+USER 10001:10001
+ENTRYPOINT ["/recovery-accounting-source"]
+
 FROM scratch AS runtime
 COPY --from=native-check --chown=10001:10001 /opt/installed /app
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

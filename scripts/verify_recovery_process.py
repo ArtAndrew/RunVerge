@@ -183,6 +183,29 @@ def verify_source_binding(command, compose, env, root, project, database, api,
     admin = [*compose, '--profile', 'admin', 'run', '--rm', '--no-deps',
              '--user', str(os.getuid()) + ':' + str(os.getgid()),
              '--volume', str(private) + ':/source', 'admin', 'recovery']
+    # This opt-in seed executable is never included in the installed runtime.
+    # Its only writes use ordinary accounting APIs on this newly owned project.
+    seed_image = project + '-financial-seed'
+    command([*compose, 'stop', 'worker'])
+    progress('prepare_owned_financial_source')
+    command(['docker', 'build', '--target', 'recovery-fixture-runtime',
+             '--label', 'runverge.check.owner=' + project, '--tag', seed_image,
+             str(Path(__file__).resolve().parents[1])])
+
+    def seed(phase, output, previous=None):
+        args = ['docker', 'run', '--rm', '--name', project + '-financial-seed',
+                '--label', 'runverge.check.owner=' + project,
+                '--network', project + '_default', '--read-only', '--cap-drop', 'ALL',
+                '--user', str(os.getuid()) + ':' + str(os.getgid()),
+                '--env', 'RUNVERGE_OWNED_RECOVERY_FIXTURE=1',
+                '--volume', str(private) + ':/source', seed_image,
+                '--phase', phase, '--database-config', '/source/database.json',
+                '--out', '/source/' + output]
+        if previous:
+            args += ['--state', '/source/' + previous]
+        command(args)
+
+    seed('prepare', 'financial-before.json')
     progress('source_backup_keygen')
     command([*admin, 'backup-keygen', '--out', '/source/keys.json'])
     progress('source_backup_create')
@@ -194,6 +217,9 @@ def verify_source_binding(command, compose, env, root, project, database, api,
     # active business data in the target selected from the older backup.
     command([*admin[:-1], 'bootstrap', '--name', 'Synthetic post-backup organization',
              '--out', '/source/late-owner.json'])
+    seed('append', 'financial-after.json', 'financial-before.json')
+    command(['docker', 'image', 'rm', seed_image])
+    command([*compose, 'start', 'worker'])
     image_id = command(['docker', 'image', 'inspect', '--format', '{{.Id}}', image]).strip()
     source_id = receipt['manifest']['metadata']['source_id']
 
@@ -446,9 +472,102 @@ def verify_held_evidence(command, env, private, project, source_database,
             raise RuntimeError('Financial plan changed across target restart')
         progress('reconciliation_plan_restart_passed')
         progress('held_evidence_roundtrip_passed')
+        verify_installed_accounting(command, env, private, name, created, ports, planned['database'],
+                                    source_plan, target, cli, require, progress)
     finally:
         if created and re.fullmatch(r'[a-f0-9]{64}', created):
             owned = json.loads(command(['docker', 'inspect', created]))[0]
             if owned['Config']['Labels'].get('runverge.check.owner') != project:
                 raise RuntimeError('Recovery fixture ownership changed')
             command(['docker', 'rm', '-f', '-v', created])
+
+
+def verify_installed_accounting(command, env, private, name, identifier, ports, database,
+                                 source_plan, target, cli, require, progress):
+    """Installed platform CLI, retained DB restart, synthetic ordinary-API facts."""
+    fixture = json.loads((private / 'financial-after.json').read_text())
+    for key, prefix in (('organization_id', 'org'), ('reservation_id', 'res'),
+                        ('task_id', 'task'), ('invoice_id', 'evi'), ('correction_id', 'evi')):
+        if not re.fullmatch(prefix + r'_[a-f0-9]{32}', fixture[key]):
+            raise RuntimeError('Invalid owned financial fixture identifier')
+    org, reservation = fixture['organization_id'], fixture['reservation_id']
+    if not re.fullmatch(r'[0-9]{1,18}', fixture['initial_spent_microusd']):
+        raise RuntimeError('Invalid initial synthetic spending')
+    final_spent = int(fixture['initial_spent_microusd']) + 3
+
+    def sql(query):
+        return command(['docker', 'exec', identifier, 'sh', '-ec',
+                        'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -X -w -h 127.0.0.1 '
+                        '-U runverge_recovery_operator -d "$1" -At -v ON_ERROR_STOP=1 -c "$2"',
+                        'recovery-financial-check', database, query]).strip()
+
+    # Independent read-only evidence. Money columns may change; execution
+    # rows, action states, event/outbox content and task revisions must not.
+    execution_sql = "SELECT encode(sha256(convert_to(jsonb_build_object(" + ','.join(
+        "'" + table + "',(SELECT jsonb_agg(" + row + " ORDER BY r." + order + ") FROM " + table +
+        " r WHERE organization_id='" + org + "')"
+        for table, row, order in (('tasks', "to_jsonb(r)-ARRAY['spent_microusd','reserved_microusd','financial_hold']", 'id'),
+                                  ('actions', 'to_jsonb(r)', 'id'), ('events', 'to_jsonb(r)', 'sequence'),
+                                  ('outbox', 'to_jsonb(r)', 'sequence'))
+    ) + ")::text,'UTF8')),'hex')"
+    before = sql(execution_sql)
+    if not re.fullmatch(r'[a-f0-9]{64}', before):
+        raise RuntimeError('Missing execution baseline')
+
+    def plan(evidence, path):
+        return require(cli(['accounting-plan', '--source-intent-file', str(source_plan),
+                            '--target-config', target, '--organization-id', org,
+                            '--reservation-id', reservation, '--source-evidence-id', evidence,
+                            '--out', str(path)]), 'installed-accounting-plan')
+
+    def apply(path, **kwargs):
+        return cli(['accounting-apply', '--intent-file', str(path),
+                    '--confirm-record-financial-fact'], **kwargs)
+
+    invoice_path = private / 'installed-invoice.json'
+    invoice = plan(fixture['invoice_id'], invoice_path)
+    progress('installed_financial_apply_before_restart')
+    with open('/dev/full', 'wb') as lost:
+        if apply(invoice_path, stdout=lost).returncode == 0:
+            raise RuntimeError('Installed financial output loss was not reported')
+    command(['docker', 'restart', identifier])
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        ready = subprocess.run(['docker', 'exec', identifier, 'pg_isready', '-h', '127.0.0.1',
+                                '-U', 'runverge_recovery_operator', '-d', database],
+                               env=env, capture_output=True, timeout=10)
+        if ready.returncode == 0:
+            break
+        time.sleep(0.2)
+    else:
+        raise RuntimeError('Financial target did not restart')
+    current = json.loads(command(['docker', 'inspect', identifier]))[0]
+    if current['Id'] != identifier or current['Name'] != '/' + name or current['NetworkSettings']['Ports']['5432/tcp'] != ports:
+        raise RuntimeError('Financial target identity changed')
+    inspected = require(cli(['accounting-inspect', '--intent-file', str(invoice_path)]),
+                        'installed-accounting-inspection')
+    if inspected['state'] != 'recorded' or inspected['operation_id'] != invoice['operation_id'] or inspected['plan_sha256'] != invoice['plan_sha256'] or not inspected['execution_held']:
+        raise RuntimeError('Installed financial receipt did not survive restart')
+    if apply(invoice_path).returncode == 0:
+        raise RuntimeError('Installed one-use financial intent reapplied')
+    correction_path = private / 'installed-correction.json'
+    plan(fixture['correction_id'], correction_path)
+    corrected = require(apply(correction_path), 'installed-accounting-correction')
+    if corrected['state'] != 'recorded' or not corrected['newly_recorded'] or not corrected['execution_held']:
+        raise RuntimeError('Installed financial correction not recorded')
+    replay_path = private / 'installed-invoice-replay.json'
+    replay = plan(fixture['invoice_id'], replay_path)
+    if replay['state'] != 'already_recorded' or replay['operation_id'] != invoice['operation_id'] or replay['requested_operation_id'] == invoice['operation_id']:
+        raise RuntimeError('Installed invoice replay identity changed')
+    repeated = require(apply(replay_path), 'installed-accounting-replay')
+    if repeated['state'] != 'already_recorded' or repeated['newly_recorded'] or repeated['receipt']['id'] != invoice['operation_id']:
+        raise RuntimeError('Installed invoice replay charged again')
+    query = ("SELECT (SELECT state='held' FROM runtime_recovery_control WHERE singleton) "
+             "AND (SELECT actual_microusd=3 AND status='settled' AND pending_quarantine_id IS NULL "
+             "FROM reservations WHERE organization_id='" + org + "' AND id='" + reservation + "') "
+             "AND (SELECT spent_microusd=" + str(final_spent) + " AND reserved_microusd=0 FROM organizations WHERE id='" + org + "') "
+             "AND (SELECT count(*)=2 FROM cost_evidence WHERE organization_id='" + org + "' AND reservation_id='" + reservation + "') "
+             "AND (SELECT count(*)=2 FROM recovery_accounting_batches WHERE organization_id='" + org + "')")
+    if sql(query) != 't' or sql(execution_sql) != before:
+        raise RuntimeError('Installed financial state or execution invariants differ')
+    progress('financial_apply_restart_correction_passed')
