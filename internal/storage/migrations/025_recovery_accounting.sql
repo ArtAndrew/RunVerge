@@ -104,7 +104,7 @@ BEGIN
   SELECT * INTO STRICT m FROM recovery_accounting_mutations WHERE batch_id=NEW.batch_id AND ordinal=NEW.ordinal;
   IF pg_catalog.pg_trigger_depth()<2
    OR recovery_accounting_current_row(m.table_name,m.key_parts) IS DISTINCT FROM m.after_row
-   OR NEW.before_sha256 IS DISTINCT FROM CASE WHEN m.before_row IS NULL THEN NULL ELSE pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(m.before_row::text,'UTF8')),'hex') END
+   OR NEW.before_sha256 IS DISTINCT FROM (CASE WHEN m.before_row IS NULL THEN NULL ELSE pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(m.before_row::text,'UTF8')),'hex') END)
    OR NEW.after_sha256 IS DISTINCT FROM pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(m.after_row::text,'UTF8')),'hex') THEN
    RAISE EXCEPTION 'accounting mutation was not observed' USING ERRCODE='55000';
   END IF;
