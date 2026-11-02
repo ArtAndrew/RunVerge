@@ -77,3 +77,33 @@ database restart. Both receipts record `reconciliation_plan_restart_passed`,
 retain execution hold and confirm fixture cleanup. No real model was called.
 These checks do not establish financial apply, external coverage, new-work
 permission, macOS recovery or full restore support.
+
+## Financial recovery components in development
+
+The development branch also contains a private financial executor and a verifier
+that checks the original snapshot, each recorded change and the current database.
+It changes financial records while keeping historical actions, task versions,
+events and execution permissions unchanged. It does not expose an apply command.
+
+The [full recovery check at e8a9935](https://github.com/ArtAndrew/RunVerge/actions/runs/41408623291)
+passed settlement, negative correction, confirmed zero, duplicate/conflicting
+invoice handling, overflow quarantine and repeated baseline verification.
+The [accounting-only check at 5a7c4b3](https://github.com/ArtAndrew/RunVerge/actions/runs/41409692357)
+also passed resolution of quarantined settlements and corrections after another
+expense correction freed capacity. Insufficient capacity leaves the fact in
+quarantine; repeating a completed resolution does not charge it again.
+
+The [accounting-only check at ac6212a](https://github.com/ArtAndrew/RunVerge/actions/runs/41413153346)
+cut the database connection before and after COMMIT. A fresh connection verified
+the complete baseline and reported whether the exact operation was recorded,
+without reapplying it. The storage inspector checks an operation ID and request
+digest; it is not yet exposed as a host command. Verification uses temporary
+tables and rolls back; it does not modify persistent business data.
+
+These are synthetic financial facts in disposable PostgreSQL databases, with no
+model or provider requests. The accounting-only runs are development checks,
+not full release gates. A usable host apply path still needs authenticated fact
+selection, ordering and source-to-target revision binding. The existing
+`reconciliation-plan` command still requires the original target baseline; it
+does not yet plan subsequent work on a financially reconciled target. None of
+these components permits new execution or constitutes full restore support.
