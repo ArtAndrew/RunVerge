@@ -71,9 +71,11 @@ authority for a later operation.
 
 This is correlation with archived records only. The archived provider account
 label is not proof of current credential ownership or a genuine provider request.
-Acquisition, current host trust, durable observation storage and financial
-admission require separate integration. Neither this selector nor the reader
-provides a user-facing recovery command or permission to resume tasks.
+The internal storage coordinator now combines selection with a separate
+[current host usage policy](../recoveryaccess/USAGE-AUTHORITY.md). The mapping
+remains an operator attestation. Durable observation storage and financial
+admission are not integrated. Neither this selector nor the reader provides a
+user-facing recovery command or permission to resume tasks.
 
 ## Validation and references
 
