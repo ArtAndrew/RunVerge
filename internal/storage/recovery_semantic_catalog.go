@@ -16,7 +16,7 @@ import (
 
 var ErrRecoverySemanticCatalog = errors.New("unsupported recovery semantic catalogue")
 
-const recoverySemanticCatalogSHA256 = "70ab49a57a49bf1f8f40de0e65b063626fe734323829f9945c1d996b07cb5b98"
+const recoverySemanticCatalogSHA256 = "UNSEALED"
 const recoverySemanticNamespace = "__runverge_recovery_target__"
 const recoverySemanticMaxRecord = 256 << 10
 const recoverySemanticMaxBytes = 8 << 20
@@ -160,13 +160,13 @@ func validateRecoverySemanticCatalog(ctx context.Context, tx pgx.Tx, schema stri
 	// non-owner role before reading or trusting these records. Database owners
 	// and superusers remain an external operational trust boundary.
 	var privateMetadata bool
-	err = tx.QueryRow(ctx, `SELECT pg_catalog.count(*)=8 AND NOT pg_catalog.bool_or(
+	err = tx.QueryRow(ctx, `SELECT pg_catalog.count(*)=9 AND NOT pg_catalog.bool_or(
  EXISTS(SELECT 1 FROM pg_catalog.aclexplode(COALESCE(c.relacl,pg_catalog.acldefault('r',c.relowner))) permission
  WHERE permission.grantee<>c.relowner AND permission.privilege_type IN('INSERT','UPDATE','DELETE','TRUNCATE'))
  OR EXISTS(SELECT 1 FROM pg_catalog.pg_attribute a CROSS JOIN LATERAL pg_catalog.aclexplode(a.attacl) permission
  WHERE a.attrelid=c.oid AND permission.grantee<>c.relowner AND permission.privilege_type IN('INSERT','UPDATE')))
  FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname=$1 AND c.relname IN('recovery_import_receipts','recovery_historical_rows','recovery_evidence_batches','recovery_evidence_chunks','recovery_evidence_changes','recovery_accounting_batches','recovery_accounting_mutations','recovery_accounting_applied')`, schema).Scan(&privateMetadata)
+ WHERE n.nspname=$1 AND c.relname IN('recovery_import_receipts','recovery_historical_rows','recovery_evidence_batches','recovery_evidence_chunks','recovery_evidence_changes','recovery_accounting_batches','recovery_accounting_mutations','recovery_accounting_applied','recovery_usage_observations')`, schema).Scan(&privateMetadata)
 	if err != nil || !privateMetadata {
 		return RecoverySemanticCatalog{}, recoverySnapshotError(ctx, ErrRecoverySemanticCatalog)
 	}

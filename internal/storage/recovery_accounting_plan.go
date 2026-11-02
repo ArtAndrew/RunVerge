@@ -70,11 +70,15 @@ func recoveryAccountingSelectionValid(r RecoveryAccountingSelection) bool {
 	return modeValid && len(r.OperationID) == 32 && strings.Trim(r.OperationID, "0123456789abcdef") == "" && validText(r.OrganizationID, 128) && validText(r.ReservationID, 128) && validText(r.SourceEvidenceID, 128)
 }
 
-func recoveryAccountingSourcePlanHash(in recoveryAccountingInputs, source recoveryAccountingSource, step recoveryFinancialSourceTransition, operation, beforeSHA, previous, requestHash string, revision int64) string {
+func recoveryAccountingSourcePlanHash(in recoveryAccountingInputs, source recoveryAccountingSource, step recoveryFinancialSourceTransition, operation, beforeSHA, previous, requestHash string, revision int64, profile string) string {
+	algorithm, catalog, ok := recoveryAccountingCommitmentProfile(profile, "fact")
+	if !ok {
+		return ""
+	}
 	l := in.verified.Link()
 	return digestValue(recoveryAccountingSourceCommitment{
-		Algorithm: "source-financial-fact-v1", OperationID: operation, SourceID: in.held.SourceID, TargetID: in.held.InstallationID, RestoreID: in.held.RestoreID, EvidenceBatchID: l.OperationID,
-		SelectedReceiptSHA256: l.SelectedReceiptSHA256, SelectedSnapshotSHA256: in.original.SHA256, EvidenceReceiptSHA256: l.EvidenceReceiptSHA256, EvidenceSnapshotSHA256: in.later.SHA256, CaptureLinkSHA256: in.verified.SHA256(), TargetCatalogSHA256: recoveryAccountingSourceV1CatalogSHA256,
+		Algorithm: algorithm, OperationID: operation, SourceID: in.held.SourceID, TargetID: in.held.InstallationID, RestoreID: in.held.RestoreID, EvidenceBatchID: l.OperationID,
+		SelectedReceiptSHA256: l.SelectedReceiptSHA256, SelectedSnapshotSHA256: in.original.SHA256, EvidenceReceiptSHA256: l.EvidenceReceiptSHA256, EvidenceSnapshotSHA256: in.later.SHA256, CaptureLinkSHA256: in.verified.SHA256(), TargetCatalogSHA256: catalog,
 		OrganizationID: source.original.org, ReservationID: source.original.id, SourceEvidenceID: step.evidence.id, SourceRowSHA256: source.rowSHA256ByID[step.evidence.id], SourceRequestSHA256: step.evidence.hash, ReservationIdentitySHA256: source.identitySHA256,
 		SourceKind: step.evidence.kind, SourceBeforeRevision: step.beforeRevision, SourceAfterRevision: step.afterRevision, SourceExpectedRevision: step.expected,
 		TargetBeforeSHA256: beforeSHA, PreviousID: previous, TargetRequestSHA256: requestHash, TargetRevision: revision,
@@ -90,7 +94,7 @@ type recoveryAccountingSourceMapping struct {
 // makes replay work even after subsequent adjustments and with a new request ID.
 func (s *Store) recoveryAccountingMappingTx(ctx context.Context, tx pgx.Tx, in recoveryAccountingInputs, source recoveryAccountingSource, step recoveryFinancialSourceTransition, target *recoveryCostEvidence) (result recoveryAccountingSourceMapping, err error) {
 	q := func(table string) string { return pgx.Identifier{s.runtimeSchema, table}.Sanitize() }
-	rows, err := tx.Query(ctx, `SELECT b.id,COALESCE(b.previous_id,''),b.request_sha256,b.plan_sha256,b.expected_revision,
+	rows, err := tx.Query(ctx, `SELECT b.id,COALESCE(b.previous_id,''),b.request_sha256,b.plan_sha256,b.expected_revision,b.mutation_profile,
  encode(sha256(convert_to(r.before_row::text,'UTF8')),'hex'),r.before_row->>'status',(r.before_row->>'revision')::bigint,
  b.restore_id=$1 AND b.target_installation_id=$2 AND b.evidence_batch_id=$3 AND b.organization_id=$4 AND b.reservation_id=$5
  FROM `+q("recovery_accounting_batches")+` b JOIN `+q("recovery_accounting_mutations")+` e ON e.batch_id=b.id AND e.table_name='cost_evidence' AND e.operation='INSERT'
@@ -100,10 +104,10 @@ func (s *Store) recoveryAccountingMappingTx(ctx context.Context, tx pgx.Tx, in r
 		return result, ErrRecoveryAccounting
 	}
 	defer rows.Close()
-	var beforeSHA, status string
+	var beforeSHA, status, profile string
 	var beforeRevision int64
 	var bound bool
-	if !rows.Next() || rows.Scan(&result.operationID, &result.previousID, &result.requestSHA256, &result.planSHA256, &result.revision, &beforeSHA, &status, &beforeRevision, &bound) != nil || !bound || rows.Next() || rows.Err() != nil {
+	if !rows.Next() || rows.Scan(&result.operationID, &result.previousID, &result.requestSHA256, &result.planSHA256, &result.revision, &profile, &beforeSHA, &status, &beforeRevision, &bound) != nil || !bound || rows.Next() || rows.Err() != nil {
 		return result, ErrRecoveryAccounting
 	}
 	var expected *int
@@ -116,7 +120,7 @@ func (s *Store) recoveryAccountingMappingTx(ctx context.Context, tx pgx.Tx, in r
 	} else if status == "settled" {
 		return result, ErrRecoveryAccounting
 	}
-	if result.revision != beforeRevision || result.requestSHA256 != target.hash || target.hash != evidenceRequestHash(step.evidence.value, expected) || evidenceRequestHash(target.value, nil) != evidenceRequestHash(step.evidence.value, nil) || result.planSHA256 != recoveryAccountingSourcePlanHash(in, source, step, result.operationID, beforeSHA, result.previousID, result.requestSHA256, result.revision) {
+	if result.revision != beforeRevision || result.requestSHA256 != target.hash || target.hash != evidenceRequestHash(step.evidence.value, expected) || evidenceRequestHash(target.value, nil) != evidenceRequestHash(step.evidence.value, nil) || result.planSHA256 != recoveryAccountingSourcePlanHash(in, source, step, result.operationID, beforeSHA, result.previousID, result.requestSHA256, result.revision, profile) {
 		return result, ErrRecoveryAccounting
 	}
 	return result, nil
@@ -206,7 +210,7 @@ func (s *Store) planRecoveryAccountingFactTx(ctx context.Context, tx pgx.Tx, in 
 		plan.PlanSHA256, plan.RequestSHA256, plan.PreviousID, plan.TargetRevision = selectedMapping.planSHA256, selectedMapping.requestSHA256, selectedMapping.previousID, selectedMapping.revision
 		return plan, source, nil, nil
 	}
-	if firstMissing != request.SourceEvidenceID || current.pending != "" || recoverySemanticCatalogSHA256 != recoveryAccountingSourceV1CatalogSHA256 {
+	if firstMissing != request.SourceEvidenceID || current.pending != "" || !validDigest(recoveryAccountingSourceV2CatalogSHA256) || recoverySemanticCatalogSHA256 != recoveryAccountingSourceV2CatalogSHA256 {
 		return RecoveryAccountingPlan{}, source, nil, ErrRecoveryAccounting
 	}
 	if source.evidence.kind == "adjustment" {
@@ -224,7 +228,7 @@ func (s *Store) planRecoveryAccountingFactTx(ctx context.Context, tx pgx.Tx, in 
 	}
 	plan.TargetRevision, plan.PreviousID = int64(current.revision), head.ID
 	plan.RequestSHA256 = evidenceRequestHash(source.evidence.value, expected)
-	plan.PlanSHA256 = recoveryAccountingSourcePlanHash(in, source, *source.step, request.OperationID, beforeSHA, head.ID, plan.RequestSHA256, plan.TargetRevision)
+	plan.PlanSHA256 = recoveryAccountingSourcePlanHash(in, source, *source.step, request.OperationID, beforeSHA, head.ID, plan.RequestSHA256, plan.TargetRevision, recoveryAccountingMutationV2)
 	return plan, source, expected, nil
 }
 

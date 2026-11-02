@@ -21,7 +21,7 @@ const RecoverySnapshotFormat = "runverge-pg18-copy-ndjson-v1"
 // Recovery metadata is target-local authority/fencing, never source business data.
 func recoveryBusinessTable(name string) bool {
 	switch name {
-	case "schema_migrations", "runtime_recovery_control", "recovery_import_receipts", "recovery_historical_rows", "recovery_evidence_batches", "recovery_evidence_chunks", "recovery_evidence_changes", "recovery_accounting_batches", "recovery_accounting_mutations", "recovery_accounting_applied":
+	case "schema_migrations", "runtime_recovery_control", "recovery_import_receipts", "recovery_historical_rows", "recovery_evidence_batches", "recovery_evidence_chunks", "recovery_evidence_changes", "recovery_accounting_batches", "recovery_accounting_mutations", "recovery_accounting_applied", "recovery_usage_observations":
 		return false
 	}
 	return true
@@ -30,7 +30,7 @@ func recoveryBusinessTable(name string) bool {
 // Filled only from a disposable schema built with trusted embedded migrations.
 // An embedded migration change intentionally fails closed until this typed
 // inventory pin has been reviewed and the compatibility test updated.
-const recoverySnapshotInventorySHA256 = "a2544fad609b1d6ff15f97400a97a05b5c05e1b7e4944e799aa0d9135df45454"
+const recoverySnapshotInventorySHA256 = "UNSEALED"
 
 const recoverySnapshotChunkSize = 32 << 10
 const recoverySnapshotMaxRecordBytes = 2 << 20

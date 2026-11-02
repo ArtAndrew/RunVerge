@@ -25,12 +25,16 @@ type recoveryAccountingResolutionProvenance struct {
 	origin, factOperation, factPlan, evidenceID, evidenceSHA, quarantineSHA string
 }
 
-func recoveryAccountingResolutionPlanHash(in recoveryAccountingInputs, source recoveryAccountingSource, provenance recoveryAccountingResolutionProvenance, request RecoveryAccountingSelection, operation, beforeSHA, previous, requestHash string, revision int64) string {
+func recoveryAccountingResolutionPlanHash(in recoveryAccountingInputs, source recoveryAccountingSource, provenance recoveryAccountingResolutionProvenance, request RecoveryAccountingSelection, operation, beforeSHA, previous, requestHash string, revision int64, profile string) string {
+	algorithm, catalog, ok := recoveryAccountingCommitmentProfile(profile, "resolution")
+	if !ok {
+		return ""
+	}
 	l := in.verified.Link()
 	return digestValue(recoveryAccountingResolutionCommitment{
-		Algorithm: "source-financial-resolution-v1", OperationID: operation, SourceID: in.held.SourceID, TargetID: in.held.InstallationID, RestoreID: in.held.RestoreID, EvidenceBatchID: l.OperationID,
+		Algorithm: algorithm, OperationID: operation, SourceID: in.held.SourceID, TargetID: in.held.InstallationID, RestoreID: in.held.RestoreID, EvidenceBatchID: l.OperationID,
 		SelectedReceiptSHA256: l.SelectedReceiptSHA256, SelectedSnapshotSHA256: in.original.SHA256, EvidenceReceiptSHA256: l.EvidenceReceiptSHA256, EvidenceSnapshotSHA256: in.later.SHA256, CaptureLinkSHA256: in.verified.SHA256(),
-		TargetCatalogSHA256: recoveryAccountingSourceV1CatalogSHA256, OrganizationID: request.OrganizationID, ReservationID: request.ReservationID, ReservationIdentitySHA256: source.identitySHA256,
+		TargetCatalogSHA256: catalog, OrganizationID: request.OrganizationID, ReservationID: request.ReservationID, ReservationIdentitySHA256: source.identitySHA256,
 		SourceEvidenceID: request.SourceEvidenceID, SourceRowSHA256: source.rowSHA256, SourceRequestSHA256: source.evidence.hash, ProvenanceOrigin: provenance.origin,
 		FactOperationID: provenance.factOperation, FactPlanSHA256: provenance.factPlan, TargetEvidenceID: provenance.evidenceID, TargetEvidenceSHA256: provenance.evidenceSHA,
 		QuarantineID: request.QuarantineID, QuarantineSHA256: provenance.quarantineSHA, TargetBeforeSHA256: beforeSHA, PreviousID: previous, RequestSHA256: requestHash, TargetRevision: revision,
@@ -109,7 +113,7 @@ func (s *Store) planRecoveryAccountingResolutionTx(ctx context.Context, tx pgx.T
 	if z.resolution != nil {
 		// Reconstruct the original resolution receipt. The current reservation may
 		// already contain later corrections; its current revision is not replay authority.
-		rows, e := tx.Query(ctx, `SELECT b.id,COALESCE(b.previous_id,''),b.request_sha256,b.plan_sha256,b.expected_revision,
+		rows, e := tx.Query(ctx, `SELECT b.id,COALESCE(b.previous_id,''),b.request_sha256,b.plan_sha256,b.expected_revision,b.mutation_profile,
  encode(sha256(convert_to(r.before_row::text,'UTF8')),'hex'),(r.before_row->>'revision')::bigint,r.before_row->>'pending_quarantine_id',
  b.restore_id=$1 AND b.target_installation_id=$2 AND b.evidence_batch_id=$3 AND b.organization_id=$4 AND b.reservation_id=$5
  FROM `+q("recovery_accounting_batches")+` b JOIN `+q("recovery_accounting_mutations")+` z ON z.batch_id=b.id AND z.table_name='cost_quarantine_resolutions' AND z.operation='INSERT'
@@ -119,10 +123,10 @@ func (s *Store) planRecoveryAccountingResolutionTx(ctx context.Context, tx pgx.T
 			return RecoveryAccountingPlan{}, source, ErrRecoveryAccounting
 		}
 		defer rows.Close()
-		var operation, previous, requestHash, planHash, beforeSHA, pending string
+		var operation, previous, requestHash, planHash, beforeSHA, pending, profile string
 		var revision, beforeRevision int64
 		var bound bool
-		if !rows.Next() || rows.Scan(&operation, &previous, &requestHash, &planHash, &revision, &beforeSHA, &beforeRevision, &pending, &bound) != nil || !bound || rows.Next() || rows.Err() != nil || pending != z.id || revision != int64(z.revision) || beforeRevision != revision || requestHash != plan.RequestSHA256 || (operationExists && operation != request.OperationID) || planHash != recoveryAccountingResolutionPlanHash(in, source, provenance, request, operation, beforeSHA, previous, requestHash, revision) {
+		if !rows.Next() || rows.Scan(&operation, &previous, &requestHash, &planHash, &revision, &profile, &beforeSHA, &beforeRevision, &pending, &bound) != nil || !bound || rows.Next() || rows.Err() != nil || pending != z.id || revision != int64(z.revision) || beforeRevision != revision || requestHash != plan.RequestSHA256 || (operationExists && operation != request.OperationID) || planHash != recoveryAccountingResolutionPlanHash(in, source, provenance, request, operation, beforeSHA, previous, requestHash, revision, profile) {
 			return RecoveryAccountingPlan{}, source, ErrRecoveryAccounting
 		}
 		plan.State, plan.OperationID, plan.PreviousID, plan.PlanSHA256 = "already_recorded", operation, previous, planHash
@@ -132,13 +136,13 @@ func (s *Store) planRecoveryAccountingResolutionTx(ctx context.Context, tx pgx.T
 	if wantStatus == "reserved" {
 		wantStatus = "unknown"
 	}
-	if operationExists || current.pending != z.id || current.revision != z.revision || current.status != wantStatus || !sameAmount(current.actual, z.actual) || recoverySemanticCatalogSHA256 != recoveryAccountingSourceV1CatalogSHA256 {
+	if operationExists || current.pending != z.id || current.revision != z.revision || current.status != wantStatus || !sameAmount(current.actual, z.actual) || !validDigest(recoveryAccountingSourceV2CatalogSHA256) || recoverySemanticCatalogSHA256 != recoveryAccountingSourceV2CatalogSHA256 {
 		return RecoveryAccountingPlan{}, source, ErrRecoveryAccounting
 	}
 	var beforeSHA string
 	if tx.QueryRow(ctx, "SELECT encode(sha256(convert_to(to_jsonb(r)::text,'UTF8')),'hex') FROM "+q("reservations")+" r WHERE organization_id=$1 AND id=$2", request.OrganizationID, request.ReservationID).Scan(&beforeSHA) != nil {
 		return RecoveryAccountingPlan{}, source, ErrRecoveryAccounting
 	}
-	plan.PlanSHA256 = recoveryAccountingResolutionPlanHash(in, source, provenance, request, request.OperationID, beforeSHA, head.ID, plan.RequestSHA256, plan.TargetRevision)
+	plan.PlanSHA256 = recoveryAccountingResolutionPlanHash(in, source, provenance, request, request.OperationID, beforeSHA, head.ID, plan.RequestSHA256, plan.TargetRevision, recoveryAccountingMutationV2)
 	return plan, source, nil
 }

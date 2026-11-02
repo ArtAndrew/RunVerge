@@ -205,7 +205,7 @@ func (s *Store) PrepareRecoveryTarget(ctx context.Context, spec RecoveryTargetSp
 	// by the complete catalog above; only business tables use runtime guards.
 	var guarded bool
 	err = tx.QueryRow(ctx, `SELECT NOT EXISTS(SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname=$1 AND c.relkind IN('r','p') AND c.relname NOT IN('runtime_recovery_control','schema_migrations','recovery_import_receipts','recovery_historical_rows','recovery_evidence_batches','recovery_evidence_chunks','recovery_evidence_changes','recovery_accounting_batches','recovery_accounting_mutations','recovery_accounting_applied')
+ WHERE n.nspname=$1 AND c.relkind IN('r','p') AND c.relname NOT IN('runtime_recovery_control','schema_migrations','recovery_import_receipts','recovery_historical_rows','recovery_evidence_batches','recovery_evidence_chunks','recovery_evidence_changes','recovery_accounting_batches','recovery_accounting_mutations','recovery_accounting_applied','recovery_usage_observations')
  AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_trigger t JOIN pg_catalog.pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid
  AND t.tgname='recovery_runtime_write' AND t.tgenabled='O' AND t.tgtype=62 AND NOT t.tgisinternal
  AND f.proname='runtime_recovery_write_guard' AND f.pronamespace=c.relnamespace))`, s.runtimeSchema).Scan(&guarded)

@@ -307,7 +307,7 @@ func (s *Store) buildRecoveryAccountingReviewTx(ctx context.Context, tx pgx.Tx, 
 // Its caller has checked the entire source prefix and original/target row hashes.
 func (s *Store) recoveryReviewResolutionMappingTx(ctx context.Context, tx pgx.Tx, in recoveryAccountingInputs, source recoveryAccountingSource, provenance recoveryAccountingResolutionProvenance, request RecoveryAccountingSelection, z *recoveryCostQuarantine) (m recoveryAccountingSourceMapping, err error) {
 	q := func(table string) string { return pgx.Identifier{s.runtimeSchema, table}.Sanitize() }
-	rows, err := tx.Query(ctx, `SELECT b.id,COALESCE(b.previous_id,''),b.request_sha256,b.plan_sha256,b.expected_revision,
+	rows, err := tx.Query(ctx, `SELECT b.id,COALESCE(b.previous_id,''),b.request_sha256,b.plan_sha256,b.expected_revision,b.mutation_profile,
  encode(sha256(convert_to(r.before_row::text,'UTF8')),'hex'),(r.before_row->>'revision')::bigint,r.before_row->>'pending_quarantine_id',
  b.restore_id=$1 AND b.target_installation_id=$2 AND b.evidence_batch_id=$3 AND b.organization_id=$4 AND b.reservation_id=$5
  FROM `+q("recovery_accounting_batches")+` b JOIN `+q("recovery_accounting_mutations")+` z ON z.batch_id=b.id AND z.table_name='cost_quarantine_resolutions' AND z.operation='INSERT'
@@ -317,10 +317,10 @@ func (s *Store) recoveryReviewResolutionMappingTx(ctx context.Context, tx pgx.Tx
 		return m, ErrRecoveryAccounting
 	}
 	defer rows.Close()
-	var beforeSHA, pending string
+	var beforeSHA, pending, profile string
 	var revision int64
 	var bound bool
-	if !rows.Next() || rows.Scan(&m.operationID, &m.previousID, &m.requestSHA256, &m.planSHA256, &m.revision, &beforeSHA, &revision, &pending, &bound) != nil || !bound || rows.Next() || rows.Err() != nil || revision != int64(z.revision) || m.revision != revision || pending != z.id || m.requestSHA256 != recoveryAccountingResolutionHash(request.OrganizationID, request.ReservationID, z.id, z.revision) || m.planSHA256 != recoveryAccountingResolutionPlanHash(in, source, provenance, request, m.operationID, beforeSHA, m.previousID, m.requestSHA256, revision) {
+	if !rows.Next() || rows.Scan(&m.operationID, &m.previousID, &m.requestSHA256, &m.planSHA256, &m.revision, &profile, &beforeSHA, &revision, &pending, &bound) != nil || !bound || rows.Next() || rows.Err() != nil || revision != int64(z.revision) || m.revision != revision || pending != z.id || m.requestSHA256 != recoveryAccountingResolutionHash(request.OrganizationID, request.ReservationID, z.id, z.revision) || m.planSHA256 != recoveryAccountingResolutionPlanHash(in, source, provenance, request, m.operationID, beforeSHA, m.previousID, m.requestSHA256, revision, profile) {
 		return recoveryAccountingSourceMapping{}, ErrRecoveryAccounting
 	}
 	return m, nil

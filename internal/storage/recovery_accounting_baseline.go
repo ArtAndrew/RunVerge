@@ -27,7 +27,8 @@ func (s *Store) verifyRecoveryAccountingBaselineTx(ctx context.Context, tx pgx.T
 	q := func(table string) string { return pgx.Identifier{s.runtimeSchema, table}.Sanitize() }
 	rows, err := tx.Query(ctx, `SELECT b.id,b.ordinal,COALESCE(b.previous_id,''),b.organization_id,b.reservation_id,b.expected_revision,b.mutation_count,b.mutation_bytes,
  m.ordinal,m.table_name,m.operation,m.key_parts,m.before_row,m.after_row,
- b.restore_id=$1 AND b.target_installation_id=$2 AND e.restore_id=b.restore_id AND e.target_installation_id=b.target_installation_id AND e.selected_snapshot_sha256=$3,
+ b.restore_id=$1 AND b.target_installation_id=$2 AND e.restore_id=b.restore_id AND e.target_installation_id=b.target_installation_id AND e.selected_snapshot_sha256=$3
+ AND b.mutation_profile IN('sql025-exact-mutation-v1','sql026-exact-mutation-v1'),
  a.after_sha256=encode(sha256(convert_to(m.after_row::text,'UTF8')),'hex') AND a.before_sha256 IS NOT DISTINCT FROM
  (CASE WHEN m.before_row IS NULL THEN NULL ELSE encode(sha256(convert_to(m.before_row::text,'UTF8')),'hex') END)
  FROM `+q("recovery_accounting_batches")+` b
