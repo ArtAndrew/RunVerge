@@ -47,6 +47,34 @@ to the exact archived execution, retain authenticated acquisition provenance and
 define monetary finality/correction handling. A caller-edited `Record()` value
 is not an authorization or verification token.
 
+## Selecting a request from recovery history
+
+The storage component `PlanRecoveryUsageReadback` accepts an organization and
+reservation ID, plus the authenticated original and captured archives and their
+verified capture link. It derives the generation ID from the recorded model
+candidate; callers cannot supply a replacement generation ID or an amount.
+
+The selector checks the held target, committed evidence and accounting baseline.
+It then checks immutable reservation and action identity, and the exact model
+turn and pinned connection in both snapshots. Status and financial fields may
+change. An already recorded dispatch or candidate cannot be rewritten.
+A candidate must have a dispatch record. Another reservation using the same
+provider account label and generation ID in either snapshot makes the selection
+ambiguous and is refused, even if that collision disappears in the later snapshot.
+
+An absent candidate or empty response ID stays unavailable. A candidate with a
+missing, null or incorrectly typed ID field is refused. Unsupported profiles or
+ID formats do not produce a callable request. Successful planning rolls back its transaction
+and leaves execution held. It makes no provider request and changes no ledger
+entry. The plan digest identifies the checked inputs; an editable copy is not
+authority for a later operation.
+
+This is correlation with archived records only. The archived provider account
+label is not proof of current credential ownership or a genuine provider request.
+Acquisition, current host trust, durable observation storage and financial
+admission require separate integration. Neither this selector nor the reader
+provides a user-facing recovery command or permission to resume tasks.
+
 ## Validation and references
 
 The package tests use owned local HTTPS peers and synthetic credentials. They
