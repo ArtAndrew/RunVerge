@@ -100,6 +100,9 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
  WHEN c.relname IN('recovery_evidence_batches','recovery_evidence_chunks','recovery_evidence_changes') THEN
  EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_evidence_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_evidence_guard')
  AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_evidence_permanent' AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_evidence_guard')
+ WHEN c.relname IN('recovery_accounting_batches','recovery_accounting_mutations','recovery_accounting_applied') THEN
+ EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_accounting_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_accounting_metadata_guard')
+ AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_accounting_permanent' AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_accounting_metadata_guard')
  ELSE EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid
  WHERE t.tgrelid=c.oid AND t.tgname='recovery_runtime_write' AND t.tgenabled='O'
  AND t.tgtype=62 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='runtime_recovery_write_guard') END
@@ -144,8 +147,8 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
 			} {
 				_, err := s.Pool.Exec(ctx, statement)
 				expected := "55000"
-				if strings.HasPrefix(statement, "INSERT ") && (r.name == "recovery_evidence_batches" || r.name == "recovery_evidence_chunks" || r.name == "recovery_evidence_changes") {
-					// SQL024's guard requires an already committed import. On
+				if strings.HasPrefix(statement, "INSERT ") && (r.name == "recovery_evidence_batches" || r.name == "recovery_evidence_chunks" || r.name == "recovery_evidence_changes" || r.name == "recovery_accounting_batches" || r.name == "recovery_accounting_mutations" || r.name == "recovery_accounting_applied") {
+					// The evidence/accounting guard requires an already committed import. On
 					// this empty held target its STRICT receipt lookup refuses
 					// the insert before any default/null constraint is checked.
 					expected = "P0002"

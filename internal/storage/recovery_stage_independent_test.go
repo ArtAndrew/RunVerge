@@ -91,9 +91,9 @@ func stageIndependentCapture(t *testing.T, s *Store) stageIndependentImage {
 			image.Rows[v.name] = count
 		}
 	}
-	// Observe all 68 business tables plus the three target-local evidence
+	// Observe all 68 business tables plus the six target-local evidence/accounting
 	// tables. Validation of an empty target must leave every one empty.
-	if len(image.Rows) != 71 || len(image.Seq) != 2 || image.Control.State != "held" {
+	if len(image.Rows) != 74 || len(image.Seq) != 2 || image.Control.State != "held" {
 		t.Fatal("unexpected target observation coverage", len(image.Rows), len(image.Seq))
 	}
 	return image

@@ -11,9 +11,12 @@ import (
 const recoverySQL023Schema = "30a0619f08b777b814e1cb7146f7eb0f041139ddf893681a28fbe6a4209e10a9"
 const recoverySQL023Inventory = "f6df86ff20c447e67132a5282b46a20aa2ccadecdd994767205ffb30c3362700"
 const recoverySQL023Catalog = "35d765a3d47627666c1ac35997e149fa7ea45f712db6ba143b69b6075a94a4a3"
+const recoverySQL024Schema = "19848269eace310288c8ed551091c11fb43c11c5a5600a56fc5c0efd3743c4b5"
+const recoverySQL024Inventory = "f8627786eb0a42461640d880662df8b53c07769a4bd3aecf441b5c3c3cc1dd6e"
+const recoverySQL024Catalog = "04ca663b80bdcbe366e214906cca288984fc78cf0cb0f00c9a1ac96e4233d015"
 
 func SupportedRecoverySourceSchema(digest string) bool {
-	return digest == EmbeddedSchemaSHA256() || digest == recoverySQL023Schema
+	return digest == EmbeddedSchemaSHA256() || digest == recoverySQL023Schema || digest == recoverySQL024Schema
 }
 func recoverySourceHeaderProfile(h recoverySnapshotHeader) bool {
 	var migrations []installation.Migration
@@ -22,13 +25,16 @@ func recoverySourceHeaderProfile(h recoverySnapshotHeader) bool {
 	case EmbeddedSchemaSHA256():
 		migrations = EmbeddedSchemaIdentity()
 		inventory = recoverySnapshotInventorySHA256
-	case recoverySQL023Schema:
+	case recoverySQL023Schema, recoverySQL024Schema:
 		all := EmbeddedSchemaIdentity()
-		if len(all) != 24 {
+		if len(all) != 25 {
 			return false
 		}
 		migrations = all[:23]
 		inventory = recoverySQL023Inventory
+		if h.Metadata.SchemaSHA256 == recoverySQL024Schema {
+			migrations, inventory = all[:24], recoverySQL024Inventory
+		}
 	default:
 		return false
 	}
@@ -37,9 +43,8 @@ func recoverySourceHeaderProfile(h recoverySnapshotHeader) bool {
 	return Hash(encoded) == h.Metadata.SchemaSHA256 && reflect.DeepEqual(h.Migrations, migrations) && h.InventorySHA256 == inventory && Hash(raw) == inventory
 }
 
-// The complete target catalog is checked before using this projection. SQL024
-// adds only operator metadata; every business table and binary layout must
-// still exactly match the pinned source inventory.
+// The complete target catalog is checked before projection. SQL024/025 add
+// operator metadata; business binary layouts must match each exact source pin.
 func recoverySourceInventory(target RecoverySnapshotInventory, source string) (RecoverySnapshotInventory, error) {
 	raw, _ := json.Marshal(target)
 	if Hash(raw) != recoverySnapshotInventorySHA256 {
@@ -48,20 +53,24 @@ func recoverySourceInventory(target RecoverySnapshotInventory, source string) (R
 	if source == recoverySnapshotInventorySHA256 {
 		return target, nil
 	}
-	if source != recoverySQL023Inventory {
+	if source != recoverySQL023Inventory && source != recoverySQL024Inventory {
 		return RecoverySnapshotInventory{}, ErrRecoveryStageSchema
 	}
 	projected := target
 	projected.Tables = nil
 	for _, t := range target.Tables {
 		switch t.Name {
-		case "recovery_evidence_batches", "recovery_evidence_chunks", "recovery_evidence_changes":
+		case "recovery_accounting_batches", "recovery_accounting_mutations", "recovery_accounting_applied":
 			continue
+		case "recovery_evidence_batches", "recovery_evidence_chunks", "recovery_evidence_changes":
+			if source == recoverySQL023Inventory {
+				continue
+			}
 		}
 		projected.Tables = append(projected.Tables, t)
 	}
 	raw, _ = json.Marshal(projected)
-	if Hash(raw) != recoverySQL023Inventory {
+	if Hash(raw) != source {
 		return RecoverySnapshotInventory{}, ErrRecoveryStageSchema
 	}
 	return projected, nil
@@ -70,5 +79,8 @@ func recoveryImportProfileSupported(r RecoveryImportReceipt) bool {
 	if r.SchemaSHA256 == EmbeddedSchemaSHA256() {
 		return r.InventorySHA256 == recoverySnapshotInventorySHA256 && r.CatalogSHA256 == recoverySemanticCatalogSHA256
 	}
-	return r.SchemaSHA256 == recoverySQL023Schema && r.InventorySHA256 == recoverySQL023Inventory && (r.CatalogSHA256 == recoverySQL023Catalog || r.CatalogSHA256 == recoverySemanticCatalogSHA256)
+	if r.SchemaSHA256 == recoverySQL024Schema {
+		return r.InventorySHA256 == recoverySQL024Inventory && (r.CatalogSHA256 == recoverySQL024Catalog || r.CatalogSHA256 == recoverySemanticCatalogSHA256)
+	}
+	return r.SchemaSHA256 == recoverySQL023Schema && r.InventorySHA256 == recoverySQL023Inventory && (r.CatalogSHA256 == recoverySQL023Catalog || r.CatalogSHA256 == recoverySQL024Catalog || r.CatalogSHA256 == recoverySemanticCatalogSHA256)
 }

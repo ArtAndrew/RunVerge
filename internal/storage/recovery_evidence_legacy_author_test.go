@@ -23,10 +23,17 @@ import (
 )
 
 func TestRecoveryEvidenceAuthorActualSQL023ProducerAndHeldUpgrade(t *testing.T) {
+	recoveryEvidenceLegacyProducer(t, "RUNVERGE_RECOVERY_SQL023_BINARY", recoverySQL023Schema, recoverySQL023Catalog)
+}
+func TestRecoveryEvidenceAuthorActualSQL024ProducerAndHeldUpgrade(t *testing.T) {
+	recoveryEvidenceLegacyProducer(t, "RUNVERGE_RECOVERY_SQL024_BINARY", recoverySQL024Schema, recoverySQL024Catalog)
+}
+func recoveryEvidenceLegacyProducer(t *testing.T, binaryEnvironment, sourceSchema, sourceCatalog string) {
+	t.Helper()
 	recoveryInvariantOwned(t)
-	binary := os.Getenv("RUNVERGE_RECOVERY_SQL023_BINARY")
+	binary := os.Getenv(binaryEnvironment)
 	if binary == "" {
-		t.Skip("exact previously verified SQL023 binary required")
+		t.Skip("exact previously verified old-schema binary required")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -55,7 +62,7 @@ func TestRecoveryEvidenceAuthorActualSQL023ProducerAndHeldUpgrade(t *testing.T) 
 		cmd.Stdout = &out
 		cmd.Stderr = &privateErr
 		if err := cmd.Run(); err != nil {
-			t.Fatalf("SQL023 fixture command %s failed: %v", args[0], err)
+			t.Fatalf("old-schema fixture command %s failed: %v", args[0], err)
 		}
 		return out.Bytes()
 	}
@@ -111,7 +118,7 @@ func TestRecoveryEvidenceAuthorActualSQL023ProducerAndHeldUpgrade(t *testing.T) 
 		dir := filepath.Join(d, name)
 		raw := old("unused", "recovery", "backup-create", "--database-config", sourceConfig, "--keys-file", keys, "--staging-parent", stage, "--out-dir", dir)
 		var receipt recoveryarchive.HostBackupReceipt
-		if json.Unmarshal(raw, &receipt) != nil || receipt.Manifest.Metadata.SchemaSHA256 != recoverySQL023Schema {
+		if json.Unmarshal(raw, &receipt) != nil || receipt.Manifest.Metadata.SchemaSHA256 != sourceSchema {
 			t.Fatal("old producer schema differs")
 		}
 		a, e := recoveryarchive.VerifyHostBackup(ctx, dir, keys, receipt.ReceiptSHA256, stage)
@@ -163,7 +170,7 @@ func TestRecoveryEvidenceAuthorActualSQL023ProducerAndHeldUpgrade(t *testing.T) 
 		t.Fatal("upgrade rewrote old receipt")
 	}
 	inspection, err := legacyTarget.InspectRecoveryImport(ctx, spec, receipt.Manifest.PlaintextSHA256)
-	if err != nil || inspection.Receipt == nil || inspection.Receipt.CatalogSHA256 != recoverySQL023Catalog {
+	if err != nil || inspection.Receipt == nil || inspection.Receipt.CatalogSHA256 != sourceCatalog {
 		t.Fatal("old receipt unreadable", err)
 	}
 	if _, err = legacyTarget.IngestRecoveryEvidence(ctx, selected, late, verified, spec, DefaultRecoverySnapshotLimits()); err != nil {
@@ -173,8 +180,8 @@ func TestRecoveryEvidenceAuthorActualSQL023ProducerAndHeldUpgrade(t *testing.T) 
 		t.Fatal(err)
 	}
 	plan, err := legacyTarget.PlanRecoveryReconciliation(ctx, selected, late, verified, spec, DefaultRecoverySnapshotLimits())
-	if err != nil || plan.SourceSchemaSHA256 != recoverySQL023Schema || plan.EvidenceSchemaSHA256 != recoverySQL023Schema || !plan.RollbackConfirmed {
-		t.Fatal("SQL023 reconciliation plan", err)
+	if err != nil || plan.SourceSchemaSHA256 != sourceSchema || plan.EvidenceSchemaSHA256 != sourceSchema || !plan.RollbackConfirmed {
+		t.Fatal("old-schema reconciliation plan", err)
 	}
 	pub, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -201,7 +208,7 @@ func TestRecoveryEvidenceAuthorActualSQL023ProducerAndHeldUpgrade(t *testing.T) 
 	if err != nil || result.Content != content || !result.Notice.ExecutionHeld {
 		t.Fatal("old result/fresh reader", err)
 	}
-	// Also import the real old archive into a fresh SQL024 target.
+	// Also import the real old archive into a fresh current-schema target.
 	if _, err = selected.Seek(0, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +218,7 @@ func TestRecoveryEvidenceAuthorActualSQL023ProducerAndHeldUpgrade(t *testing.T) 
 	}
 	fresh, freshSpec, _ := recoveryStageAuthorTarget(t, oldWire)
 	newReceipt, err := fresh.ImportRecoverySnapshot(ctx, selected, freshSpec, DefaultRecoverySnapshotLimits())
-	if err != nil || newReceipt.SchemaSHA256 != recoverySQL023Schema || newReceipt.CatalogSHA256 != recoverySemanticCatalogSHA256 || !reflect.DeepEqual(newReceipt.Tables, inspection.Receipt.Tables) {
-		t.Fatal("SQL023 to fresh SQL024", err)
+	if err != nil || newReceipt.SchemaSHA256 != sourceSchema || newReceipt.CatalogSHA256 != recoverySemanticCatalogSHA256 || !reflect.DeepEqual(newReceipt.Tables, inspection.Receipt.Tables) {
+		t.Fatal("old-schema to fresh current-schema", err)
 	}
 }
