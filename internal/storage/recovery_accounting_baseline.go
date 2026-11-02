@@ -198,8 +198,19 @@ func (s *Store) verifyRecoveryAccountingBaselineTx(ctx context.Context, tx pgx.T
 	}
 	// Leave no TEMP relations behind: the caller may now stage the late source
 	// independently. Errors retain the caller's rollback-only cleanup contract.
-	drop := []string{pgx.Identifier{staged.schema, "rvg_accounting_expected"}.Sanitize()}
-	for _, table := range inventory.Tables {
+	if _, err = tx.Exec(ctx, "DROP TABLE "+pgx.Identifier{staged.schema, "rvg_accounting_expected"}.Sanitize()); err != nil {
+		return head, ErrRecoveryAccounting
+	}
+	if err = dropRecoveryAccountingStageTx(ctx, tx, staged, snapshot); err != nil {
+		return head, err
+	}
+	return head, nil
+}
+
+// Fixed trusted staging relations only; never accepts an operator table list.
+func dropRecoveryAccountingStageTx(ctx context.Context, tx pgx.Tx, staged recoveryStagedData, snapshot RecoverySnapshotReport) error {
+	var drop []string
+	for _, table := range staged.inventory.Tables {
 		if table.Exported {
 			drop = append(drop, pgx.Identifier{staged.schema, table.Name}.Sanitize())
 		}
@@ -209,8 +220,8 @@ func (s *Store) verifyRecoveryAccountingBaselineTx(ctx context.Context, tx pgx.T
 	for _, seq := range snapshot.Sequences {
 		drop = append(drop, pgx.Identifier{staged.schema, seq.Name}.Sanitize())
 	}
-	if _, err = tx.Exec(ctx, "DROP TABLE "+strings.Join(drop, ",")); err != nil {
-		return head, ErrRecoveryAccounting
+	if _, err := tx.Exec(ctx, "DROP TABLE "+strings.Join(drop, ",")); err != nil {
+		return ErrRecoveryAccounting
 	}
-	return head, nil
+	return nil
 }
