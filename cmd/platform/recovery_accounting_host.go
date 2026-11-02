@@ -38,6 +38,8 @@ func runRecoveryAccountingHost(ctx context.Context, args []string, out io.Writer
 	case "accounting-plan":
 		f.StringVar(&saved.SourceIntentFile, "source-intent-file", "", "private bound source and captured evidence")
 		f.StringVar(&saved.TargetConfig, "target-config", "", "explicit held target")
+		f.StringVar(&saved.Selection.Mode, "mode", "", "fact (default) or resolve an existing quarantine")
+		f.StringVar(&saved.Selection.QuarantineID, "quarantine-id", "", "exact target quarantine; required only for resolve")
 		f.StringVar(&saved.Selection.OrganizationID, "organization-id", "", "original organization")
 		f.StringVar(&saved.Selection.ReservationID, "reservation-id", "", "original reservation")
 		f.StringVar(&saved.Selection.SourceEvidenceID, "source-evidence-id", "", "exact late source cost_evidence ID")
@@ -74,7 +76,7 @@ func runRecoveryAccountingHost(ctx context.Context, args []string, out io.Writer
 		}
 		saved.Version = 1
 		saved.Selection.OperationID = strings.TrimPrefix(domain.NewID("accounting"), "accounting_")
-	} else if readRecoveryFenceJSON(path, &saved) != nil || saved.Version != 1 || !filepath.IsAbs(saved.SourceIntentFile) || !filepath.IsAbs(saved.TargetConfig) || saved.Selection.OperationID != saved.Plan.RequestedOperationID || saved.Selection.OrganizationID != saved.Plan.OrganizationID || saved.Selection.ReservationID != saved.Plan.ReservationID || saved.Selection.SourceEvidenceID != saved.Plan.SourceEvidenceID {
+	} else if readRecoveryFenceJSON(path, &saved) != nil || saved.Version != 1 || !filepath.IsAbs(saved.SourceIntentFile) || !filepath.IsAbs(saved.TargetConfig) || saved.Selection.Mode != saved.Plan.Mode || saved.Selection.QuarantineID != saved.Plan.QuarantineID || saved.Selection.OperationID != saved.Plan.RequestedOperationID || saved.Selection.OrganizationID != saved.Plan.OrganizationID || saved.Selection.ReservationID != saved.Plan.ReservationID || saved.Selection.SourceEvidenceID != saved.Plan.SourceEvidenceID {
 		return errors.New("invalid private financial operation plan")
 	}
 	var source recoveryProcessFile
@@ -146,7 +148,7 @@ func runRecoveryAccountingHost(ctx context.Context, args []string, out io.Writer
 		}
 		report = inspection
 	case "accounting-apply":
-		// A one-use durable marker comes before the database call. Even an
+		// A one-use durable marker comes before the financial mutation attempt. Even an
 		// uncertain commit or failed output cannot silently become another apply.
 		if err = recoveryarchive.WriteHostJSON(path+".apply", struct {
 			OperationID string    `json:"operation_id"`

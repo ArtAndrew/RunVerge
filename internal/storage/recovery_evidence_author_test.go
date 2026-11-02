@@ -55,12 +55,20 @@ func evidenceAuthorSetup(t *testing.T) *evidenceAuthorFixture {
 
 func evidenceAuthorSetupWithMutation(t *testing.T, mutate func(*Store)) *evidenceAuthorFixture {
 	t.Helper()
+	return evidenceAuthorSetupWithMutations(t, nil, mutate)
+}
+
+func evidenceAuthorSetupWithMutations(t *testing.T, beforeSnapshot, mutate func(*Store)) *evidenceAuthorFixture {
+	t.Helper()
 	ctx := context.Background()
 	source, _ := recoveryAuthorStore(t)
 	p, _, _ := recoveryAuthorPopulate(t, source)
 	unused := domain.NewID("principal")
 	if _, err := source.Pool.Exec(ctx, "INSERT INTO principals(id,name,active) VALUES($1,'unused synthetic principal',false)", unused); err != nil {
 		t.Fatal(err)
+	}
+	if beforeSnapshot != nil {
+		beforeSnapshot(source)
 	}
 	var original, late bytes.Buffer
 	before, err := source.ExportRecoverySnapshot(ctx, &original, DefaultRecoverySnapshotLimits())

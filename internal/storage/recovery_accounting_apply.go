@@ -114,7 +114,15 @@ func (s *Store) recoveryAccountingSourceOperation(ctx context.Context, selected,
 		return result, nil
 	}
 	b := recoveryAccountingBatch{id: selection.OperationID, evidenceBatchID: verified.Link().OperationID, organizationID: selection.OrganizationID, reservationID: selection.ReservationID, requestSHA256: plan.RequestSHA256, planSHA256: plan.PlanSHA256, expectedRevision: plan.TargetRevision}
-	result.Outcome, result.Receipt, err = s.recordRecoveryFinancialFactTx(ctx, tx, held, b, source.evidence.value, expectedRevision)
+	if selection.Mode == "resolve" {
+		result.Outcome, result.Receipt, err = s.resolveRecoveryFinancialQuarantineTx(ctx, tx, held, b, selection.QuarantineID, int(plan.TargetRevision))
+		if err == nil && result.Receipt.ID == "" && result.Outcome.Status == "quarantined" {
+			result.State = "quarantine_retained"
+			return result, nil
+		}
+	} else {
+		result.Outcome, result.Receipt, err = s.recordRecoveryFinancialFactTx(ctx, tx, held, b, source.evidence.value, expectedRevision)
+	}
 	if err != nil || result.Receipt.ID != b.id || result.Receipt.Ordinal != head.Ordinal+1 || result.Receipt.PreviousID != head.ID {
 		return RecoveryAccountingResult{}, ErrRecoveryAccounting
 	}

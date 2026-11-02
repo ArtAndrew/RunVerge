@@ -20,13 +20,14 @@ type recoveryAccountingInputs struct {
 }
 
 type recoveryAccountingSource struct {
-	original, later *recoveryCostHistory
-	transitions     []recoveryFinancialSourceTransition
-	evidence        *recoveryCostEvidence
-	step            *recoveryFinancialSourceTransition
-	rowSHA256       string
-	identitySHA256  string
-	rowSHA256ByID   map[string]string
+	original, later                                  *recoveryCostHistory
+	transitions                                      []recoveryFinancialSourceTransition
+	evidence                                         *recoveryCostEvidence
+	step                                             *recoveryFinancialSourceTransition
+	rowSHA256                                        string
+	identitySHA256                                   string
+	rowSHA256ByID                                    map[string]string
+	originalEvidenceSHA256, originalQuarantineSHA256 string
 }
 
 // The caller has authenticated the archives and exact committed evidence and
@@ -76,6 +77,14 @@ func (s *Store) loadRecoveryAccountingSourceTx(ctx context.Context, tx pgx.Tx, i
 		}
 		if index == 0 {
 			result.original, result.identitySHA256, originalRows = h, identity, digests
+			if e := h.evidence[evidenceID]; e != nil {
+				if tx.QueryRow(ctx, "SELECT encode(sha256(convert_to(to_jsonb(e)::text,'UTF8')),'hex') FROM "+q("cost_evidence")+" e WHERE organization_id=$1 AND reservation_id=$2 AND id=$3", org, reservation, evidenceID).Scan(&result.originalEvidenceSHA256) != nil {
+					return result, ErrRecoveryAccounting
+				}
+				if e.q != nil && tx.QueryRow(ctx, "SELECT encode(sha256(convert_to(to_jsonb(z)::text,'UTF8')),'hex') FROM "+q("cost_quarantines")+" z WHERE organization_id=$1 AND reservation_id=$2 AND id=$3", org, reservation, e.q.id).Scan(&result.originalQuarantineSHA256) != nil {
+					return result, ErrRecoveryAccounting
+				}
+			}
 		} else {
 			if identity != result.identitySHA256 {
 				return result, ErrRecoveryAccounting

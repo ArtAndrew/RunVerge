@@ -12,6 +12,8 @@ import (
 // An operator selects a source record. No editable amount, reason or provider
 // hash is accepted as authority for a financial change.
 type RecoveryAccountingSelection struct {
+	Mode             string `json:"mode,omitempty"`
+	QuarantineID     string `json:"quarantine_id,omitempty"`
 	OperationID      string `json:"operation_id"`
 	OrganizationID   string `json:"organization_id"`
 	ReservationID    string `json:"reservation_id"`
@@ -19,6 +21,8 @@ type RecoveryAccountingSelection struct {
 }
 
 type RecoveryAccountingPlan struct {
+	Mode                 string `json:"mode,omitempty"`
+	QuarantineID         string `json:"quarantine_id,omitempty"`
 	Version              int    `json:"version"`
 	RequestedOperationID string `json:"requested_operation_id"`
 	OperationID          string `json:"operation_id"`
@@ -62,7 +66,8 @@ type recoveryAccountingSourceCommitment struct {
 const recoveryAccountingSourceV1CatalogSHA256 = "70ab49a57a49bf1f8f40de0e65b063626fe734323829f9945c1d996b07cb5b98"
 
 func recoveryAccountingSelectionValid(r RecoveryAccountingSelection) bool {
-	return len(r.OperationID) == 32 && strings.Trim(r.OperationID, "0123456789abcdef") == "" && validText(r.OrganizationID, 128) && validText(r.ReservationID, 128) && validText(r.SourceEvidenceID, 128)
+	modeValid := ((r.Mode == "" || r.Mode == "fact") && r.QuarantineID == "") || (r.Mode == "resolve" && validText(r.QuarantineID, 128))
+	return modeValid && len(r.OperationID) == 32 && strings.Trim(r.OperationID, "0123456789abcdef") == "" && validText(r.OrganizationID, 128) && validText(r.ReservationID, 128) && validText(r.SourceEvidenceID, 128)
 }
 
 func recoveryAccountingSourcePlanHash(in recoveryAccountingInputs, source recoveryAccountingSource, step recoveryFinancialSourceTransition, operation, beforeSHA, previous, requestHash string, revision int64) string {
@@ -118,10 +123,20 @@ func (s *Store) recoveryAccountingMappingTx(ctx context.Context, tx pgx.Tx, in r
 }
 
 func (s *Store) planRecoveryAccountingSourceTx(ctx context.Context, tx pgx.Tx, in recoveryAccountingInputs, head recoveryAccountingReceipt, request RecoveryAccountingSelection) (plan RecoveryAccountingPlan, source recoveryAccountingSource, expected *int, resultErr error) {
+	if request.Mode == "resolve" {
+		plan, source, resultErr = s.planRecoveryAccountingResolutionTx(ctx, tx, in, head, request)
+		return plan, source, nil, resultErr
+	}
 	source, err := s.loadRecoveryAccountingSourceTx(ctx, tx, in, request.OrganizationID, request.ReservationID, request.SourceEvidenceID)
 	if err != nil {
 		return plan, source, nil, err
 	}
+	return s.planRecoveryAccountingFactTx(ctx, tx, in, head, request, source)
+}
+
+// Reuse an already verified source inside this same transaction, including
+// resolution planning. Avoid staging both archives a second time.
+func (s *Store) planRecoveryAccountingFactTx(ctx context.Context, tx pgx.Tx, in recoveryAccountingInputs, head recoveryAccountingReceipt, request RecoveryAccountingSelection, source recoveryAccountingSource) (plan RecoveryAccountingPlan, resultSource recoveryAccountingSource, expected *int, resultErr error) {
 	// Original evidence is already present in the import. It is not a newly
 	// captured fact and must not be inserted under a new identity.
 	if source.step == nil {
@@ -185,7 +200,7 @@ func (s *Store) planRecoveryAccountingSourceTx(ctx context.Context, tx pgx.Tx, i
 	if tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM "+q("recovery_accounting_batches")+" WHERE id=$1)", request.OperationID).Scan(&operationExists) != nil || (operationExists && (selectedMapping == nil || selectedMapping.operationID != request.OperationID)) {
 		return plan, source, nil, ErrRecoveryAccounting
 	}
-	plan = RecoveryAccountingPlan{Version: 1, RequestedOperationID: request.OperationID, OperationID: request.OperationID, State: "ready", OrganizationID: request.OrganizationID, ReservationID: request.ReservationID, SourceEvidenceID: request.SourceEvidenceID, SourceRowSHA256: source.rowSHA256, SourceRequestSHA256: source.evidence.hash, SourceRevision: source.step.beforeRevision, Kind: source.evidence.kind, ActualMicroUSD: source.evidence.value.ActualMicroUSD, CurrentHeadID: head.ID, ExecutionHeld: true}
+	plan = RecoveryAccountingPlan{Mode: request.Mode, Version: 1, RequestedOperationID: request.OperationID, OperationID: request.OperationID, State: "ready", OrganizationID: request.OrganizationID, ReservationID: request.ReservationID, SourceEvidenceID: request.SourceEvidenceID, SourceRowSHA256: source.rowSHA256, SourceRequestSHA256: source.evidence.hash, SourceRevision: source.step.beforeRevision, Kind: source.evidence.kind, ActualMicroUSD: source.evidence.value.ActualMicroUSD, CurrentHeadID: head.ID, ExecutionHeld: true}
 	if selectedMapping != nil {
 		plan.State, plan.OperationID = "already_recorded", selectedMapping.operationID
 		plan.PlanSHA256, plan.RequestSHA256, plan.PreviousID, plan.TargetRevision = selectedMapping.planSHA256, selectedMapping.requestSHA256, selectedMapping.previousID, selectedMapping.revision
