@@ -55,8 +55,8 @@ history and the reviewed plan under one recovery lock. An unrelated intervening
 change can make a new plan stale; prepare another plan after reviewing the
 current state. No editable JSON field or digest alone grants permission to write.
 
-An exclusive, durable `.apply` file is created before the financial mutation attempt. The same
-operation file cannot launch a second apply. After a connection or output
+An exclusive, durable `.apply` file is created before the financial mutation
+attempt. The same operation file cannot launch a second apply. After a connection or output
 failure, inspect it rather than repeating the command:
 
 - `recorded`: the exact local operation exists, its request and plan match, and
@@ -76,6 +76,50 @@ only one went through quarantine. Their relationship is bound to the signed
 archives and immutable target changes. Source organization totals are never
 copied over the target's totals.
 
+## Resolve a quarantined fact
+
+Quarantine here means the fact could not be added without overflowing an integer
+accounting total. It is not a request to raise the task budget. The recorded
+invoice remains immutable. Resolving it does not clear the financial hold or
+resume historical work.
+
+Use the target's `quarantine_id` from the accounting outcome, together with the
+original source evidence identifier. For a quarantine already present in the
+original backup, use that backup's evidence and quarantine identifiers. The
+command verifies their full archived records; it accepts no replacement amount.
+
+```sh
+platform recovery accounting-plan \
+  --source-intent-file "$PRIVATE/source-stop.json" \
+  --target-config "$PRIVATE/target.json" \
+  --organization-id "$ORGANIZATION_ID" \
+  --reservation-id "$RESERVATION_ID" \
+  --source-evidence-id "$SOURCE_EVIDENCE_ID" \
+  --mode resolve --quarantine-id "$TARGET_QUARANTINE_ID" \
+  --out "$PRIVATE/resolution-plan.json"
+
+platform recovery accounting-apply \
+  --intent-file "$PRIVATE/resolution-plan.json" \
+  --confirm-record-financial-fact
+
+platform recovery accounting-inspect \
+  --intent-file "$PRIVATE/resolution-plan.json"
+```
+
+If the totals still cannot represent the change, apply returns
+`quarantine_retained`, `newly_recorded: false` and confirms rollback. No financial
+operation receipt is created. The one-use attempt file remains: after inspecting
+the outcome and recording any authentic correction to another liability,
+prepare a new resolution plan. Do not delete the attempt file to repeat an old
+command. A plan prepared before an intervening accounting change is stale.
+
+Resolution can use an unresolved fact in the original backup or a captured fact
+already recorded on the target. The source and target may differ: the target
+may quarantine a fact the source settled directly, or resolve a fact the source
+still holds. The source's full history and the target's exact provenance remain
+checked in either case. A new plan for an already resolved quarantine points to
+its original resolution receipt, even after a later correction.
+
 ## Current limits
 
 A signature establishes that the fact was recorded by the trusted source; it is
@@ -83,9 +127,9 @@ not an independent verification of the provider's invoice. This path accepts
 new facts contained in the captured archive. Facts arriving after capture need
 a separate authenticated input path, which is not implemented here.
 
-Overflow preserves the fact in quarantine and keeps the hold. Quarantine
-resolution is tested in the storage layer but has no host command yet. Facts
-already present in the original snapshot are not reinserted as new facts.
+Overflow preserves the fact in quarantine and keeps the hold. Resolving a
+quarantine uses its existing fact; facts already present in the original snapshot
+are never reinserted as new invoices.
 
 `accounting-plan` can be used after earlier accounting operations. The broader
 `reconciliation-plan` still requires the original target baseline, so retain its
@@ -112,3 +156,30 @@ evidence/reconciliation workflow on amd64 and arm64. They did not perform the ne
 financial command sequence through an installed package across a database
 restart. No real model or provider was called. Independent operator usability,
 full restoration and release readiness are not established by these checks.
+
+At `f00f64c7b6eaeb9fdc9f54d562f22fd98bc70545`, the
+[full recovery checks](https://github.com/ArtAndrew/RunVerge/actions/runs/41424296535)
+also passed source-bound quarantine resolution: original invoices and upward
+adjustments, a direct source settlement quarantined on the target, and a source
+that still had an unresolved quarantine. They checked retained/no-receipt
+outcomes, stale plans, incorrect selections and replay after later correction.
+Actual database connection cuts before and after COMMIT were followed by fresh
+inspection. Host command tests checked plan/apply output loss, a one-use attempt,
+mode substitution refusal and replay in separate child processes.
+
+At `79cdd8c235b7998b0551f225fee7e314aa77f7ae`, the
+[installed Linux checks](https://github.com/ArtAndrew/RunVerge/actions/runs/41429088430)
+passed on amd64 and arm64 with the same source digest. A separate test-only
+helper created synthetic source facts through ordinary storage APIs; it is not
+included in the runtime image. The installed CLI then recorded an invoice with
+lost stdout, inspected it after a target database restart, refused reuse of the
+same attempt file, recorded a correction and returned the original invoice
+receipt on replay. Independent database reads confirmed final totals, no duplicate
+facts or batches, unchanged execution records and continued recovery hold.
+Both temporary environments were removed successfully.
+
+The installed drill covers invoice/correction handling. Quarantine resolution
+was checked in the storage and host-process tests above; it was not exercised
+through the installed package across a database restart. No provider was called.
+These checks do not establish full restoration, permission for new work,
+macOS recovery, independent operator usability or release readiness.
