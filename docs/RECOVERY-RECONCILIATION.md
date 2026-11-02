@@ -5,6 +5,11 @@ source snapshot already saved through [evidence ingestion](RECOVERY-EVIDENCE.md)
 The read-only command has passed the bounded checks described below. It is not
 in alpha.6 and does not apply financial changes or permit new work.
 
+After target accounting changes, use the separate
+[accounting-review command](RECOVERY-ACCOUNTING-REVIEW.md) for the original,
+captured and current target views. This older command retains its original
+baseline requirement.
+
 Use the same private selectors, archive directories, keys and staging directory
 as evidence ingestion. Run on the trusted operator host:
 

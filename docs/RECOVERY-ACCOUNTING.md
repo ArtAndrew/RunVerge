@@ -11,10 +11,11 @@ target database. This is not an ordinary Workspace or tenant API operation.
 
 ## Select and review a fact
 
-Before recording changes, use [reconciliation-plan](RECOVERY-RECONCILIATION.md)
-to review the original and later snapshots. Entries in `new_facts` whose `table`
-is `cost_evidence` identify source facts by `record_id`, `organization_id` and
-`reservation_id`. Keep this report private.
+Use [accounting-review](RECOVERY-ACCOUNTING-REVIEW.md) before or after recording
+changes. Its `facts` identify source evidence, actual target identities and a
+suggested next financial step. Keep the report private. The older
+[reconciliation-plan](RECOVERY-RECONCILIATION.md) remains available to compare the
+original and captured source snapshots before any target accounting changes.
 
 Prepare a new operation file outside both archive directories:
 
@@ -131,9 +132,10 @@ Overflow preserves the fact in quarantine and keeps the hold. Resolving a
 quarantine uses its existing fact; facts already present in the original snapshot
 are never reinserted as new invoices.
 
-`accounting-plan` can be used after earlier accounting operations. The broader
-`reconciliation-plan` still requires the original target baseline, so retain its
-initial source-fact report. A complete follow-up review interface is unfinished.
+`accounting-plan` and `accounting-review` can be used after earlier accounting
+operations. The older `reconciliation-plan` still requires the original target
+baseline. Review is read-only and does not clear external-window or new-work
+requirements.
 
 Historical actions, task versions, events and execution permissions remain
 unchanged. Financial holds remain sticky. External request coverage, fresh
