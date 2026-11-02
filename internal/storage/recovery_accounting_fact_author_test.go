@@ -13,12 +13,9 @@ import (
 )
 
 func TestRecoveryAccountingAuthorTrustedFactsAndCorrections(t *testing.T) {
-	for _, overflow := range []bool{false, true} {
-		name := "settle_adjust_zero"
-		if overflow {
-			name = "overflow_quarantine"
-		}
+	for _, name := range []string{"settle_adjust_zero", "overflow_quarantine", "resolve_quarantine", "resolve_adjustment_quarantine"} {
 		t.Run(name, func(t *testing.T) {
+			overflow := name == "overflow_quarantine"
 			f := evidenceAuthorSetup(t)
 			ctx := context.Background()
 			if _, err := f.target.IngestRecoveryEvidence(ctx, f.selected, f.late, f.verified, f.spec, DefaultRecoverySnapshotLimits()); err != nil {
@@ -42,7 +39,7 @@ func TestRecoveryAccountingAuthorTrustedFactsAndCorrections(t *testing.T) {
 				return result
 			}
 			originalExecution := execution()
-			apply := func(id string, evidence domain.CostEvidence, expected *int, wantErr bool) (domain.AccountingOutcome, recoveryAccountingReceipt) {
+			transact := func(id, requestHash string, wantErr bool, record func(pgx.Tx, RecoveryTargetState, recoveryAccountingBatch) (domain.AccountingOutcome, recoveryAccountingReceipt, error)) (domain.AccountingOutcome, recoveryAccountingReceipt) {
 				t.Helper()
 				tx, err := f.target.Pool.Begin(ctx)
 				if err != nil {
@@ -64,11 +61,11 @@ func TestRecoveryAccountingAuthorTrustedFactsAndCorrections(t *testing.T) {
 				if _, err = f.target.verifyRecoveryAccountingBaselineTx(ctx, tx, f.selected, f.before, DefaultRecoverySnapshotLimits(), held, catalog, inventory); err != nil {
 					t.Fatal("pre-apply baseline", err)
 				}
-				b := recoveryAccountingBatch{id: strings.TrimPrefix(domain.NewID("accounting"), "accounting_"), evidenceBatchID: f.verified.Link().OperationID, organizationID: f.oldOrg, reservationID: id, requestSHA256: evidenceRequestHash(evidence, expected), planSHA256: strings.Repeat("c", 64)}
+				b := recoveryAccountingBatch{id: strings.TrimPrefix(domain.NewID("accounting"), "accounting_"), evidenceBatchID: f.verified.Link().OperationID, organizationID: f.oldOrg, reservationID: id, requestSHA256: requestHash, planSHA256: strings.Repeat("c", 64)}
 				if tx.QueryRow(ctx, "SELECT revision FROM "+q("reservations")+" WHERE organization_id=$1 AND id=$2", f.oldOrg, id).Scan(&b.expectedRevision) != nil {
 					t.Fatal("revision missing")
 				}
-				out, receipt, err := f.target.recordRecoveryFinancialFactTx(ctx, tx, held, b, evidence, expected)
+				out, receipt, err := record(tx, held, b)
 				if wantErr {
 					if err == nil {
 						t.Fatal("conflicting fact accepted")
@@ -89,7 +86,82 @@ func TestRecoveryAccountingAuthorTrustedFactsAndCorrections(t *testing.T) {
 				}
 				return out, receipt
 			}
+			apply := func(id string, evidence domain.CostEvidence, expected *int, wantErr bool) (domain.AccountingOutcome, recoveryAccountingReceipt) {
+				t.Helper()
+				return transact(id, evidenceRequestHash(evidence, expected), wantErr, func(tx pgx.Tx, held RecoveryTargetState, b recoveryAccountingBatch) (domain.AccountingOutcome, recoveryAccountingReceipt, error) {
+					return f.target.recordRecoveryFinancialFactTx(ctx, tx, held, b, evidence, expected)
+				})
+			}
+			resolve := func(id, quarantine string, revision int, wantErr bool) (domain.AccountingOutcome, recoveryAccountingReceipt) {
+				t.Helper()
+				return transact(id, recoveryAccountingResolutionHash(f.oldOrg, id, quarantine, revision), wantErr, func(tx pgx.Tx, held RecoveryTargetState, b recoveryAccountingBatch) (domain.AccountingOutcome, recoveryAccountingReceipt, error) {
+					return f.target.resolveRecoveryFinancialQuarantineTx(ctx, tx, held, b, quarantine, revision)
+				})
+			}
 			fact := domain.CostEvidence{Source: "author-owned-test", Reference: "recovery-owned-invoice", PayloadDigest: strings.Repeat("d", 64), ActualMicroUSD: 7, Final: true, Currency: "USD"}
+			if name == "resolve_quarantine" || name == "resolve_adjustment_quarantine" {
+				// Fill exact integer capacity with a real recorded invoice, then
+				// free capacity using a correction on that different reservation.
+				var offset int64
+				var expected *int
+				if name == "resolve_adjustment_quarantine" {
+					initial := fact
+					initial.Reference, initial.ActualMicroUSD = "initial-small-invoice", 1
+					booked, first := apply(zeroReservation, initial, nil, false)
+					if booked.Status != "settled" || first.Ordinal != 1 {
+						t.Fatal("initial small invoice not booked")
+					}
+					expected = &booked.Reservation.Revision
+					offset = 1
+				}
+				var spent int64
+				if err := f.target.Pool.QueryRow(ctx, "SELECT spent_microusd FROM "+q("organizations")+" WHERE id=$1", f.oldOrg).Scan(&spent); err != nil || spent < 1 {
+					t.Fatal("missing baseline spending", err)
+				}
+				fact.ActualMicroUSD = math.MaxInt64 - spent
+				charged, first := apply(reservation, fact, nil, false)
+				if charged.Status != "settled" || first.Ordinal != 1+offset {
+					t.Fatal("capacity fixture not settled")
+				}
+				small := fact
+				small.Reference, small.ActualMicroUSD = "second-invoice", 1
+				if expected != nil {
+					small.ActualMicroUSD, small.Reason = 2, "owned upward correction"
+				}
+				pending, second := apply(zeroReservation, small, expected, false)
+				if pending.Status != "quarantined" || second.Ordinal != 2+offset {
+					t.Fatal("second invoice not quarantined")
+				}
+				if expected != nil && (pending.Reservation.Status != "settled" || pending.Reservation.ActualMicroUSD == nil || *pending.Reservation.ActualMicroUSD != 1) {
+					t.Fatal("quarantined correction overwrote prior actual")
+				}
+				qid, revision := pending.QuarantineID, pending.Reservation.Revision
+				resolve(zeroReservation, qid, revision+1, true)
+				resolve(reservation, qid, revision, true)
+				stillHeld, none := resolve(zeroReservation, qid, revision, false)
+				if stillHeld.Status != "quarantined" || none.ID != "" {
+					t.Fatal("insufficient capacity created another change")
+				}
+				correction := fact
+				correction.Reference, correction.Reason, correction.ActualMicroUSD = "capacity-correction", "owned correction", 7
+				adjusted, third := apply(reservation, correction, &charged.Reservation.Revision, false)
+				if adjusted.Status != "settled" || third.Ordinal != 3+offset {
+					t.Fatal("capacity not released by correction")
+				}
+				resolved, fourth := resolve(zeroReservation, qid, revision, false)
+				if resolved.Status != "settled" || resolved.EvidenceID != pending.EvidenceID || resolved.Reservation.PendingQuarantineID != "" || resolved.Reservation.ActualMicroUSD == nil || *resolved.Reservation.ActualMicroUSD != small.ActualMicroUSD || fourth.Ordinal != 4+offset || fourth.PreviousID != third.ID {
+					t.Fatal("quarantine fact not applied exactly once")
+				}
+				again, none := resolve(zeroReservation, qid, revision, false)
+				if again.Status != "settled" || again.Reservation.Revision != resolved.Reservation.Revision || none.ID != "" {
+					t.Fatal("quarantine resolution applied twice")
+				}
+				var sticky bool
+				if err := f.target.Pool.QueryRow(ctx, "SELECT financial_hold FROM "+q("organizations")+" WHERE id=$1", f.oldOrg).Scan(&sticky); err != nil || !sticky {
+					t.Fatal("financial hold cleared", err)
+				}
+				return
+			}
 			if overflow {
 				fact.ActualMicroUSD = math.MaxInt64
 			}
@@ -100,6 +172,10 @@ func TestRecoveryAccountingAuthorTrustedFactsAndCorrections(t *testing.T) {
 			if overflow {
 				if out.Status != "quarantined" || out.Reservation.ActualMicroUSD != nil || out.QuarantineID == "" || out.Reservation.PendingQuarantineID != out.QuarantineID {
 					t.Fatal("overflow lost original liability/fact")
+				}
+				stillHeld, none := resolve(reservation, out.QuarantineID, out.Reservation.Revision, false)
+				if stillHeld.Status != "quarantined" || none.ID != "" {
+					t.Fatal("overflow resolution changed stored liability")
 				}
 			} else if out.Status != "settled" || out.Reservation.ActualMicroUSD == nil || *out.Reservation.ActualMicroUSD != 7 {
 				t.Fatal("invoice not booked")

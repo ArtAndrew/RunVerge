@@ -17,9 +17,15 @@ import (
 // baseline, and holds the exclusive recovery gate. This private executor never
 // starts or commits a transaction, and is not a tenant/API mutation switch.
 func (s *Store) recordRecoveryFinancialFactTx(ctx context.Context, tx pgx.Tx, held RecoveryTargetState, b recoveryAccountingBatch, evidence domain.CostEvidence, expected *int) (domain.AccountingOutcome, recoveryAccountingReceipt, error) {
+	return s.recordRecoveryFinancialChangeTx(ctx, tx, held, b, evidence, expected, nil)
+}
+
+// The shared builder records either a new trusted fact or the application of an
+// already recorded quarantined fact. Resolution cannot replace that fact.
+func (s *Store) recordRecoveryFinancialChangeTx(ctx context.Context, tx pgx.Tx, held RecoveryTargetState, b recoveryAccountingBatch, evidence domain.CostEvidence, expected *int, resolution *recoveryAccountingResolution) (domain.AccountingOutcome, recoveryAccountingReceipt, error) {
 	var empty domain.AccountingOutcome
 	var receipt recoveryAccountingReceipt
-	if !validEvidence(evidence) || (expected != nil && (*expected < 1 || strings.TrimSpace(evidence.Reason) == "")) || b.requestSHA256 != evidenceRequestHash(evidence, expected) {
+	if !validEvidence(evidence) || (expected != nil && (*expected < 1 || strings.TrimSpace(evidence.Reason) == "")) || (resolution == nil && b.requestSHA256 != evidenceRequestHash(evidence, expected)) {
 		return empty, receipt, ErrRecoveryAccounting
 	}
 	q := func(table string) string { return pgx.Identifier{s.runtimeSchema, table}.Sanitize() }
@@ -40,18 +46,36 @@ func (s *Store) recordRecoveryFinancialFactTx(ctx context.Context, tx pgx.Tx, he
 	if err != nil {
 		return empty, receipt, err
 	}
-	// Exact fact replay is a read of the recorded outcome, never a second batch.
-	var oldEvidence, oldReservation, oldHash string
-	err = tx.QueryRow(ctx, "SELECT id,reservation_id,request_hash FROM "+q("cost_evidence")+" WHERE organization_id=$1 AND source=$2 AND reference=$3", r.OrganizationID, evidence.Source, evidence.Reference).Scan(&oldEvidence, &oldReservation, &oldHash)
-	if err == nil {
-		if oldReservation != r.ID || oldHash != b.requestSHA256 {
+	if resolution != nil {
+		out, e := accountingOutcomeTx(ctx, tx, r, resolution.evidenceID)
+		if e != nil || out.Status == "settled" {
+			return out, receipt, e
+		}
+		wantStatus := resolution.baseStatus
+		if wantStatus == "reserved" {
+			wantStatus = "unknown"
+		}
+		if int64(r.Revision) != b.expectedRevision || r.PendingQuarantineID != resolution.quarantineID || r.Revision != resolution.revision || r.Status != wantStatus || !sameAmount(r.ActualMicroUSD, resolution.baseActual) {
 			return empty, receipt, ErrRecoveryAccounting
 		}
-		out, e := accountingOutcomeTx(ctx, tx, r, oldEvidence)
-		return out, receipt, e
-	}
-	if !errors.Is(err, pgx.ErrNoRows) || int64(r.Revision) != b.expectedRevision || r.PendingQuarantineID != "" || (expected == nil && r.Status == "settled") || (expected != nil && (r.Status != "settled" || r.Revision != *expected)) {
-		return empty, receipt, ErrRecoveryAccounting
+		reserveDelta, spentDelta := costDeltas(r, evidence.ActualMicroUSD)
+		if preflightCostDelta(scopes, reserveDelta, spentDelta) != nil {
+			return out, receipt, nil
+		}
+	} else {
+		// Exact fact replay is a read of the recorded outcome, never a second batch.
+		var oldEvidence, oldReservation, oldHash string
+		err = tx.QueryRow(ctx, "SELECT id,reservation_id,request_hash FROM "+q("cost_evidence")+" WHERE organization_id=$1 AND source=$2 AND reference=$3", r.OrganizationID, evidence.Source, evidence.Reference).Scan(&oldEvidence, &oldReservation, &oldHash)
+		if err == nil {
+			if oldReservation != r.ID || oldHash != b.requestSHA256 {
+				return empty, receipt, ErrRecoveryAccounting
+			}
+			out, e := accountingOutcomeTx(ctx, tx, r, oldEvidence)
+			return out, receipt, e
+		}
+		if !errors.Is(err, pgx.ErrNoRows) || int64(r.Revision) != b.expectedRevision || r.PendingQuarantineID != "" || (expected == nil && r.Status == "settled") || (expected != nil && (r.Status != "settled" || r.Revision != *expected)) {
+			return empty, receipt, ErrRecoveryAccounting
+		}
 	}
 	var actionState string
 	if tx.QueryRow(ctx, "SELECT status FROM "+q("actions")+" WHERE organization_id=$1 AND id=$2", r.OrganizationID, r.ActionID).Scan(&actionState) != nil {
@@ -96,7 +120,10 @@ func (s *Store) recordRecoveryFinancialFactTx(ctx context.Context, tx pgx.Tx, he
 		return nil
 	}
 	evidenceID := domain.NewID("evi")
-	if err = insert("cost_evidence", map[string]any{"organization_id": r.OrganizationID, "id": evidenceID, "source": evidence.Source, "reference": evidence.Reference, "reservation_id": r.ID, "payload_digest": evidence.PayloadDigest, "actual_microusd": evidence.ActualMicroUSD, "reason": evidence.Reason, "request_hash": b.requestSHA256, "final": evidence.Final, "currency": evidence.Currency}); err != nil {
+	evidenceHash := b.requestSHA256
+	if resolution != nil {
+		evidenceID, evidenceHash = resolution.evidenceID, resolution.evidenceSHA256
+	} else if err = insert("cost_evidence", map[string]any{"organization_id": r.OrganizationID, "id": evidenceID, "source": evidence.Source, "reference": evidence.Reference, "reservation_id": r.ID, "payload_digest": evidence.PayloadDigest, "actual_microusd": evidence.ActualMicroUSD, "reason": evidence.Reason, "request_hash": evidenceHash, "final": evidence.Final, "currency": evidence.Currency}); err != nil {
 		return empty, receipt, err
 	}
 	kind := "settle"
@@ -175,7 +202,13 @@ func (s *Store) recordRecoveryFinancialFactTx(ctx context.Context, tx pgx.Tx, he
 	if quarantined {
 		kind, key = "quarantine", "quarantine:"+qid
 	}
-	if err = insert("ledger_entries", map[string]any{"organization_id": r.OrganizationID, "id": domain.NewID("led"), "reservation_id": r.ID, "task_id": r.TaskID, "root_id": r.RootID, "event_key": key, "event_hash": b.requestSHA256, "kind": kind, "delta_reserved_microusd": reserveDelta, "delta_spent_microusd": spentDelta, "synthetic": false}); err != nil {
+	if resolution != nil {
+		kind, key = "quarantine_resolution", "resolve:"+resolution.quarantineID
+		if err = insert("cost_quarantine_resolutions", map[string]any{"organization_id": r.OrganizationID, "id": domain.NewID("qres"), "quarantine_id": resolution.quarantineID, "reservation_id": r.ID, "evidence_id": evidenceID, "resulting_revision": r.Revision + 1}); err != nil {
+			return empty, receipt, err
+		}
+	}
+	if err = insert("ledger_entries", map[string]any{"organization_id": r.OrganizationID, "id": domain.NewID("led"), "reservation_id": r.ID, "task_id": r.TaskID, "root_id": r.RootID, "event_key": key, "event_hash": evidenceHash, "kind": kind, "delta_reserved_microusd": reserveDelta, "delta_spent_microusd": spentDelta, "synthetic": false}); err != nil {
 		return empty, receipt, err
 	}
 	receipt, err = s.recordRecoveryAccountingMutationsTx(ctx, tx, held, b, changes)
@@ -195,6 +228,8 @@ func (s *Store) recordRecoveryFinancialFactTx(ctx context.Context, tx pgx.Tx, he
 	out := domain.AccountingOutcome{Status: "settled", EvidenceID: evidenceID, Reservation: r}
 	if quarantined {
 		out.Status, out.QuarantineID = "quarantined", qid
+	} else if resolution != nil {
+		out.QuarantineID = resolution.quarantineID
 	}
 	return out, receipt, nil
 }
