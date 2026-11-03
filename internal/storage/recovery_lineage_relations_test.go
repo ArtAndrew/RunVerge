@@ -58,14 +58,26 @@ func TestRecoveryLineageRelationsActualEvidence(t *testing.T) {
 	if _, err = tx.Exec(ctx, `
 INSERT INTO pg_temp.recovery_accounting_batches
 (id,restore_id,target_installation_id,evidence_batch_id,organization_id,reservation_id,expected_revision,ordinal,previous_id,request_sha256,plan_sha256,mutation_count,mutation_bytes,mutation_profile,creating_transaction,operator_role,recorded_at)
-SELECT repeat('a',32),restore_id,target_installation_id,id,'synthetic-org','synthetic-reservation',1,1,NULL,repeat('a',64),repeat('b',64),1,octet_length('{"synthetic": true}'::jsonb::text),'sql026-exact-mutation-v1',pg_current_xact_id(),session_user,clock_timestamp() FROM pg_temp.recovery_evidence_batches;
-INSERT INTO pg_temp.recovery_accounting_mutations VALUES(repeat('a',32),0,'organizations','INSERT','["synthetic-org"]',NULL,'{"synthetic":true}');
+SELECT repeat('a',32),restore_id,target_installation_id,id,'synthetic-org','synthetic-reservation',1,1,NULL,repeat('a',64),repeat('b',64),1,octet_length('{"id":"synthetic-org","synthetic": true}'::jsonb::text),'sql026-exact-mutation-v1',pg_current_xact_id(),session_user,clock_timestamp() FROM pg_temp.recovery_evidence_batches;
+INSERT INTO pg_temp.recovery_accounting_mutations VALUES(repeat('a',32),0,'organizations','INSERT','["synthetic-org"]',NULL,'{"id":"synthetic-org","synthetic":true}');
 INSERT INTO pg_temp.recovery_accounting_applied SELECT batch_id,ordinal,NULL,encode(sha256(convert_to(after_row::text,'UTF8')),'hex') FROM pg_temp.recovery_accounting_mutations;
 INSERT INTO pg_temp.recovery_usage_observations
 (id,restore_id,target_installation_id,evidence_batch_id,organization_id,reservation_id,source_plan_sha256,source_plan_commitment,acquisition_sha256,acquisition_commitment,response_sha256,response,admission_sha256,admission_commitment,observation_state,creating_transaction,operator_role,recorded_at)
 SELECT repeat('b',32),restore_id,target_installation_id,id,'synthetic-org','synthetic-reservation',encode(sha256('x'::bytea),'hex'),'x'::bytea,encode(sha256('x'::bytea),'hex'),'x'::bytea,encode(sha256('x'::bytea),'hex'),'x'::bytea,encode(sha256('x'::bytea),'hex'),'x'::bytea,'observed_unverified',pg_current_xact_id(),session_user,clock_timestamp() FROM pg_temp.recovery_evidence_batches;
 `); err != nil {
 		t.Fatal("synthetic nonempty metadata fixture", err)
+	}
+	// A second synthetic mutation continues the same historical row. Its
+	// before-image must match the first after-image, even when all hashes and
+	// batch counters are individually consistent.
+	if _, err = tx.Exec(ctx, `
+INSERT INTO pg_temp.recovery_accounting_batches
+(id,restore_id,target_installation_id,evidence_batch_id,organization_id,reservation_id,expected_revision,ordinal,previous_id,request_sha256,plan_sha256,mutation_count,mutation_bytes,mutation_profile,creating_transaction,operator_role,recorded_at)
+SELECT repeat('c',32),restore_id,target_installation_id,evidence_batch_id,organization_id,reservation_id,2,2,id,request_sha256,plan_sha256,1,octet_length('{"id":"synthetic-org","synthetic": true}'::jsonb::text)+octet_length('{"id":"synthetic-org","synthetic": false}'::jsonb::text),mutation_profile,(creating_transaction::text::bigint+1)::text::xid8,operator_role,recorded_at FROM pg_temp.recovery_accounting_batches;
+INSERT INTO pg_temp.recovery_accounting_mutations VALUES(repeat('c',32),0,'organizations','UPDATE','["synthetic-org"]','{"id":"synthetic-org","synthetic":true}','{"id":"synthetic-org","synthetic":false}');
+INSERT INTO pg_temp.recovery_accounting_applied SELECT batch_id,ordinal,encode(sha256(convert_to(before_row::text,'UTF8')),'hex'),encode(sha256(convert_to(after_row::text,'UTF8')),'hex') FROM pg_temp.recovery_accounting_mutations WHERE batch_id=repeat('c',32);
+`); err != nil {
+		t.Fatal("synthetic consecutive history fixture", err)
 	}
 	if err = validateRecoveryLineageRelations(ctx, tx, schema, expected); err != nil {
 		t.Fatal("actual history relations rejected", err)
@@ -76,8 +88,12 @@ SELECT repeat('b',32),restore_id,target_installation_id,id,'synthetic-org','synt
 		t.Fatal("different receipt accepted")
 	}
 	cases := map[string]string{
+		"aliased_history_key": "UPDATE pg_temp.recovery_accounting_mutations SET key_parts='[\"alias-org\"]' WHERE batch_id=repeat('c',32)",
+		"discontinuous_history": `UPDATE pg_temp.recovery_accounting_mutations SET before_row='{"id":"synthetic-org","synthetic":false}'::jsonb,after_row='{"id":"synthetic-org","synthetic":"other"}'::jsonb WHERE batch_id=repeat('c',32);
+ UPDATE pg_temp.recovery_accounting_applied a SET before_sha256=encode(sha256(convert_to(m.before_row::text,'UTF8')),'hex'),after_sha256=encode(sha256(convert_to(m.after_row::text,'UTF8')),'hex') FROM pg_temp.recovery_accounting_mutations m WHERE a.batch_id=m.batch_id AND a.ordinal=m.ordinal;
+ UPDATE pg_temp.recovery_accounting_batches b SET mutation_bytes=(SELECT sum(octet_length(COALESCE(m.before_row::text,''))+octet_length(m.after_row::text)) FROM pg_temp.recovery_accounting_mutations m WHERE m.batch_id=b.id)`,
 		"nonlater_evidence":         "UPDATE pg_temp.recovery_import_receipts SET cut_at=(SELECT evidence_cut_at FROM pg_temp.recovery_evidence_batches)",
-		"missing_accounting_parent": "UPDATE pg_temp.recovery_accounting_batches SET ordinal=2,previous_id=repeat('c',32)",
+		"missing_accounting_parent": "UPDATE pg_temp.recovery_accounting_batches SET previous_id=repeat('d',32) WHERE ordinal=2",
 		"wrong_applied_hash":        "UPDATE pg_temp.recovery_accounting_applied SET after_sha256=repeat('c',64)",
 		"missing_applied":           "DELETE FROM pg_temp.recovery_accounting_applied",
 		"wrong_usage_evidence":      "UPDATE pg_temp.recovery_usage_observations SET evidence_batch_id=repeat('c',32)",
