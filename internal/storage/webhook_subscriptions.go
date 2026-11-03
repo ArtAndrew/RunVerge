@@ -102,6 +102,9 @@ func loadWebhookSubscriptionTx(ctx context.Context, tx pgx.Tx, org, task, id str
 // Callers hold the relevant authority locks before business locks when using
 // this as an admission decision. Views call it only as a current observation.
 func checkWebhookConsentTx(ctx context.Context, tx pgx.Tx, s webhookSubscriptionRecord) error {
+	if err := checkRecoveryOutboundProfileTx(ctx, tx, s.OrganizationID, "webhook", s.DestinationID, s.DestinationVersion); err != nil {
+		return err
+	}
 	creator, ce, cp, err := currentConfigurationPrincipalTx(ctx, tx, s.OrganizationID, s.CreatorID)
 	if err != nil {
 		return err

@@ -234,6 +234,13 @@ func (w *Worker) Run(ctx context.Context) error {
 }
 
 func (w *Worker) executeConfigurationVerification(ctx context.Context, lease *domain.ConfigurationVerificationLease, config domain.ConfigurationProbeConfig) {
+	if err := w.Store.CheckRecoveryOutboundProfiles(ctx,
+		storage.RecoveryOutboundProfile{OrganizationID: lease.OrganizationID, Kind: "mcp", ID: lease.Scope.TargetID, Version: lease.ResourceVersion},
+		storage.RecoveryOutboundProfile{OrganizationID: lease.OrganizationID, Kind: "destination", ID: config.Destination.Destination.ID, Version: config.Destination.Destination.Version},
+		storage.RecoveryOutboundProfile{OrganizationID: lease.OrganizationID, Kind: "credential_purpose", ID: config.Purpose.ID, Version: config.Purpose.Version}); err != nil {
+		_ = w.Store.PauseConfigurationVerification(ctx, lease, "mcp_profile_unavailable")
+		return
+	}
 	credential, err := w.ResolveMCPCredential(config.Purpose.CredentialEnvironment)
 	if err != nil || credential == "" {
 		_ = w.Store.PauseConfigurationVerification(ctx, lease, "mcp_credentials_unavailable")
@@ -252,6 +259,10 @@ func (w *Worker) executeConfigurationVerification(ctx context.Context, lease *do
 }
 
 func (w *Worker) executeTool(ctx context.Context, l *domain.ToolLease, c domain.ToolConnection) {
+	if err := w.Store.CheckRecoveryOutboundProfiles(ctx, storage.RecoveryOutboundProfile{OrganizationID: c.Tool.OrganizationID, Kind: "tool", ID: c.Tool.ID, Version: c.Tool.Version}); err != nil {
+		_ = w.Store.PauseToolExecution(ctx, l, "tool_profile_unavailable")
+		return
+	}
 	credential, err := w.ResolveToolCredential(c.CredentialEnvironment)
 	if err != nil {
 		_ = w.Store.PauseToolExecution(ctx, l, "tool_credentials_unavailable")
@@ -301,6 +312,10 @@ func (w *Worker) executeTool(ctx context.Context, l *domain.ToolLease, c domain.
 }
 
 func (w *Worker) executeModel(ctx context.Context, l *domain.Lease, connection domain.ModelConnection) {
+	if err := w.Store.CheckRecoveryOutboundProfiles(ctx, storage.RecoveryOutboundProfile{OrganizationID: connection.OrganizationID, Kind: "model", ID: connection.ID, Version: connection.Version}); err != nil {
+		_ = w.Store.PauseModelAfterRuntimeError(ctx, l, "model_profile_unavailable")
+		return
+	}
 	key, e := w.ResolveModelCredential(connection.CredentialEnvironment)
 	if e != nil || key == "" {
 		_ = w.Store.PauseModelAfterRuntimeError(ctx, l, "model_credentials_unavailable")

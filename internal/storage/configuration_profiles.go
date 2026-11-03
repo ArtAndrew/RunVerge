@@ -90,6 +90,9 @@ func scanCredentialPurposeProfile(row scanner) (c domain.CredentialPurposeProfil
 func loadCredentialPurposeProfileTx(ctx context.Context, tx pgx.Tx, org, id string, version int, lock bool) (domain.CredentialPurposeProfile, error) {
 	query := "SELECT profile,active,created_at FROM credential_purpose_profiles WHERE organization_id=$1 AND id=$2 AND version=$3"
 	if lock {
+		if err := checkRecoveryOutboundProfileTx(ctx, tx, org, "credential_purpose", id, version); err != nil {
+			return domain.CredentialPurposeProfile{}, err
+		}
 		query += " FOR SHARE"
 	}
 	c, err := scanCredentialPurposeProfile(tx.QueryRow(ctx, query, org, id, version))
@@ -258,6 +261,9 @@ func scanConfigurationDestination(row scanner) (c domain.ConfigurationDestinatio
 func loadConfigurationDestinationTx(ctx context.Context, tx pgx.Tx, org, id string, version int, lock bool) (domain.ConfigurationDestinationProfile, error) {
 	query := "SELECT profile,active,created_at FROM configuration_destinations WHERE organization_id=$1 AND id=$2 AND version=$3"
 	if lock {
+		if err := checkRecoveryOutboundProfileTx(ctx, tx, org, "destination", id, version); err != nil {
+			return domain.ConfigurationDestinationProfile{}, err
+		}
 		query += " FOR SHARE"
 	}
 	c, err := scanConfigurationDestination(tx.QueryRow(ctx, query, org, id, version))

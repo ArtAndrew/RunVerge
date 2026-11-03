@@ -32,6 +32,9 @@ func scanToolConnection(row scanner) (c domain.ToolConnection, err error) {
 func loadToolConnectionTx(ctx context.Context, tx pgx.Tx, org, id string, version int, lock bool) (domain.ToolConnection, error) {
 	query := "SELECT profile,active,created_at,profile_digest FROM tool_connections WHERE organization_id=$1 AND id=$2 AND version=$3"
 	if lock {
+		if err := checkRecoveryOutboundProfileTx(ctx, tx, org, "tool", id, version); err != nil {
+			return domain.ToolConnection{}, err
+		}
 		query += " FOR SHARE"
 	}
 	return scanToolConnection(tx.QueryRow(ctx, query, org, id, version))
@@ -141,7 +144,7 @@ func (s *Store) Tools(ctx context.Context, p domain.Principal, raw string, limit
 	if id != p.ID || !domain.PrincipalHasPermission(domain.Principal{ID: id, OrganizationID: org, Role: role, Kind: kind}, "tasks.read") {
 		return nil, "", domain.Forbidden
 	}
-	rows, e := tx.Query(ctx, "SELECT profile,active,created_at,profile_digest FROM tool_connections WHERE organization_id=$1 AND active AND (created_at,id)<($2,$3) ORDER BY created_at DESC,id DESC LIMIT $4", org, position.CreatedAt, position.ID, limit+1)
+	rows, e := tx.Query(ctx, "SELECT profile,active,created_at,profile_digest FROM tool_connections WHERE organization_id=$1 AND active AND NOT recovery_is_historical('tool_connections',jsonb_build_array(organization_id,id,version)) AND (created_at,id)<($2,$3) ORDER BY created_at DESC,id DESC LIMIT $4", org, position.CreatedAt, position.ID, limit+1)
 	if e != nil {
 		return nil, "", e
 	}

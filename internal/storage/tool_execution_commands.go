@@ -239,6 +239,9 @@ func toolCurrentTask(t domain.Task, e domain.ToolExecution) error {
 }
 
 func toolActorsAuthorizedTx(ctx context.Context, tx pgx.Tx, e domain.ToolExecution, c domain.ToolConnection, t domain.Task, a domain.Approval, requireApproval bool) error {
+	if err := checkRecoveryOutboundProfileTx(ctx, tx, c.Tool.OrganizationID, "tool", c.Tool.ID, c.Tool.Version); err != nil {
+		return err
+	}
 	if err := checkToolAuthorityEpochsTx(ctx, tx, e, requireApproval); err != nil {
 		return err
 	}
