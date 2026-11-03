@@ -112,6 +112,22 @@ stale-plan refusal before HTTP, failed response retention without a database wri
 lost stdout after recording, repeated-attempt refusal, and inspection in a fresh
 process after revocation and deletion of the input key. It also refused a changed
 target selector. Child processes dispatch the production handlers from the test
-binary; this is not an installed-package walkthrough. The storage check separately
-performed a normal PostgreSQL restart. A live OpenRouter account, final billing,
-full restore and safe resumption of new work remain separate requirements.
+binary. The storage check separately performed a normal PostgreSQL restart.
+
+The later [installed Linux check](https://github.com/ArtAndrew/RunVerge/actions/runs/41599089951)
+at `d52d3ef1cd8d32841746b69ca28cbd86e6dc8594` passed on amd64 and arm64. It used
+`/app/bin/platform` from the same installed runtime image for plan, authority,
+acquisition and inspection. A separate test-only peer answered one HTTPS request;
+the runtime's endpoint and TLS checks were unchanged. Hostname mapping and the
+test CA were confined to the disposable command container, without editing host
+DNS or trust settings.
+
+The observation survived lost stdout and a normal restart of the same PostgreSQL
+cluster. After revocation and deletion of the input key, inspection returned the
+same record. Reusing the attempt was refused and the peer saw no second request.
+Independent database reads checked the exact observation row and every other
+target table remained unchanged. Both temporary environments were removed.
+
+These checks use synthetic request history and a synthetic credential. A live
+OpenRouter account, final billing, crash durability, macOS recovery, full restore
+and safe resumption of new work remain separate requirements.
