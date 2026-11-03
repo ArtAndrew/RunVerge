@@ -148,11 +148,15 @@ func (recoveryHostFailedOutput) Write([]byte) (int, error) { return 0, errRecove
 
 var errRecoveryHostOutput = errors.New("synthetic output unavailable")
 
-func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput, provision bool) {
+func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput, provision bool, withUsage ...bool) {
 	if os.Getenv("RUNVERGE_RECOVERY_OWNED_PG") != "1" || os.Getenv("RUNVERGE_RECOVERY_INDEPENDENT_OWNED_PG") != "1" {
 		t.Skip("requires explicit disposable recovery cluster")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	deadline := 3 * time.Minute
+	if len(withUsage) != 0 {
+		deadline = 6 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 	source, sourceDSN, bootstrap := independentCLIDB(t)
 	principal, err := source.Authenticate(ctx, bootstrap.Token, bootstrap.OrganizationID)
@@ -188,6 +192,10 @@ func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput, provision bool) {
 		t.Fatal(err)
 	}
 	var accountingFixture *recoveryHostAccountingFixture
+	var usageFixture *recoveryHostUsageFixture
+	if len(withUsage) != 0 && withUsage[0] {
+		usageFixture = prepareRecoveryHostUsageFixture(t, ctx, source)
+	}
 	if lostOutput && !provision {
 		accountingFixture = prepareRecoveryHostAccountingFixture(t, ctx, source)
 	}
@@ -347,7 +355,7 @@ func recoveryHostArchiveRoundTrip(t *testing.T, lostOutput, provision bool) {
 		t.Fatal("source business data changed", err)
 	}
 	if lostOutput && !provision {
-		recoveryHostEvidenceRoundTrip(t, ctx, source, sourceFile, parent, stage, keys, bundle, configFile, receipt, accountingFixture)
+		recoveryHostEvidenceRoundTrip(t, ctx, source, sourceFile, parent, stage, keys, bundle, configFile, receipt, accountingFixture, usageFixture)
 	}
 	scopesFile := filepath.Join(parent, "scopes.json")
 	if err = os.WriteFile(scopesFile, []byte(`{"scopes":[{"subject":"current-owner","organization_id":"`+principal.OrganizationID+`"}]}`), 0600); err != nil {

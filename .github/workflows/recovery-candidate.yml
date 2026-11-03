@@ -25,6 +25,7 @@ on:
       - 'cmd/platform/recovery_host*'
       - 'cmd/platform/recovery_evidence_host*'
       - 'cmd/platform/recovery_accounting_host*'
+      - 'cmd/platform/recovery_usage*'
       - 'cmd/platform/recovery_provision_host*'
       - 'internal/modelruntime/intent_snapshot*'
       - 'internal/modelgateway/openrouter_usage*'
@@ -97,6 +98,9 @@ jobs:
           go test -mod=readonly -race ./internal/modelgateway -count=1 -v
           go test -mod=readonly -race ./internal/recoveryaccess -count=1 -v
           go test -mod=readonly ./internal/storage -run '^TestRecoveryUsageAuthor' -timeout=10m -count=1 -v
+      - name: Check usage host commands in development mode
+        if: ${{ inputs.usage_only && !inputs.schema_reference && !inputs.accounting_only }}
+        run: go test -mod=readonly ./cmd/platform -run '^TestRecoveryHostAuthorUsage' -timeout=8m -count=1 -v
       - name: Read the exact previously verified SQL025 producer
         if: ${{ !inputs.schema_reference && !inputs.usage_only }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

@@ -2,8 +2,8 @@
 
 This internal component permits a bounded OpenRouter metadata read under an
 explicit current host policy. It is separate from recovery-read bearer tokens.
-It has no Workspace, HTTP or CLI entrypoint and does not settle costs or resume
-tasks.
+The development [host commands](../../docs/RECOVERY-USAGE.md) expose this policy
+without a Workspace or HTTP entrypoint. It does not settle costs or resume tasks.
 
 ## Policy and credential
 
@@ -67,16 +67,23 @@ from an archive.
 
 Network I/O holds no database recovery lock. The checked target accounting head
 may change during the read. Durable ingestion must independently rederive the
-source binding and revalidate the target and current policy. This component does
-not persist observations, establish invoice finality or complete recovery-window
-coverage. Every returned cost remains an unverified provider observation.
+source binding and revalidate the target and current policy. The separate
+[storage coordinator](../storage/USAGE-OBSERVATIONS.md) does that while
+`WithUsageAdmission` holds the shared policy lock through commit. It persists
+unverified observations; neither component establishes invoice finality or
+complete recovery-window coverage.
 
 ## Checks
 
 Tests use synthetic credentials and observations to exercise purpose separation,
 legacy state decoding, scope denial, key rotation in fresh processes, revocation,
 pending changes, lock draining, cancellation, expiry and exact response identity.
-The existing gateway tests separately exercise the production HTTP transport
-against owned local HTTPS peers. The storage integration check verifies that
-valid archive history cannot bypass disabled current authority. These checks do
-not establish live provider compatibility or successful end-to-end persistence.
+The gateway tests exercise the production HTTP transport against owned local
+HTTPS peers. The storage integration checks cover both disabled-authority
+refusal and successful owned-HTTPS acquisition through durable storage,
+including duplicate/conflicting writes and inspection after commit loss.
+Admission tests also check revocation, callback cancellation and lock draining.
+The storage drill also performs a normal restart of the owned PostgreSQL service
+and inspects the retained observation without another HTTP request. These checks
+do not establish live provider compatibility, crash durability, financial
+settlement or full recovery.

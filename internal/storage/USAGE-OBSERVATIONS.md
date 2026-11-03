@@ -7,6 +7,9 @@ acquisition. It is not a supported recovery command or a final billing decision.
 `AcquireRecoveryUsage` derives the request from authenticated original/captured
 archives and the held target, then performs one bounded read through the current
 host usage authority. It holds no database gate during the HTTP request.
+`AcquirePlannedRecoveryUsage` additionally requires the reviewed plan digest to
+match the internally derived request before HTTP; an earlier external preview
+cannot substitute for this check.
 
 `RecordRecoveryUsage` accepts that opaque acquisition and a caller-retained
 operation ID. It does not contact the provider. It rechecks the archives, target,
@@ -53,5 +56,8 @@ The container maps the fixed provider hostname to loopback and uses a test CA;
 production endpoint selection and TLS verification are unchanged. The checks
 cover exact persistence, duplicate/conflicting operations, lost commit
 acknowledgements and historical inspection through a newly opened connection
-pool. A new pool is not a database restart. These tests do not establish live
-OpenRouter compatibility, full restore, upgrade acceptance or release readiness.
+pool. A separate drill restarts the exact owned PostgreSQL service, verifies the
+same physical cluster with a new server start time, and checks the original
+observation and unchanged business rows without another HTTP request. This is a
+normal database restart, not a power-loss test. These checks do not establish live
+OpenRouter compatibility, full restore or release readiness.

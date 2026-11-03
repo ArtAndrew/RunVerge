@@ -21,7 +21,7 @@ func TestRecoveryHostAuthorEvidenceConsentBeforeFiles(t *testing.T) {
 	}
 }
 
-func recoveryHostEvidenceRoundTrip(t *testing.T, ctx context.Context, source *storage.Store, sourceFile, parent, stage, keys, selected, targetConfig string, old recoveryarchive.HostBackupReceipt, accountingFixture *recoveryHostAccountingFixture) {
+func recoveryHostEvidenceRoundTrip(t *testing.T, ctx context.Context, source *storage.Store, sourceFile, parent, stage, keys, selected, targetConfig string, old recoveryarchive.HostBackupReceipt, accountingFixture *recoveryHostAccountingFixture, usageFixture *recoveryHostUsageFixture) {
 	t.Helper()
 	if _, err := source.Bootstrap(ctx, "late synthetic organization", 1000); err != nil {
 		t.Fatal(err)
@@ -71,5 +71,12 @@ func recoveryHostEvidenceRoundTrip(t *testing.T, ctx context.Context, source *st
 	if err != nil || json.Unmarshal(raw, &repeated) != nil || repeated.PlanSHA256 != plan.PlanSHA256 {
 		t.Fatal("plan CLI is not reproducible", err)
 	}
+	var staleUsage string
+	if usageFixture != nil {
+		staleUsage = recoveryHostUsagePlan(t, ctx, usageFixture, path, targetConfig, filepath.Join(parent, "stale-usage.json"))
+	}
 	recoveryHostAccountingRoundTrip(t, ctx, accountingFixture, path, targetConfig, parent)
+	if usageFixture != nil {
+		recoveryHostUsageRoundTrip(t, ctx, usageFixture, path, targetConfig, parent, staleUsage)
+	}
 }

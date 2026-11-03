@@ -52,6 +52,10 @@ func runRecoveryHost(ctx context.Context, args []string, out io.Writer) error {
 		return recoveryUsage
 	}
 	switch args[0] {
+	case "usage-access-init", "usage-access-replace", "usage-access-inspect", "usage-access-revoke", "usage-access-resolve":
+		return runRecoveryUsageAuthorityHost(ctx, args, out)
+	case "usage-plan", "usage-acquire", "usage-inspect":
+		return runRecoveryUsageHost(ctx, args, out)
 	case "accounting-plan", "accounting-apply", "accounting-inspect":
 		return runRecoveryAccountingHost(ctx, args, out)
 	case "evidence-ingest", "evidence-inspect", "reconciliation-plan", "accounting-review":

@@ -107,7 +107,10 @@ func recoveryUsageRecordingFixture(t *testing.T) (*evidenceAuthorFixture, Recove
 	if err != nil {
 		t.Fatal(err)
 	}
-	o, err := f.target.AcquireRecoveryUsage(ctx, f.selected, f.late, f.verified, f.spec, limits, selection, path)
+	if _, err := f.target.AcquirePlannedRecoveryUsage(ctx, f.selected, f.late, f.verified, f.spec, limits, selection, path, strings.Repeat("0", 64)); !errors.Is(err, ErrRecoveryUsageBinding) {
+		t.Fatal("wrong reviewed usage plan accepted", err)
+	}
+	o, err := f.target.AcquirePlannedRecoveryUsage(ctx, f.selected, f.late, f.verified, f.spec, limits, selection, path, plan.PlanSHA256)
 	if err != nil {
 		t.Fatal("owned acquisition", err)
 	}

@@ -14,6 +14,21 @@ import (
 // holds no database recovery lock. This does not persist or settle observations;
 // durable ingestion must revalidate the target and then-current host authority.
 func (s *Store) AcquireRecoveryUsage(ctx context.Context, selected, late *recoveryarchive.VerifiedArchive, verified *recoveryarchive.VerifiedCaptureLink, spec RecoveryTargetSpec, limits RecoverySnapshotLimits, selection RecoveryUsageSelection, authorityPath string) (recoveryaccess.AcquiredUsageObservation, error) {
+	return s.acquireRecoveryUsage(ctx, selected, late, verified, spec, limits, selection, authorityPath, "")
+}
+
+// AcquirePlannedRecoveryUsage refuses a changed reviewed plan before contacting
+// the provider. The comparison belongs to the same planning path that derives
+// the outgoing request, not to a separate earlier CLI preview. Durable admission
+// still revalidates the target and current policy after the network request.
+func (s *Store) AcquirePlannedRecoveryUsage(ctx context.Context, selected, late *recoveryarchive.VerifiedArchive, verified *recoveryarchive.VerifiedCaptureLink, spec RecoveryTargetSpec, limits RecoverySnapshotLimits, selection RecoveryUsageSelection, authorityPath, expectedPlanSHA256 string) (recoveryaccess.AcquiredUsageObservation, error) {
+	if !validDigest(expectedPlanSHA256) {
+		return recoveryaccess.AcquiredUsageObservation{}, ErrRecoveryUsageBinding
+	}
+	return s.acquireRecoveryUsage(ctx, selected, late, verified, spec, limits, selection, authorityPath, expectedPlanSHA256)
+}
+
+func (s *Store) acquireRecoveryUsage(ctx context.Context, selected, late *recoveryarchive.VerifiedArchive, verified *recoveryarchive.VerifiedCaptureLink, spec RecoveryTargetSpec, limits RecoverySnapshotLimits, selection RecoveryUsageSelection, authorityPath, expectedPlanSHA256 string) (recoveryaccess.AcquiredUsageObservation, error) {
 	if ctx == nil {
 		return recoveryaccess.AcquiredUsageObservation{}, ErrRecoveryUsageBinding
 	}
@@ -26,7 +41,7 @@ func (s *Store) AcquireRecoveryUsage(ctx context.Context, selected, late *recove
 	if err != nil {
 		return recoveryaccess.AcquiredUsageObservation{}, err
 	}
-	if plan.State != "request_identity_available" || !plan.ExecutionHeld || !plan.RollbackConfirmed {
+	if plan.State != "request_identity_available" || !plan.ExecutionHeld || !plan.RollbackConfirmed || (expectedPlanSHA256 != "" && plan.PlanSHA256 != expectedPlanSHA256) {
 		return recoveryaccess.AcquiredUsageObservation{}, ErrRecoveryUsageBinding
 	}
 	return recoveryaccess.ObserveHostUsage(ctx, authorityPath, recoveryUsageRequestFromPlan(plan))
