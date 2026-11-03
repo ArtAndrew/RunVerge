@@ -13,18 +13,22 @@ import (
 	"time"
 
 	"agentplatform.local/platform/internal/domain"
+	"agentplatform.local/platform/internal/modelgateway"
+	"agentplatform.local/platform/internal/modelruntime"
 	"agentplatform.local/platform/internal/recoveryarchive"
 	"agentplatform.local/platform/internal/storage"
 )
 
 type fixture struct {
-	InitialSpent int64  `json:"initial_spent_microusd,string"`
-	Installation string `json:"installation_id"`
-	Organization string `json:"organization_id"`
-	Reservation  string `json:"reservation_id"`
-	Task         string `json:"task_id"`
-	Invoice      string `json:"invoice_id,omitempty"`
-	Correction   string `json:"correction_id,omitempty"`
+	InitialSpent      int64  `json:"initial_spent_microusd,string"`
+	Installation      string `json:"installation_id"`
+	Organization      string `json:"organization_id"`
+	Reservation       string `json:"reservation_id"`
+	Task              string `json:"task_id"`
+	Invoice           string `json:"invoice_id,omitempty"`
+	Correction        string `json:"correction_id,omitempty"`
+	UsageOrganization string `json:"usage_organization_id"`
+	UsageReservation  string `json:"usage_reservation_id"`
 }
 
 func read(path string, out any) error {
@@ -124,6 +128,10 @@ func run() error {
 		if s.Pool.QueryRow(ctx, "SELECT spent_microusd,reserved_microusd FROM organizations WHERE id=$1", p.OrganizationID).Scan(&f.InitialSpent, &reserved) != nil || reserved != 37 {
 			return fail
 		}
+		f.UsageOrganization, f.UsageReservation, err = prepareUsage(ctx, s)
+		if err != nil {
+			return fail
+		}
 	} else {
 		if *previous == "" || read(*previous, &f) != nil || f.Installation != state.InstallationID || f.Invoice != "" || f.Correction != "" {
 			return fail
@@ -146,4 +154,63 @@ func run() error {
 		f.Correction = corrected.EvidenceID
 	}
 	return recoveryarchive.WriteHostJSON(*out, f)
+}
+
+// Synthetic model history through the ordinary admission/candidate APIs. This
+// fixture never calls Runtime.Execute or a model endpoint. Its separate account
+// leaves the existing financial invoice/correction fixture unchanged.
+func prepareUsage(ctx context.Context, s *storage.Store) (string, string, error) {
+	fail := errors.New("owned usage source fixture failed")
+	b, err := s.Bootstrap(ctx, "Owned installed usage source", 1000000)
+	if err != nil {
+		return "", "", fail
+	}
+	p, err := s.Authenticate(ctx, b.Token, b.OrganizationID)
+	if err != nil {
+		return "", "", fail
+	}
+	c := domain.ModelConnection{ID: "installed-usage-router", OrganizationID: p.OrganizationID, Version: 1, WireProfile: domain.ModelWireOpenRouterTextV1, Model: "example/usage-model", ProviderAccount: "synthetic-provider-account", PriceVersion: "synthetic-v1", Endpoint: modelgateway.OpenRouterEndpoint, CredentialEnvironment: "PLATFORM_MODEL_KEY_USAGE_FIXTURE", MaxChargeMicroUSD: 37, MaxInputTokens: 32, InputMicroUSDPerMillion: 1000000, MaxOutputTokens: 16, MaxInputBytes: 4096, MaxOutputBytes: 4096, TimeoutMilliseconds: 2000, TokenLimitField: "max_tokens", BoundAssumptions: "Synthetic history only; no model request", Active: true}
+	c, err = s.InstallModelConnection(ctx, c)
+	if err != nil {
+		return "", "", fail
+	}
+	budget := int64(10000)
+	raw, err := s.CreateAgent(ctx, p, domain.NewID("key"), domain.CreateAgent{Name: "Owned usage fixture", Instructions: "Synthetic only", Model: c.Model, BudgetMicroUSD: &budget})
+	var a domain.Agent
+	if err != nil || json.Unmarshal(raw, &a) != nil {
+		return "", "", fail
+	}
+	raw, err = s.PublishAgent(ctx, p, a.ID, domain.NewID("key"), a.Version)
+	if err != nil || json.Unmarshal(raw, &a) != nil {
+		return "", "", fail
+	}
+	if _, err = s.CreateTask(ctx, p, domain.NewID("key"), domain.CreateTask{Goal: "Owned usage continuity", AgentID: a.ID, BudgetMicroUSD: 10000}); err != nil {
+		return "", "", fail
+	}
+	l, _, err := s.ClaimModel(ctx, "owned-usage-seed", time.Minute)
+	if err != nil || l == nil {
+		return "", "", fail
+	}
+	runtime, err := modelruntime.New(s, storage.RuntimeModelConfig(c, "synthetic-unused-key"))
+	if err != nil {
+		return "", "", fail
+	}
+	charge, intent, err := runtime.DescribeIntent(*l)
+	if err != nil {
+		return "", "", fail
+	}
+	r, err := s.ReserveCost(ctx, l, domain.ReserveCostRequest{ChargeKey: charge, IntentHash: intent, Category: "model", Provider: c.ProviderAccount, PriceVersion: c.PriceVersion, AmountMicroUSD: 37})
+	if err != nil {
+		return "", "", fail
+	}
+	if _, err = s.PrepareModelDispatch(ctx, l, r.ID); err != nil {
+		return "", "", fail
+	}
+	if _, err = s.MarkCostUnknown(ctx, p.OrganizationID, r.ID, domain.NewID("unknown"), "synthetic request, no external call"); err != nil {
+		return "", "", fail
+	}
+	if _, err = s.CompleteModelCandidate(ctx, l, r.ID, domain.ModelCandidate{Text: "Synthetic candidate", ProviderRequestID: "gen-installed-usage", Model: c.Model, PriceVersion: c.PriceVersion, IntentDigest: intent, InputTokens: 3, OutputTokens: 2, EstimatedMicroUSD: 3}); err != nil {
+		return "", "", fail
+	}
+	return p.OrganizationID, r.ID, nil
 }

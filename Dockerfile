@@ -61,6 +61,12 @@ USER postgres
 # Opt-in fixture tool; the runtime image has no seed or test executable.
 FROM build AS recovery-fixture-tools
 RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/recovery-accounting-source ./tests/fixtures/recovery-accounting-source
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/recovery-usage-peer ./tests/fixtures/recovery-usage-peer
+
+FROM scratch AS recovery-usage-peer
+COPY --from=recovery-fixture-tools /out/recovery-usage-peer /recovery-usage-peer
+USER 10001:10001
+ENTRYPOINT ["/recovery-usage-peer"]
 
 FROM scratch AS recovery-fixture-runtime
 COPY --from=recovery-fixture-tools /out/recovery-accounting-source /recovery-accounting-source

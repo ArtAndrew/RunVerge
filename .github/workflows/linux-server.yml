@@ -26,6 +26,7 @@ jobs:
     env:
       EXPECTED_ARCH: ${{ matrix.arch }}
       EXPECTED_MACHINE: ${{ matrix.machine }}
+      RUNVERGE_OWNED_USAGE_DRILL: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -101,12 +102,13 @@ jobs:
           assert native['identity'] == identity
           assert native['passed'] and native['cleanup_complete']
           assert compose['passed'] and compose['cleanup_complete']
+          assert 'installed_usage_acquisition_restart_revoke_inspect_passed' in compose['recovery_checks']
           image_id = subprocess.check_output(['docker', 'image', 'inspect', '--format', '{{.Id}}', 'runverge:linux-preview'], text=True).strip()
           report = {'scope': 'native_linux_source_and_compose_preview', 'passed': True,
                     'host_machine': platform.machine(), 'arch': identity['arch'],
                     'source_sha256': identity['source_sha256'], 'image_id': image_id,
                     'native_steps': len(native['steps']), 'compose_steps': len(compose['steps']),
-                    'real_model_called': False}
+                    'real_model_called': False, 'installed_usage_checked': True}
           (root / 'architecture.json').write_text(json.dumps(report, indent=2) + '\n')
           print(json.dumps(report))
           PY

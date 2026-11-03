@@ -12,6 +12,8 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import verify_recovery_usage
+
 
 def verify(command, compose, env, root, project, database, runtime_url, image, progress):
     # The parent created this exact project and owns its cleanup. No saved host
@@ -338,7 +340,7 @@ def verify_source_binding(command, compose, env, root, project, database, api,
     if cli(apply).returncode == 0:
         raise RuntimeError('Source shutdown repeated')
     verify_held_evidence(command, env, private, project, database, current,
-                         receipt, cli, require, progress)
+                         receipt, cli, require, progress, image)
     # No volume replacement: same DB container and data are restarted solely
     # inside this disposable verifier for the existing synthetic-sender check.
     progress('restart_retained_source_database')
@@ -361,7 +363,7 @@ def verify_source_binding(command, compose, env, root, project, database, api,
 
 
 def verify_held_evidence(command, env, private, project, source_database,
-                         source_plan, receipt, cli, require, progress):
+                         source_plan, receipt, cli, require, progress, image):
     """Real captured archive -> separately provisioned target; execution held."""
     progress('provision_separate_evidence_target')
     name = project + '-recovery-target'
@@ -474,6 +476,9 @@ def verify_held_evidence(command, env, private, project, source_database,
         progress('held_evidence_roundtrip_passed')
         verify_installed_accounting(command, env, private, name, created, ports, planned['database'],
                                     source_plan, target, cli, require, progress)
+        if os.environ.get('RUNVERGE_OWNED_USAGE_DRILL') == '1':
+            verify_recovery_usage.verify(command, env, private, project, created, ports, planned['database'],
+                                        source_plan, target, image, require, progress)
     finally:
         if created and re.fullmatch(r'[a-f0-9]{64}', created):
             owned = json.loads(command(['docker', 'inspect', created]))[0]

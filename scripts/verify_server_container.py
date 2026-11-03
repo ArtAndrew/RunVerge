@@ -318,7 +318,7 @@ WHERE r.rolname=CURRENT_USER AND r.rolname='runverge' AND r.rolcanlogin
                 if auxiliaries:
                     command(['docker', 'rm', '-f', '-v', *auxiliaries])
                 command([*compose, '--profile', 'admin', 'down', '--volumes', '--remove-orphans'])
-                for image_tag in (project + '-process-check', project + '-financial-seed'):
+                for image_tag in (project + '-process-check', project + '-financial-seed', project + '-usage-peer'):
                     if command(['docker', 'image', 'ls', '-q', image_tag]).strip():
                         command(['docker', 'image', 'rm', image_tag])
                 containers = command(['docker', 'ps', '-aq', '--filter', 'label=com.docker.compose.project=' + project])
