@@ -94,6 +94,12 @@ func TestRecoveryOutboundProfilesAuthorImportedReferencesStayInert(t *testing.T)
 		t.Fatal("active purpose path accepted imported profile", err)
 	}
 	_ = tx.Rollback(ctx)
+	independentImportAssertRows(t, before, independentImportRows(t, target, header.Inventory, true))
+	var revisionBefore int64
+	var updatedBefore time.Time
+	if err = target.Pool.QueryRow(ctx, "SELECT revision,updated_at FROM configuration_revisions WHERE organization_id=$1", org).Scan(&revisionBefore, &updatedBefore); err != nil {
+		t.Fatal(err)
+	}
 
 	// Explicit new host-installed profiles in the SAME organization remain
 	// usable. Use a different model name: reauthorizing the historical model
@@ -184,5 +190,18 @@ func TestRecoveryOutboundProfilesAuthorImportedReferencesStayInert(t *testing.T)
 	if err = target.CheckRecoveryOutboundProfiles(ctx, refs[0]); !errors.Is(err, domain.Forbidden) {
 		t.Fatal("idempotent install reauthorized imported model", err)
 	}
-	independentImportAssertRows(t, before, independentImportRows(t, target, header.Inventory, true))
+	after := independentImportRows(t, target, header.Inventory, true)
+	// Two explicit new profiles legitimately advance the shared configuration
+	// revision. Denials and rolled-back bindings must contribute no increments.
+	var revisionAfter int64
+	var updatedAfter time.Time
+	if err = target.Pool.QueryRow(ctx, "SELECT revision,updated_at FROM configuration_revisions WHERE organization_id=$1", org).Scan(&revisionAfter, &updatedAfter); err != nil || revisionAfter != revisionBefore+2 || !updatedAfter.After(updatedBefore) {
+		t.Fatal("unexpected shared configuration revision change", err)
+	}
+	if len(before["configuration_revisions"]) != 1 || len(after["configuration_revisions"]) != 1 {
+		t.Fatal("configuration revision identity count changed")
+	}
+	delete(before, "configuration_revisions")
+	delete(after, "configuration_revisions")
+	independentImportAssertRows(t, before, after)
 }
