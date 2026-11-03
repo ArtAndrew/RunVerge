@@ -16,13 +16,8 @@ func readRecoveryLineageGeneration(r *recoverySnapshotReader, inventory Recovery
 	if err != nil {
 		return err
 	}
-	digest, err := hex.DecodeString(expected.ImportedSnapshotSHA256)
-	if err != nil || len(digest) != 32 || hex.EncodeToString(digest) != expected.ImportedSnapshotSHA256 ||
-		expected.Kind != "generation" || expected.Profile != "sql026-current-generation-v1" ||
-		expected.InventorySHA256 != recoveryLineageSQL026Inventory || expected.CatalogSHA256 != recoveryLineageSQL026Catalog ||
-		!validRecoveryID(expected.InstallationID, "inst") || !validRecoveryID(expected.ImportedSourceID, "inst") ||
-		expected.InstallationID == expected.ImportedSourceID || !validRecoveryID(expected.RestoreID, "restore") {
-		return ErrRecoverySnapshotInvalid
+	if err = validateRecoveryLineageGenerationIdentity(expected); err != nil {
+		return err
 	}
 	line, err := r.line()
 	if err != nil {
@@ -33,13 +28,17 @@ func readRecoveryLineageGeneration(r *recoverySnapshotReader, inventory Recovery
 		return ErrRecoverySnapshotInvalid
 	}
 	r.accept(line)
+	return readRecoveryLineageGenerationTables(r, projected, limits, report)
+}
+
+func readRecoveryLineageGenerationTables(r *recoverySnapshotReader, projected RecoverySnapshotInventory, limits RecoverySnapshotLimits, report *RecoverySnapshotReport) error {
 	rows, bytes, tables := report.Rows, report.Bytes, len(report.Tables)
 	metadataLimits := limits
 	metadataLimits.MaxRowBytes = recoveryLineageMetadataRowBytes
-	if err = readRecoverySnapshotTables(r, projected, metadataLimits, report); err != nil {
+	if err := readRecoverySnapshotTables(r, projected, metadataLimits, report); err != nil {
 		return err
 	}
-	line, err = r.line()
+	line, err := r.line()
 	if err != nil {
 		return err
 	}
@@ -48,5 +47,17 @@ func readRecoveryLineageGeneration(r *recoverySnapshotReader, inventory Recovery
 		return ErrRecoverySnapshotInvalid
 	}
 	r.accept(line)
+	return nil
+}
+
+func validateRecoveryLineageGenerationIdentity(expected recoveryLineageGenerationStart) error {
+	digest, err := hex.DecodeString(expected.ImportedSnapshotSHA256)
+	if err != nil || len(digest) != 32 || hex.EncodeToString(digest) != expected.ImportedSnapshotSHA256 ||
+		expected.Kind != "generation" || expected.Profile != "sql026-current-generation-v1" ||
+		expected.InventorySHA256 != recoveryLineageSQL026Inventory || expected.CatalogSHA256 != recoveryLineageSQL026Catalog ||
+		!validRecoveryID(expected.InstallationID, "inst") || !validRecoveryID(expected.ImportedSourceID, "inst") ||
+		expected.InstallationID == expected.ImportedSourceID || !validRecoveryID(expected.RestoreID, "restore") {
+		return ErrRecoverySnapshotInvalid
+	}
 	return nil
 }

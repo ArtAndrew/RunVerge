@@ -158,7 +158,11 @@ func TestRecoveryLineageSourceAuthorFullEvidenceChunk(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := recoveryLineageGenerationStart{Kind: "generation", Profile: "sql026-current-generation-v1", InstallationID: receipt.TargetInstallationID, RestoreID: receipt.RestoreID, ImportedSourceID: receipt.SourceID, ImportedSnapshotSHA256: receipt.SnapshotSHA256, InventorySHA256: recoveryLineageSQL026Inventory, CatalogSHA256: recoveryLineageSQL026Catalog}
-	staged, err := stageRecoveryLineageGeneration(ctx, stageTx, f.target.runtimeSchema, bytes.NewReader(out.Bytes()), inventory, expected, limits)
+	spans, err := indexRecoveryLineagePayload(ctx, bytes.NewReader(out.Bytes()), receipt.TargetInstallationID, RecoveryLineageFramingReport{Generations: 1, Records: report.Rows, PayloadBytes: int64(out.Len())}, inventory, limits)
+	if err != nil || len(spans) != 1 || spans[0].Identity != expected {
+		t.Fatal("actual generation indexing failed", err)
+	}
+	staged, err := stageRecoveryLineageGeneration(ctx, stageTx, f.target.runtimeSchema, io.NewSectionReader(bytes.NewReader(out.Bytes()), spans[0].Offset, spans[0].Length), inventory, spans[0].Identity, limits)
 	if err != nil || staged.Rows != report.Rows || staged.Bytes != report.Bytes {
 		t.Fatal("large actual generation staging rejected", err)
 	}

@@ -104,7 +104,7 @@ jobs:
         if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only && !inputs.outbound_only }}
         run: |
           go test -mod=readonly -race ./internal/recoverylineage -count=1 -v
-          go test -mod=readonly ./internal/storage -run '^TestRecovery(LineageEnvelope|LineageSource|LineageGeneration|LineageRelations|LineageBinary|LineageReceipt|Snapshot(CopyBoundariesAndLimits|StrictWireObjects|OutputFailureAndBounds|Independent))' -count=1 -v
+          go test -mod=readonly ./internal/storage -run '^TestRecovery(LineageEnvelope|LineageSource|LineageGeneration|LineageRelations|LineageBinary|LineageReceipt|LineageChain|LineagePayload|Snapshot(CopyBoundariesAndLimits|StrictWireObjects|OutputFailureAndBounds|Independent))' -count=1 -v
           go test -mod=readonly ./internal/storage -run '^TestRecoverySnapshot(PopulatedAndStrictValidation|OneCutAndSequenceHighWater|RefusesDriftHeldAndOversizeBeforeOutput|ExportFailureAndCancellation)$' -timeout=8m -count=1 -v
       - name: Check restored outbound profiles and ordinary workers
         if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.accounting_only && !inputs.usage_only }}
