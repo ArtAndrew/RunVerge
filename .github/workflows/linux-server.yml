@@ -103,6 +103,8 @@ jobs:
           assert native['passed'] and native['cleanup_complete']
           assert compose['passed'] and compose['cleanup_complete']
           assert 'installed_usage_acquisition_restart_revoke_inspect_passed' in compose['recovery_checks']
+          assert 'signed_source_stop_refresh_passed' in compose['recovery_checks']
+          assert 'signed_source_stop_restart_refusal_passed' in compose['recovery_checks']
           image_id = subprocess.check_output(['docker', 'image', 'inspect', '--format', '{{.Id}}', 'runverge:linux-preview'], text=True).strip()
           report = {'scope': 'native_linux_source_and_compose_preview', 'passed': True,
                     'host_machine': platform.machine(), 'arch': identity['arch'],

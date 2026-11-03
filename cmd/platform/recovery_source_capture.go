@@ -23,7 +23,7 @@ type recoverySourceCapture struct {
 }
 
 func validateSourceCapturePaths(selected, path string, c recoverySourceCapture) error {
-	for _, file := range []string{path, path + ".apply", path + ".capture", path + ".capture-state", c.Keys, c.Stage} {
+	for _, file := range []string{path, path + ".apply", path + ".capture", path + ".capture-state", path + ".source-stop", c.Keys, c.Stage} {
 		if recoveryarchive.RequireHostPathOutside(selected, file) != nil || recoveryarchive.RequireHostPathOutsideNewDirectory(c.Directory, file) != nil {
 			return errors.New("evidence authority and staging must remain outside both archives")
 		}

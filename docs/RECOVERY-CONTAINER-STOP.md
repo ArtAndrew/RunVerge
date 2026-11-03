@@ -224,3 +224,49 @@ lost its final output, then a fresh inspection authenticated the archive and
 link and confirmed the source containers stopped. Both disposable environments
 were cleaned up; no real model was called. These checks do not yet import the
 late evidence into a restored target or prove external billing reconciliation.
+
+## Signed final stop observation — development candidate
+
+When evidence capture is configured, a successful `source-stop-apply` now saves
+`INTENT.source-stop` after PostgreSQL has stopped. This separate signed file binds
+the final observed container state to the exact `.capture` link, both archive
+digests, original source binding and Docker process generations. The earlier
+`.capture` and `.capture-state` files still describe capture before database stop;
+their format and meaning are unchanged.
+
+Inspect the saved final observation and recheck the original Docker inventory:
+
+```sh
+platform recovery source-stop-inspect \
+  --intent-file "$PRIVATE/source-stop.json" \
+  --source-stop-file "$PRIVATE/source-stop.json.source-stop"
+```
+
+The command refuses changed container generations, missing or additional
+containers, a changed daemon, a running source or enabled automatic restart. A
+restart followed by another stop also invalidates the original process identity.
+Signature verification alone proves historical authenticity; the command also
+performs a fresh read-only observation. It does not restart or stop anything.
+
+If the final receipt was not saved completely, keep it for inspection and write
+a fresh observation to a **new** private path:
+
+```sh
+platform recovery source-stop-inspect \
+  --intent-file "$PRIVATE/source-stop.json" \
+  --source-stop-out "$PRIVATE/source-stop-observed-again.json"
+```
+
+The original plan may be older than the 15-minute destructive-apply limit,
+provided every original process identity still matches. The output must be
+outside both archives; existing files are never overwritten. Ordinary inspection
+without either flag continues to report source state and capture without writing
+a receipt. A lost stdout does not permit repeating apply.
+
+This is a point-in-time observation under exclusive control of the trusted local
+Docker host. Keep that control throughout recovery: the receipt cannot prevent a
+later manual restart or execution elsewhere. The database identity comes from the
+earlier live binding; a stopped database does not provide a new SQL witness.
+`window_covered`, `new_work_allowed`, `external_execution_fenced` and
+`external_effects_settled` remain false. This component does not reconcile costs,
+clear the restored target, enable new tasks or establish complete recovery.

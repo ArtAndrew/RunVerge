@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Elastic-2.0
 """Exercise container shutdown only inside the caller's disposable Compose project."""
+import hashlib
 import json
 import os
 import re
@@ -337,8 +338,31 @@ def verify_source_binding(command, compose, env, root, project, database, api,
         raise RuntimeError('Bound source shutdown scope incorrect')
     if not observed.get('evidence_captured') or observed.get('evidence_reconciled'):
         raise RuntimeError('Source evidence capture not authenticated after lost output')
+    stop_proof = str(current) + '.source-stop'
+    checked = require(cli(['source-stop-inspect', '--intent-file', str(current),
+                           '--source-stop-file', stop_proof]), 'source-stop-proof-recheck')
+    if checked.get('source_stop_sha256') != hashlib.sha256(Path(stop_proof).read_bytes()).hexdigest() or checked.get('window_covered') or checked.get('new_work_allowed'):
+        raise RuntimeError('Signed source stop proof scope or digest incorrect')
+    # A partial receipt is not overwritten or treated as permission to stop again.
+    partial = private / 'partial-source-stop.json'
+    partial.write_bytes(b'{')
+    partial.chmod(0o600)
+    if cli(['source-stop-inspect', '--intent-file', str(current),
+            '--source-stop-out', str(partial)]).returncode == 0 or partial.read_bytes() != b'{':
+        raise RuntimeError('Partial source stop proof was overwritten')
+    fresh_proof = private / 'fresh-source-stop.json'
+    require(cli(['source-stop-inspect', '--intent-file', str(current),
+                 '--source-stop-out', str(fresh_proof)]), 'source-stop-proof-refresh')
+    require(cli(['source-stop-inspect', '--intent-file', str(current),
+                 '--source-stop-file', str(fresh_proof)]), 'fresh-source-stop-proof-recheck')
+    for archive in (private / 'backup', private / 'late-evidence'):
+        forbidden = archive / 'source-stop.json'
+        if cli(['source-stop-inspect', '--intent-file', str(current),
+                '--source-stop-out', str(forbidden)]).returncode == 0 or forbidden.exists():
+            raise RuntimeError('Source stop proof entered a transported archive')
     if cli(apply).returncode == 0:
         raise RuntimeError('Source shutdown repeated')
+    progress('signed_source_stop_refresh_passed')
     verify_held_evidence(command, env, private, project, database, current,
                          receipt, cli, require, progress, image)
     # No volume replacement: same DB container and data are restarted solely
@@ -359,6 +383,12 @@ def verify_source_binding(command, compose, env, root, project, database, api,
                                '-v ON_ERROR_STOP=1 -c "SELECT installation_id FROM public.runtime_recovery_control WHERE singleton"']).strip()
     if retained_source != source_id:
         raise RuntimeError('Source data identity changed during stop/restart')
+    # The historical signature remains a record, but it cannot serve as fresh
+    # observed-stop evidence once the original installation has restarted.
+    if cli(['source-stop-inspect', '--intent-file', str(current),
+            '--source-stop-file', stop_proof]).returncode == 0:
+        raise RuntimeError('Source stop proof survived source restart')
+    progress('signed_source_stop_restart_refusal_passed')
     progress('bound_source_check_passed')
 
 

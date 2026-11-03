@@ -34,7 +34,7 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 	var confirmed bool
 	bound := strings.HasPrefix(args[0], "source-stop-")
 	operation := strings.Replace(args[0], "source-stop-", "container-stop-", 1)
-	var keys, stage, receipt, image, evidence string
+	var keys, stage, receipt, image, evidence, stopOut, stopFile string
 	switch operation {
 	case "container-stop-plan":
 		f.StringVar(&socket, "docker-socket", "", "explicit local Docker Unix socket")
@@ -50,6 +50,10 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 		}
 	case "container-stop-inspect", "container-stop-apply":
 		f.StringVar(&path, "intent-file", "", "private saved shutdown plan")
+		if bound && operation == "container-stop-inspect" {
+			f.StringVar(&stopOut, "source-stop-out", "", "new private signed observation; reads Docker without repeating shutdown")
+			f.StringVar(&stopFile, "source-stop-file", "", "verify a signed historical observation and recheck its exact source state")
+		}
 		if operation == "container-stop-apply" {
 			f.StringVar(&expected, "expected-project", "", "exact reviewed project name")
 			f.BoolVar(&confirmed, "confirm-stop-project", false, "stop every bound container including PostgreSQL and disable automatic restart")
@@ -112,6 +116,14 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 		}
 		if operation == "container-stop-apply" && (!confirmed || expected == "" || expected != saved.Intent.Project) {
 			return usage
+		}
+	}
+	if stopOut != "" && stopFile != "" {
+		return usage
+	}
+	for _, file := range []string{stopOut, stopFile} {
+		if file != "" && validateSourceStopPath(saved, file) != nil {
+			return errors.New("source stop proof requires capture and a private path outside both archives")
 		}
 	}
 	c, err := recoveryprocess.New(saved.Socket)
@@ -196,11 +208,27 @@ func runRecoveryProcessHost(ctx context.Context, args []string, out io.Writer) e
 		if e != nil {
 			return e
 		}
+		stopSHA := ""
+		if operation == "container-stop-apply" {
+			stopOut = path + ".source-stop"
+		}
+		if stopOut != "" || stopFile != "" {
+			if !captured {
+				return errors.New("source evidence capture required before source stop proof")
+			}
+			stopSHA, observation, err = inspectSourceStop(ctx, c, saved, path, stopOut, stopFile)
+			if err != nil {
+				return err
+			}
+		}
 		return json.NewEncoder(out).Encode(struct {
 			recoveryprocess.Observation
-			EvidenceCaptured   bool `json:"evidence_captured"`
-			EvidenceReconciled bool `json:"evidence_reconciled"`
-		}{observation, captured, false})
+			EvidenceCaptured   bool   `json:"evidence_captured"`
+			EvidenceReconciled bool   `json:"evidence_reconciled"`
+			SourceStopSHA256   string `json:"source_stop_sha256,omitempty"`
+			WindowCovered      bool   `json:"window_covered"`
+			NewWorkAllowed     bool   `json:"new_work_allowed"`
+		}{observation, captured, false, stopSHA, false, false})
 	}
 	return json.NewEncoder(out).Encode(observation)
 }
