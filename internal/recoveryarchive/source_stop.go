@@ -36,6 +36,12 @@ func sourceStopValid(r SourceStopReceipt, link *VerifiedCaptureLink) bool {
 	binding, _ := json.Marshal(b)
 	cut, err := time.Parse(time.RFC3339Nano, l.EvidenceCutUTC)
 	selected, selectedErr := time.Parse(time.RFC3339Nano, l.SelectedCutUTC)
+	if l.Version == 2 {
+		stopped, stopErr := time.Parse(time.RFC3339Nano, l.ExecutorsStoppedAtUTC)
+		if stopErr != nil || l.SystemID != b.SystemID || l.DatabaseOID != b.DatabaseOID || b.ObservedAt.After(stopped) {
+			return false
+		}
+	}
 	for _, stamp := range []time.Time{selected, cut, l.CapturedAt} {
 		_, offset := stamp.Zone()
 		if stamp.IsZero() || offset != 0 {

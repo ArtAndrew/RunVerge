@@ -280,3 +280,27 @@ observation outside both archives, and refused the old proof after the original
 source database and executors restarted. Both disposable environments were
 cleaned up. No real model or provider was called. This verifies the observed-stop
 component, not window coverage, productive recovery or an alpha.7 release.
+
+### Drained capture provenance in the current candidate
+
+New captures use a version 2 signed link. Before export, the command records the
+exact stopped executors while their database remains running. The export waits
+for other database clients and prepared transactions to disappear, witnesses its
+own fresh nonce inside the bound source container, and exports one consistent
+snapshot. It signs the link only after the completed archive matches the export's
+digest, byte count, backup identity, schema and snapshot time.
+
+The link includes the physical database identity, the export algorithm and the
+hash of the retained `.capture-state` observation. Readers require every executor
+to be stopped with automatic restart disabled, and verify the order of binding,
+executor stop, snapshot, archive completion and final source stop. Version 1
+links retain their original signature format and pairing semantics; they are
+never treated as evidence of this drained export procedure.
+
+This is an attestation by the trusted local host signer. It is not independent
+proof from PostgreSQL or a provider, and it does not establish external settlement,
+complete historical deployment coverage, or permission for new tasks. Keep
+exclusive deployment control. Selecting this later archive for a new restored
+installation still requires a separate recovery admission; an existing target's
+baseline must not be replaced. Installed verification of this new V2 path is
+pending; the earlier installed result above covers the previous capture format.

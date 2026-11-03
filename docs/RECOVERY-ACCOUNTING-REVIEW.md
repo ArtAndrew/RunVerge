@@ -169,4 +169,14 @@ Global recovery blockers and all existing financial holds remain in place. The
 inventory is computed from the verified archive bytes under the same target and
 accounting-head checks as the review; it is included in `review_sha256`. No source
 record or target obligation is modified. Limits fail the whole report rather
-than return a partial inventory. Runtime validation of this new report is pending.
+than return a partial inventory.
+
+The inventory implementation at `161cac054e812f8a77a5e5d169282e78759198ef`
+passed [PostgreSQL checks in run 41609536259](https://github.com/ArtAndrew/RunVerge/actions/runs/41609536259),
+including a real model-admission archive round trip and tool, configuration and
+webhook dispatch cases without external sends. The installed verifier at
+`eece73596abdd7f458f1bfa408ee673fc0ee674f` passed on both Linux architectures in
+[run 41610367120](https://github.com/ArtAndrew/RunVerge/actions/runs/41610367120):
+the source inventory remained unchanged after target accounting updates, and the
+review digest survived a database restart. This is acceptance of the bounded
+read-only inventory, not complete interval coverage or permission for new work.

@@ -32,6 +32,16 @@ func (o ObservedSourceStop) Record() SourceStopRecord { return cloneSourceStop(o
 // SourceStopRecordConsistent validates representation only. It constructs no
 // opaque proof, authenticates no caller data and performs no live observation.
 func SourceStopRecordConsistent(r SourceStopRecord) bool {
+	return sourceRecordConsistent(r, false)
+}
+
+// SourceCaptureRecordConsistent checks a bound observation with every executor
+// stopped and the database still running. It does not prove database drainage.
+func SourceCaptureRecordConsistent(r SourceStopRecord) bool {
+	return sourceRecordConsistent(r, true)
+}
+
+func sourceRecordConsistent(r SourceStopRecord, databaseRunning bool) bool {
 	p, b, o := r.Intent, r.Binding, r.Observation
 	system, err := strconv.ParseUint(b.SystemID, 10, 64)
 	if !valid(p) || b.Version != 1 || b.PlanSHA256 != planDigest(p) || !sourceID.MatchString(b.SourceID) || !fullID.MatchString(b.SnapshotSHA256) || err != nil || system == 0 || strconv.FormatUint(system, 10) != b.SystemID || b.DatabaseOID == 0 || b.ObservedAt.Before(p.CreatedAt) || o.ObservedAt.Before(b.ObservedAt) || !strings.HasPrefix(b.RuntimeImage, "sha256:") || !fullID.MatchString(strings.TrimPrefix(b.RuntimeImage, "sha256:")) {
@@ -43,13 +53,14 @@ func SourceStopRecordConsistent(r SourceStopRecord) bool {
 			return false
 		}
 	}
-	if o.OperationID != p.OperationID || o.Project != p.Project || o.SourceID != b.SourceID || !o.ProjectProcessesStopped || !o.SourceInstallationBound || !o.BoundSourceProcessesStopped || o.ExternalExecutionFenced || o.ExternalEffectsSettled || len(o.Containers) != len(p.Containers) {
+	if o.OperationID != p.OperationID || o.Project != p.Project || o.SourceID != b.SourceID || o.ProjectProcessesStopped == databaseRunning || !o.SourceInstallationBound || o.BoundSourceProcessesStopped == databaseRunning || o.ExternalExecutionFenced || o.ExternalEffectsSettled || len(o.Containers) != len(p.Containers) {
 		return false
 	}
 	apps := 0
 	for i, c := range p.Containers {
 		s := o.Containers[i]
-		if s.ID != c.ID || s.Service != c.Service || !s.Stopped || s.RestartPolicy != "no" || (s.Status != "created" && s.Status != "exited") || c.RestartCount < 0 {
+		running := databaseRunning && c.Service == "db"
+		if s.ID != c.ID || s.Service != c.Service || s.RestartPolicy != "no" || c.RestartCount < 0 || (running && (s.Stopped || s.Status != "running")) || (!running && (!s.Stopped || (s.Status != "created" && s.Status != "exited"))) {
 			return false
 		}
 		if _, err := time.Parse(time.RFC3339Nano, c.Created); err != nil {

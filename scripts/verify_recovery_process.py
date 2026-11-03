@@ -338,6 +338,29 @@ def verify_source_binding(command, compose, env, root, project, database, api,
         raise RuntimeError('Bound source shutdown scope incorrect')
     if not observed.get('evidence_captured') or observed.get('evidence_reconciled'):
         raise RuntimeError('Source evidence capture not authenticated after lost output')
+    # The installed producer must attest its drained export, not upgrade a V1
+    # pairing or infer quiescence from the later final-stop observation.
+    capture = json.loads(Path(str(current) + '.capture').read_text())['link']
+    state_raw = Path(str(current) + '.capture-state').read_bytes()
+    state = json.loads(state_raw)
+    saved = json.loads(current.read_text())
+    binding = saved['source_binding']
+    late_manifest = json.loads((private / 'late-evidence' / 'receipt.json').read_text())
+    if (capture['version'] != 2 or capture['export_algorithm'] != 'exclusive-compose-pg-drain-nonce-rr-export-v1'
+            or capture['system_id'] != binding['system_id'] or capture['database_oid'] != binding['database_oid']
+            or capture['export_wire_bytes'] != late_manifest['plaintext_bytes']
+            or capture['evidence_snapshot_sha256'] != late_manifest['plaintext_sha256']
+            or capture['evidence_schema_sha256'] != late_manifest['metadata']['schema_sha256']
+            or capture['evidence_backup_id'] != late_manifest['metadata']['backup_id']
+            or capture['stopped_executors_sha256'] != hashlib.sha256(state_raw).hexdigest()
+            or capture['executors_stopped_at_utc'] != state['observed_at']
+            or not state['source_installation_bound'] or state['project_processes_stopped']
+            or state['external_execution_fenced'] or state['external_effects_settled']):
+        raise RuntimeError('Drained capture provenance differs from installed export')
+    for container in state['containers']:
+        if container['restart_policy'] != 'no' or container['stopped'] != (container['service'] != 'db'):
+            raise RuntimeError('Capture observation did not keep only the database running')
+    progress('installed_drained_capture_v2_passed')
     stop_proof = str(current) + '.source-stop'
     checked = require(cli(['source-stop-inspect', '--intent-file', str(current),
                            '--source-stop-file', stop_proof]), 'source-stop-proof-recheck')

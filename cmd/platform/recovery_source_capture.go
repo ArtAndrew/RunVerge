@@ -73,10 +73,15 @@ func captureHash(v any) string { b, _ := json.Marshal(v); return storage.Hash(b)
 
 func applySourceCapture(ctx context.Context, c *recoveryprocess.Client, saved recoveryProcessFile, path string, s *storage.Store) (recoveryprocess.Observation, error) {
 	var zero recoveryprocess.Observation
-	stopped, err := c.StopExecutors(ctx, saved.Intent)
+	_, err := c.StopExecutors(ctx, saved.Intent)
 	if err != nil {
 		return zero, err
 	}
+	observed, err := c.ObserveSourceCapture(ctx, saved.Intent, *saved.Binding)
+	if err != nil {
+		return zero, err
+	}
+	stopped := observed.Record().Observation
 	if _, err = c.EvidenceDatabaseURL(ctx, saved.Intent, *saved.Binding); err != nil {
 		return zero, err
 	}
@@ -84,6 +89,7 @@ func applySourceCapture(ctx context.Context, c *recoveryprocess.Client, saved re
 	identity.Observe = func(ctx context.Context, nonce string) error {
 		return c.ObserveEvidenceBackend(ctx, saved.Intent, *saved.Binding, nonce)
 	}
+	var exported storage.RecoverySnapshotReport
 	receipt, err := recoveryarchive.CreateHostBackup(ctx, saved.Capture.Directory, saved.Capture.Keys, saved.Capture.Stage, func(ctx context.Context, w io.Writer) (recoveryarchive.Metadata, error) {
 		r, e := s.ExportRecoverySourceEvidence(ctx, w, storage.DefaultRecoverySnapshotLimits(), identity)
 		if e != nil {
@@ -93,13 +99,17 @@ func applySourceCapture(ctx context.Context, c *recoveryprocess.Client, saved re
 		if _, e = c.EvidenceDatabaseURL(ctx, saved.Intent, *saved.Binding); e != nil {
 			return recoveryarchive.Metadata{}, e
 		}
+		exported = r
 		m := r.Metadata
 		return recoveryarchive.Metadata{BackupID: m.BackupID, SourceID: m.SourceID, CutUTC: m.CutUTC, SchemaSHA256: m.SchemaSHA256}, nil
 	})
 	if err != nil {
 		return zero, errors.New("source evidence capture incomplete; executors may be stopped, inspect without repeating apply")
 	}
-	link := recoveryarchive.CaptureLink{Version: 1, OperationID: saved.Intent.OperationID, SourceID: saved.Binding.SourceID, SelectedReceiptSHA256: saved.Capture.SelectedReceipt, SelectedSnapshotSHA256: saved.Binding.SnapshotSHA256, SelectedCutUTC: saved.Capture.SelectedCut, BindingSHA256: captureHash(saved.Binding), StoppedExecutorsSHA256: captureHash(stopped), EvidenceReceiptSHA256: receipt.ReceiptSHA256, EvidenceSnapshotSHA256: receipt.Manifest.PlaintextSHA256, EvidenceCutUTC: receipt.Manifest.Metadata.CutUTC, CapturedAt: time.Now().UTC()}
+	link, err := completedSourceCaptureLink(saved, observed, exported, receipt)
+	if err != nil {
+		return zero, err
+	}
 	if err = recoveryarchive.WriteHostJSON(path+".capture-state", stopped); err != nil {
 		return zero, errors.New("capture observation not confirmed; database was not stopped")
 	}
@@ -109,6 +119,19 @@ func applySourceCapture(ctx context.Context, c *recoveryprocess.Client, saved re
 	// Receipt is durable before DB shutdown. It never claims the DB is stopped.
 	s.Close()
 	return c.StopDatabaseAfterEvidence(ctx, saved.Intent)
+}
+
+// Only the completed drained/nonce-witnessed export path calls this mint helper.
+// The local signer attests that path, not provider settlement or permission to
+// resume work. The receipt must describe exactly the stream returned by export.
+func completedSourceCaptureLink(saved recoveryProcessFile, observed recoveryprocess.ObservedSourceCapture, report storage.RecoverySnapshotReport, receipt recoveryarchive.HostBackupReceipt) (recoveryarchive.CaptureLink, error) {
+	var zero recoveryarchive.CaptureLink
+	r := observed.Record()
+	m := receipt.Manifest
+	if saved.Binding == nil || saved.Capture == nil || !recoveryprocess.SourceCaptureRecordConsistent(r) || captureHash(r.Intent) != captureHash(saved.Intent) || captureHash(r.Binding) != captureHash(saved.Binding) || report.SHA256 == "" || report.SHA256 != m.PlaintextSHA256 || report.WireBytes <= 0 || report.WireBytes != m.PlaintextBytes || report.Metadata.SourceID != saved.Binding.SourceID || report.Metadata.BackupID != m.Metadata.BackupID || report.Metadata.SourceID != m.Metadata.SourceID || report.Metadata.CutUTC != m.Metadata.CutUTC || report.Metadata.SchemaSHA256 != m.Metadata.SchemaSHA256 {
+		return zero, errors.New("drained export differs from completed archive")
+	}
+	return recoveryarchive.CaptureLink{Version: 2, OperationID: saved.Intent.OperationID, SourceID: saved.Binding.SourceID, SelectedReceiptSHA256: saved.Capture.SelectedReceipt, SelectedSnapshotSHA256: saved.Binding.SnapshotSHA256, SelectedCutUTC: saved.Capture.SelectedCut, BindingSHA256: captureHash(saved.Binding), StoppedExecutorsSHA256: captureHash(r.Observation), EvidenceReceiptSHA256: receipt.ReceiptSHA256, EvidenceSnapshotSHA256: m.PlaintextSHA256, EvidenceCutUTC: m.Metadata.CutUTC, CapturedAt: time.Now().UTC(), ExportAlgorithm: recoveryarchive.DrainedCaptureAlgorithm, SystemID: saved.Binding.SystemID, DatabaseOID: saved.Binding.DatabaseOID, ExportWireBytes: report.WireBytes, EvidenceSchemaSHA256: m.Metadata.SchemaSHA256, EvidenceBackupID: m.Metadata.BackupID, ExecutorsStoppedAtUTC: r.Observation.ObservedAt.UTC().Format(time.RFC3339Nano)}, nil
 }
 func inspectSourceCapture(ctx context.Context, saved recoveryProcessFile, path string) (bool, error) {
 	if _, err := os.Lstat(path + ".capture"); errors.Is(err, os.ErrNotExist) {
@@ -125,7 +148,7 @@ func inspectSourceCapture(ctx context.Context, saved recoveryProcessFile, path s
 	}
 	defer archive.Close()
 	m := archive.Manifest()
-	if m.PlaintextSHA256 != link.EvidenceSnapshotSHA256 || m.Metadata.SourceID != link.SourceID || m.Metadata.CutUTC != link.EvidenceCutUTC || !storage.SupportedRecoverySourceSchema(m.Metadata.SchemaSHA256) {
+	if !verified.MatchesEvidenceManifest(m) || !storage.SupportedRecoverySourceSchema(m.Metadata.SchemaSHA256) {
 		return false, errors.New("source evidence differs from signed link")
 	}
 	if err = archive.Close(); err != nil {
@@ -149,6 +172,9 @@ func loadSourceCaptureLink(saved recoveryProcessFile, path string) (*recoveryarc
 	var stopped recoveryprocess.Observation
 	if readRecoveryFenceJSON(path+".capture-state", &stopped) != nil || captureHash(stopped) != link.StoppedExecutorsSHA256 || stopped.OperationID != saved.Intent.OperationID {
 		return nil, errors.New("capture observation differs from signed link")
+	}
+	if link.Version == 2 && !verified.MatchesDrainedSource(recoveryprocess.SourceStopRecord{Intent: saved.Intent, Binding: *saved.Binding, Observation: stopped}) {
+		return nil, errors.New("drained source observation differs from authenticated capture")
 	}
 	return verified, nil
 }

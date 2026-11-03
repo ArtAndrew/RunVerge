@@ -42,6 +42,9 @@ func recoveryManifestReceipt(a *recoveryarchive.VerifiedArchive) string {
 }
 
 func bindRecoveryEvidence(ctx context.Context, selected, late *recoveryarchive.VerifiedArchive, verified *recoveryarchive.VerifiedCaptureLink, spec RecoveryTargetSpec, limits RecoverySnapshotLimits) (RecoverySnapshotReport, RecoverySnapshotReport, error) {
+	if late == nil || !verified.MatchesEvidenceManifest(late.Manifest()) {
+		return RecoverySnapshotReport{}, RecoverySnapshotReport{}, ErrRecoveryEvidence
+	}
 	var zero RecoverySnapshotReport
 	if selected == nil || late == nil || verified == nil || !limits.valid() {
 		return zero, zero, ErrRecoveryEvidence
