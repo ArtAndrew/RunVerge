@@ -270,3 +270,13 @@ earlier live binding; a stopped database does not provide a new SQL witness.
 `window_covered`, `new_work_allowed`, `external_execution_fenced` and
 `external_effects_settled` remain false. This component does not reconcile costs,
 clear the restored target, enable new tasks or establish complete recovery.
+
+Installed verification of this component passed on Linux amd64 and arm64 at
+`a57897f0c5a52e2bd407f3bbaccf60c0213e7414` in
+[run 41605384296](https://github.com/ArtAndrew/RunVerge/actions/runs/41605384296).
+The installed command retained its signed final observation despite lost stdout;
+fresh commands verified it, refused to overwrite a partial file, created a new
+observation outside both archives, and refused the old proof after the original
+source database and executors restarted. Both disposable environments were
+cleaned up. No real model or provider was called. This verifies the observed-stop
+component, not window coverage, productive recovery or an alpha.7 release.
