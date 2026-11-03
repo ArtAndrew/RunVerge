@@ -162,4 +162,37 @@ func TestRecoveryLineageSourceAuthorFullEvidenceChunk(t *testing.T) {
 	if err != nil || staged.Rows != report.Rows || staged.Bytes != report.Bytes {
 		t.Fatal("large actual generation staging rejected", err)
 	}
+	var stageSchema string
+	if err = stageTx.QueryRow(ctx, "SELECT nspname FROM pg_catalog.pg_namespace WHERE oid=pg_catalog.pg_my_temp_schema()").Scan(&stageSchema); err != nil {
+		t.Fatal(err)
+	}
+	for name, sql := range map[string]string{
+		"payload_rehashed":    "UPDATE pg_temp.recovery_evidence_chunks SET payload=set_byte(payload,0,80),payload_sha256=encode(sha256(set_byte(payload,0,80)),'hex') WHERE ordinal=0",
+		"wrong_schema":        "UPDATE pg_temp.recovery_evidence_batches SET evidence_schema_sha256=repeat('f',64)",
+		"wrong_cut":           "UPDATE pg_temp.recovery_evidence_batches SET evidence_cut_at=evidence_cut_at+interval '1 second'",
+		"wrong_source":        "UPDATE pg_temp.recovery_evidence_batches SET source_id='inst_00000000000000000000000000000000'",
+		"wrong_snapshot_hash": "UPDATE pg_temp.recovery_evidence_batches SET evidence_snapshot_sha256=repeat('f',64)",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := stageTx.Exec(ctx, "SAVEPOINT evidence_corruption"); err != nil {
+				t.Fatal(err)
+			}
+			tag, err := stageTx.Exec(ctx, sql)
+			if err != nil || tag.RowsAffected() == 0 {
+				t.Fatal("corruption fixture failed", err)
+			}
+			if validateRecoveryLineageEvidence(ctx, stageTx, stageSchema, limits) == nil {
+				t.Fatal("corrupt retained snapshot accepted")
+			}
+			if _, err := stageTx.Exec(ctx, "ROLLBACK TO SAVEPOINT evidence_corruption"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := stageTx.Exec(ctx, "RELEASE SAVEPOINT evidence_corruption"); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if err = validateRecoveryLineageEvidence(ctx, stageTx, stageSchema, limits); err != nil {
+		t.Fatal("original evidence no longer valid", err)
+	}
 }

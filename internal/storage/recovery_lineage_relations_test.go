@@ -76,6 +76,7 @@ SELECT repeat('b',32),restore_id,target_installation_id,id,'synthetic-org','synt
 		t.Fatal("different receipt accepted")
 	}
 	cases := map[string]string{
+		"nonlater_evidence":         "UPDATE pg_temp.recovery_import_receipts SET cut_at=(SELECT evidence_cut_at FROM pg_temp.recovery_evidence_batches)",
 		"missing_accounting_parent": "UPDATE pg_temp.recovery_accounting_batches SET ordinal=2,previous_id=repeat('c',32)",
 		"wrong_applied_hash":        "UPDATE pg_temp.recovery_accounting_applied SET after_sha256=repeat('c',64)",
 		"missing_applied":           "DELETE FROM pg_temp.recovery_accounting_applied",
