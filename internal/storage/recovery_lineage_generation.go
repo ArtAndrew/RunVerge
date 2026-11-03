@@ -12,7 +12,7 @@ func readRecoveryLineageGeneration(r *recoverySnapshotReader, inventory Recovery
 	if r == nil || report == nil || !limits.valid() {
 		return ErrRecoverySnapshotLimit
 	}
-	projected, err := recoveryLineageSourceInventory(inventory)
+	projected, err := recoveryLineageInventoryProfile(inventory, expected.Profile)
 	if err != nil {
 		return err
 	}
@@ -51,10 +51,14 @@ func readRecoveryLineageGenerationTables(r *recoverySnapshotReader, projected Re
 }
 
 func validateRecoveryLineageGenerationIdentity(expected recoveryLineageGenerationStart) error {
+	profile, err := recoveryLineageProfileByName(expected.Profile)
+	if err != nil {
+		return err
+	}
 	digest, err := hex.DecodeString(expected.ImportedSnapshotSHA256)
 	if err != nil || len(digest) != 32 || hex.EncodeToString(digest) != expected.ImportedSnapshotSHA256 ||
-		expected.Kind != "generation" || expected.Profile != "sql026-current-generation-v1" ||
-		expected.InventorySHA256 != recoveryLineageSQL026Inventory || expected.CatalogSHA256 != recoveryLineageSQL026Catalog ||
+		expected.Kind != "generation" ||
+		expected.InventorySHA256 != profile.InventorySHA256 || expected.CatalogSHA256 != profile.CatalogSHA256 ||
 		!validRecoveryID(expected.InstallationID, "inst") || !validRecoveryID(expected.ImportedSourceID, "inst") ||
 		expected.InstallationID == expected.ImportedSourceID || !validRecoveryID(expected.RestoreID, "restore") {
 		return ErrRecoverySnapshotInvalid

@@ -3,13 +3,14 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/jackc/pgx/v5"
 )
 
 // Check the historical receipt's declared table inventory against its original
 // source profile and the preserved marker counts. These checks cannot establish
 // the original business bytes or financial projections without that snapshot.
-func validateRecoveryLineageReceipt(ctx context.Context, tx pgx.Tx, schema string, inventory RecoverySnapshotInventory, limits RecoverySnapshotLimits) error {
+func validateRecoveryLineageReceipt(ctx context.Context, tx pgx.Tx, schema string, inventory RecoverySnapshotInventory, generationProfile string, limits RecoverySnapshotLimits) error {
 	if tx == nil || !limits.valid() {
 		return ErrRecoveryStageData
 	}
@@ -21,19 +22,29 @@ func validateRecoveryLineageReceipt(ctx context.Context, tx pgx.Tx, schema strin
 	if err != nil {
 		return ErrRecoveryStageData
 	}
-	if err = validateRecoveryLineageReceiptLayout(receipt, inventory, limits); err != nil {
+	if err = validateRecoveryLineageReceiptLayout(receipt, inventory, generationProfile, limits); err != nil {
 		return err
 	}
 	return recoveryCheckMarkerCounts(ctx, tx, schema, receipt.Tables)
 }
 
-func validateRecoveryLineageReceiptLayout(receipt RecoveryImportReceipt, inventory RecoverySnapshotInventory, limits RecoverySnapshotLimits) error {
+func validateRecoveryLineageReceiptLayout(receipt RecoveryImportReceipt, inventory RecoverySnapshotInventory, generationProfile string, limits RecoverySnapshotLimits) error {
 	if !limits.valid() {
 		return ErrRecoverySnapshotLimit
+	}
+	generation, err := recoveryLineageProfileByName(generationProfile)
+	if err != nil {
+		return ErrRecoveryStageData
+	}
+	generationVersion := 26
+	if generation.CatalogSHA256 == recoverySQL027Catalog {
+		generationVersion = 27
 	}
 	var expectedInventory string
 	var sourceVersion int
 	switch receipt.SchemaSHA256 {
+	case recoverySQL027Schema:
+		expectedInventory, sourceVersion = recoverySQL027Inventory, 27
 	case recoverySQL026Schema:
 		expectedInventory, sourceVersion = recoveryLineageSQL026Inventory, 26
 	case recoverySQL023Schema:
@@ -50,6 +61,8 @@ func validateRecoveryLineageReceiptLayout(receipt RecoveryImportReceipt, invento
 	}
 	targetVersion := 0
 	switch receipt.CatalogSHA256 {
+	case recoverySQL027Catalog:
+		targetVersion = 27
 	case recoverySQL023Catalog:
 		targetVersion = 23
 	case recoverySQL024Catalog:
@@ -61,10 +74,14 @@ func validateRecoveryLineageReceiptLayout(receipt RecoveryImportReceipt, invento
 	default:
 		return ErrRecoveryStageData
 	}
-	if targetVersion < sourceVersion {
+	if targetVersion < sourceVersion || targetVersion > generationVersion {
 		return ErrRecoveryStageData
 	}
-	source, err := recoverySourceInventory(inventory, expectedInventory)
+	raw, err := json.Marshal(inventory)
+	if err != nil {
+		return ErrRecoveryStageData
+	}
+	source, err := recoverySourceInventoryProfile(inventory, expectedInventory, Hash(raw))
 	if err != nil {
 		return err
 	}

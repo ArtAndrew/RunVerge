@@ -30,6 +30,8 @@ on:
       - 'internal/recoveryarchive/**'
       - 'internal/recoverylineage/**'
       - 'internal/storage/testdata/recovery-sql026-inventory.json'
+      - 'internal/storage/testdata/recovery-sql027-inventory.json'
+      - 'internal/storage/migrations/**'
       - 'internal/storage/testdata/recovery-lineage-candidate.sql'
       - 'cmd/platform/recovery_archive_host*'
       - 'cmd/platform/recovery_database_fence_host*'
@@ -105,7 +107,7 @@ jobs:
         if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only && !inputs.outbound_only }}
         run: |
           go test -mod=readonly -race ./internal/recoverylineage -count=1 -v
-          go test -mod=readonly ./internal/storage -run '^TestRecovery(LineageEnvelope|LineageSource|LineageGeneration|LineageRelations|LineageBinary|LineageReceipt|LineageChain|LineagePayload|LineagePersistence|SQL026FrozenProfile|Snapshot(CopyBoundariesAndLimits|StrictWireObjects|OutputFailureAndBounds|Independent))' -count=1 -v -recovery-lineage-candidate-output="$GITHUB_WORKSPACE/recovery-lineage-reference"
+          go test -mod=readonly ./internal/storage -run '^TestRecovery(LineageEnvelope|LineageSource|LineageGeneration|LineageRelations|LineageBinary|LineageReceipt|LineageChain|LineagePayload|LineagePersistence|LineageVersionedLayouts|LineageAccountingCatalogCompatibility|SQL026FrozenProfile|SQL027HistoricalInventoryProjection|Snapshot(CopyBoundariesAndLimits|StrictWireObjects|OutputFailureAndBounds|Independent))' -count=1 -v -recovery-lineage-candidate-output="$GITHUB_WORKSPACE/recovery-lineage-reference"
           go test -mod=readonly ./internal/storage -run '^TestRecoverySnapshot(PopulatedAndStrictValidation|OneCutAndSequenceHighWater|RefusesDriftHeldAndOversizeBeforeOutput|ExportFailureAndCancellation)$' -timeout=8m -count=1 -v
       - name: Check restored outbound profiles and ordinary workers
         if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.accounting_only && !inputs.usage_only }}
@@ -123,6 +125,22 @@ jobs:
       - name: Check usage host commands in development mode
         if: ${{ inputs.usage_only && !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only }}
         run: go test -mod=readonly ./cmd/platform -run '^TestRecoveryHostAuthorUsage' -timeout=8m -count=1 -v
+      - name: Read the verified SQL026 producer
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 5faf2970c3002d7d854afd3585cbc70d31446235
+          path: _legacy_sql026
+          persist-credentials: false
+      - name: Build SQL026 producer
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only }}
+        run: go -C _legacy_sql026 build -mod=readonly -o "$RUNNER_TEMP/platform-sql026" ./cmd/platform
+      - name: Check populated SQL026 usage upgrade
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only }}
+        run: RUNVERGE_RECOVERY_SQL026_BINARY="$RUNNER_TEMP/platform-sql026" go test -mod=readonly ./internal/storage -run '^TestRecoverySQL026AuthorUsageUpgrade$' -timeout=12m -count=1 -v
+      - name: Check populated SQL026 accounting upgrade
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.usage_only }}
+        run: RUNVERGE_RECOVERY_SQL026_BINARY="$RUNNER_TEMP/platform-sql026" go test -mod=readonly ./internal/storage -run '^TestRecoverySQL026AuthorAccountingUpgrade$' -timeout=12m -count=1 -v
       - name: Read the exact previously verified SQL025 producer
         if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.usage_only }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

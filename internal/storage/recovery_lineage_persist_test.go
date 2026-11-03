@@ -2,7 +2,6 @@
 package storage
 
 import (
-	"agentplatform.local/platform/internal/installation"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -20,7 +19,7 @@ import (
 var recoveryLineageCandidateOutput = flag.String("recovery-lineage-candidate-output", "", "test-only candidate inventory output directory")
 
 // This verifies SQL027 candidate storage/transaction guards only. The DDL is
-// applied in this disposable fixture; it is not an embedded product migration. The
+// applied by the embedded migration runner in this disposable fixture. The
 // synthetic receipt has no business import: this is not full restore acceptance.
 func TestRecoveryLineagePersistenceCandidate(t *testing.T) {
 	guardFailure := func(t *testing.T, err error) {
@@ -36,15 +35,12 @@ func TestRecoveryLineagePersistenceCandidate(t *testing.T) {
 	if _, err := s.PrepareRecoveryTarget(ctx, spec); err != nil {
 		t.Fatal(err)
 	}
-	ddl, err := os.ReadFile("testdata/recovery-lineage-candidate.sql")
+	ddl, err := os.ReadFile("migrations/027_recovery_lineage.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if Hash(ddl) != "ba90c0438b93dbca1c381e2c317daf59862b11d437d5bfb8095c79b3ef4ddfc3" {
 		t.Fatal("applied candidate SQL identity changed")
-	}
-	if _, err = s.Pool.Exec(ctx, string(ddl)); err != nil {
-		t.Fatal("candidate schema failed", err)
 	}
 	if *recoveryLineageCandidateOutput != "" {
 		tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
@@ -60,7 +56,7 @@ func TestRecoveryLineagePersistenceCandidate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		migrations := append(EmbeddedSchemaIdentity(), installation.Migration{Name: "migrations/027_recovery_lineage.sql", SHA256: Hash(ddl)})
+		migrations := EmbeddedSchemaIdentity()
 		migrationBytes, err := json.Marshal(migrations)
 		if err != nil {
 			t.Fatal(err)
@@ -99,7 +95,7 @@ func TestRecoveryLineagePersistenceCandidate(t *testing.T) {
 		}
 		t.Cleanup(func() { _ = tx.Rollback(ctx) })
 		_, err = tx.Exec(ctx, `INSERT INTO recovery_import_receipts(profile,target_installation_id,restore_id,backup_id,source_id,cut_at,snapshot_sha256,schema_sha256,inventory_sha256,catalog_sha256,tables,sequences,cost_history,history_coverage)
- VALUES('pg18-held-import-v1',$1,$2,$3,$4,$5,$6,$7,$8,$9,'[]','[]','{}','{}')`, spec.TargetInstallationID, spec.RestoreID, spec.BackupID, spec.SourceID, spec.CutUTC, persistence.SnapshotSHA256, spec.SchemaSHA256, recoveryLineageSQL026Inventory, recoveryLineageSQL026Catalog)
+ VALUES('pg18-held-import-v1',$1,$2,$3,$4,$5,$6,$7,$8,$9,'[]','[]','{}','{}')`, spec.TargetInstallationID, spec.RestoreID, spec.BackupID, spec.SourceID, spec.CutUTC, persistence.SnapshotSHA256, spec.SchemaSHA256, recoverySnapshotInventorySHA256, recoverySemanticCatalogSHA256)
 		if err != nil {
 			t.Fatal("synthetic current transaction receipt", err)
 		}

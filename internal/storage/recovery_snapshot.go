@@ -30,7 +30,7 @@ func recoveryBusinessTable(name string) bool {
 // Filled only from a disposable schema built with trusted embedded migrations.
 // An embedded migration change intentionally fails closed until this typed
 // inventory pin has been reviewed and the compatibility test updated.
-const recoverySnapshotInventorySHA256 = "2c9d16d3cdead2c3dc0c1baa34b0f7ea646a87bada95202d5fa1999d861aea24"
+const recoverySnapshotInventorySHA256 = recoverySQL027Inventory
 
 const recoverySnapshotChunkSize = 32 << 10
 const recoverySnapshotMaxRecordBytes = 2 << 20

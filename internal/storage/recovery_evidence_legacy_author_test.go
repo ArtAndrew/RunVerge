@@ -150,17 +150,27 @@ func recoveryEvidenceLegacyProducer(t *testing.T, binaryEnvironment, sourceSchem
 		})
 		return a, receipt
 	}
+	var usage *recoverySQL026UsageUpgradeFixture
+	if len(accountingMode) > 0 && accountingMode[0] == "usage26" {
+		usage = recoverySQL026UsageSource(t, source)
+	}
 	selected, receipt := backup("selected")
+	if usage != nil {
+		usage.complete()
+	}
 	var financial *recoverySQL025UpgradeFixture
-	if len(accountingMode) > 0 {
+	if len(accountingMode) > 0 && accountingMode[0] != "usage26" {
 		financial = recoverySQL025LateFacts(t, source, p.OrganizationID, accountingMode[0])
+		if sourceSchema == recoverySQL026Schema {
+			financial.oldProfile = recoveryAccountingMutationV2
+		}
 	}
 	// The new source has a whole late-only organization with results/unknown costs.
 	recoveryAuthorPopulate(t, source)
 	late, _ := backup("late")
 	verified := evidenceAuthorPair(t, selected, late)
 	var sourceIntent string
-	if financial != nil {
+	if financial != nil || usage != nil {
 		sourceIntent, verified = recoverySQL025SourceIntent(t, d, keys, stage, selected, late)
 	}
 	legacyTarget, targetDSN := legacyStore()
@@ -187,28 +197,38 @@ func recoveryEvidenceLegacyProducer(t *testing.T, binaryEnvironment, sourceSchem
 	if financial != nil {
 		financial.applyOld(t, old, sourceIntent, targetIntent, d, legacyTarget)
 	}
+	if usage != nil {
+		usage.applyOld(t, old, sourceIntent, targetIntent, d, legacyTarget)
+	}
 	var before string
-	if legacyTarget.Pool.QueryRow(ctx, "SELECT row_to_json(r)::text FROM recovery_import_receipts r").Scan(&before) != nil {
+	if legacyTarget.Pool.QueryRow(ctx, "SELECT (to_jsonb(r)-'creating_transaction')::text FROM recovery_import_receipts r").Scan(&before) != nil {
 		t.Fatal("old receipt")
 	}
 	if err = legacyTarget.Migrate(ctx); err != nil {
 		t.Fatal("forward held upgrade", err)
 	}
 	var after string
-	if legacyTarget.Pool.QueryRow(ctx, "SELECT row_to_json(r)::text FROM recovery_import_receipts r").Scan(&after) != nil || before != after {
+	if legacyTarget.Pool.QueryRow(ctx, "SELECT (to_jsonb(r)-'creating_transaction')::text FROM recovery_import_receipts r").Scan(&after) != nil || before != after {
 		t.Fatal("upgrade rewrote old receipt")
+	}
+	var oldTransactionIsNull bool
+	if legacyTarget.Pool.QueryRow(ctx, "SELECT creating_transaction IS NULL FROM recovery_import_receipts").Scan(&oldTransactionIsNull) != nil || !oldTransactionIsNull {
+		t.Fatal("upgrade fabricated original receipt transaction")
 	}
 	inspection, err := legacyTarget.InspectRecoveryImport(ctx, spec, receipt.Manifest.PlaintextSHA256)
 	if err != nil || inspection.Receipt == nil || inspection.Receipt.CatalogSHA256 != sourceCatalog {
 		t.Fatal("old receipt unreadable", err)
 	}
-	if financial == nil {
+	if financial == nil && usage == nil {
 		if _, err = legacyTarget.IngestRecoveryEvidence(ctx, selected, late, verified, spec, DefaultRecoverySnapshotLimits()); err != nil {
 			t.Fatal("old evidence ingestion", err)
 		}
 	}
 	if _, err = legacyTarget.InspectRecoveryEvidence(ctx, spec, verified); err != nil {
 		t.Fatal(err)
+	}
+	if usage != nil {
+		usage.checkUpgraded(t, legacyTarget, selected, late, verified, spec)
 	}
 	if financial != nil {
 		financial.checkUpgraded(t, legacyTarget, selected, late, verified, spec)

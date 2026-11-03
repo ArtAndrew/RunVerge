@@ -21,10 +21,6 @@ func indexRecoveryLineagePayload(ctx context.Context, in io.Reader, sourceID str
 	}
 	ctx, cancel := context.WithTimeout(ctx, limits.MaxDuration)
 	defer cancel()
-	projected, err := recoveryLineageSourceInventory(inventory)
-	if err != nil {
-		return nil, err
-	}
 	reader := recoveryStageReader(ctx, in, declared.PayloadBytes)
 	sections := make([]recoveryLineageSection, 0, declared.Generations)
 	identities := make([]recoveryLineageGenerationStart, 0, declared.Generations)
@@ -40,6 +36,10 @@ func indexRecoveryLineagePayload(ctx context.Context, in io.Reader, sourceID str
 			return nil, ErrRecoverySnapshotInvalid
 		}
 		reader.accept(line)
+		projected, err := recoveryLineageInventoryProfile(inventory, identity.Profile)
+		if err != nil {
+			return nil, err
+		}
 		if err = readRecoveryLineageGenerationTables(reader, projected, limits, &report); err != nil {
 			return nil, err
 		}
@@ -49,7 +49,7 @@ func indexRecoveryLineagePayload(ctx context.Context, in io.Reader, sourceID str
 	if reader.bytes != declared.PayloadBytes || report.Rows != declared.Records || validateRecoveryLineageChain(identities, sourceID) != nil {
 		return nil, ErrRecoverySnapshotInvalid
 	}
-	if _, err = reader.reader.Peek(1); err != io.EOF {
+	if _, err := reader.reader.Peek(1); err != io.EOF {
 		return nil, ErrRecoverySnapshotInvalid
 	}
 	return sections, nil

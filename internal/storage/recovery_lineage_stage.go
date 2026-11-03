@@ -20,8 +20,9 @@ func stageRecoveryLineageGeneration(ctx context.Context, tx pgx.Tx, sourceSchema
 	}
 	ctx, cancel := context.WithTimeout(ctx, limits.MaxDuration)
 	defer cancel()
-	if recoverySemanticCatalogSHA256 != recoveryLineageSQL026Catalog {
-		return empty, ErrRecoverySnapshotSchema
+	currentProfile, err := recoveryLineageCurrentProfile()
+	if err != nil {
+		return empty, err
 	}
 	if _, err := tx.Exec(ctx, "SELECT pg_catalog.pg_advisory_xact_lock_shared(841932079)"); err != nil {
 		return empty, err
@@ -29,7 +30,7 @@ func stageRecoveryLineageGeneration(ctx context.Context, tx pgx.Tx, sourceSchema
 	if _, err := validateRecoverySemanticCatalog(ctx, tx, sourceSchema); err != nil {
 		return empty, err
 	}
-	projected, err := recoveryLineageSourceInventory(inventory)
+	projected, err := recoveryLineageInventoryProfile(inventory, expected.Profile)
 	if err != nil {
 		return empty, err
 	}
@@ -60,6 +61,15 @@ func stageRecoveryLineageGeneration(ctx context.Context, tx pgx.Tx, sourceSchema
 		return empty, ErrRecoveryStageSchema
 	}
 	if err = recoveryStageCheckShape(ctx, tx, sourceSchema, stage, projected); err != nil {
+		return empty, err
+	}
+	// Only the old generation drops the new target-local receipt field.
+	if currentProfile.Name == "sql027-current-generation-v1" && expected.Profile == "sql026-current-generation-v1" {
+		if _, err = tx.Exec(ctx, "ALTER TABLE "+pgx.Identifier{stage, "recovery_import_receipts"}.Sanitize()+" DROP COLUMN creating_transaction"); err != nil {
+			return empty, ErrRecoveryStageSchema
+		}
+	}
+	if err = recoveryLineageStageShape(ctx, tx, stage, projected); err != nil {
 		return empty, err
 	}
 	if _, err = in.Seek(0, io.SeekStart); err != nil {
@@ -115,7 +125,7 @@ func stageRecoveryLineageGeneration(ctx context.Context, tx pgx.Tx, sourceSchema
 	if err = validateRecoveryLineageEvidence(ctx, tx, stage, limits); err != nil {
 		return empty, err
 	}
-	if err = validateRecoveryLineageReceipt(ctx, tx, stage, inventory, limits); err != nil {
+	if err = validateRecoveryLineageReceipt(ctx, tx, stage, inventory, expected.Profile, limits); err != nil {
 		return empty, err
 	}
 	return report, nil

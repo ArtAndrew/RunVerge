@@ -26,7 +26,7 @@ func TestRecoveryLineageRelationsActualEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := recoveryLineageGenerationStart{Kind: "generation", Profile: "sql026-current-generation-v1", InventorySHA256: recoveryLineageSQL026Inventory, CatalogSHA256: recoveryLineageSQL026Catalog, InstallationID: receipt.TargetInstallationID, RestoreID: receipt.RestoreID, ImportedSourceID: receipt.SourceID, ImportedSnapshotSHA256: receipt.SnapshotSHA256}
+	expected := recoveryLineageGenerationStart{Kind: "generation", Profile: "sql027-current-generation-v1", InventorySHA256: recoverySQL027Inventory, CatalogSHA256: recoverySQL027Catalog, InstallationID: receipt.TargetInstallationID, RestoreID: receipt.RestoreID, ImportedSourceID: receipt.SourceID, ImportedSnapshotSHA256: receipt.SnapshotSHA256}
 	if err := validateRecoveryLineageRelations(ctx, tx, f.target.runtimeSchema, expected); err == nil {
 		t.Fatal("permanent schema accepted as staging")
 	}
@@ -34,7 +34,7 @@ func TestRecoveryLineageRelationsActualEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projected, err := recoveryLineageSourceInventory(inventory)
+	projected, err := recoveryLineageInventoryProfile(inventory, "sql027-current-generation-v1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,6 +158,24 @@ INSERT INTO pg_temp.recovery_accounting_applied SELECT batch_id,ordinal,encode(s
 	if err = stageTx.QueryRow(ctx, "SELECT nspname FROM pg_catalog.pg_namespace WHERE oid=pg_catalog.pg_my_temp_schema()").Scan(&stagedSchema); err != nil {
 		t.Fatal(err)
 	}
+	if err = recoveryLineageStageShape(ctx, stageTx, stagedSchema, projected); err != nil {
+		t.Fatal("valid historical shape rejected", err)
+	}
+	if _, err = stageTx.Exec(ctx, "SAVEPOINT historical_shape"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = stageTx.Exec(ctx, "ALTER TABLE pg_temp.recovery_import_receipts ADD COLUMN unexpected_lineage_column text"); err != nil {
+		t.Fatal(err)
+	}
+	if recoveryLineageStageShape(ctx, stageTx, stagedSchema, projected) == nil {
+		t.Fatal("extra historical column accepted")
+	}
+	if _, err = stageTx.Exec(ctx, "ROLLBACK TO SAVEPOINT historical_shape"); err != nil {
+		t.Fatal(err)
+	}
+	if err = recoveryLineageStageShape(ctx, stageTx, stagedSchema, projected); err != nil {
+		t.Fatal("restored historical shape rejected", err)
+	}
 	if _, err = stageTx.Exec(ctx, "SAVEPOINT missing_marker"); err != nil {
 		t.Fatal(err)
 	}
@@ -165,13 +183,13 @@ INSERT INTO pg_temp.recovery_accounting_applied SELECT batch_id,ordinal,encode(s
 	if err != nil || tag.RowsAffected() != 1 {
 		t.Fatal("marker corruption fixture", err)
 	}
-	if validateRecoveryLineageReceipt(ctx, stageTx, stagedSchema, inventory, limits) == nil {
+	if validateRecoveryLineageReceipt(ctx, stageTx, stagedSchema, inventory, "sql027-current-generation-v1", limits) == nil {
 		t.Fatal("missing historical row marker accepted")
 	}
 	if _, err = stageTx.Exec(ctx, "ROLLBACK TO SAVEPOINT missing_marker"); err != nil {
 		t.Fatal(err)
 	}
-	if err = validateRecoveryLineageReceipt(ctx, stageTx, stagedSchema, inventory, limits); err != nil {
+	if err = validateRecoveryLineageReceipt(ctx, stageTx, stagedSchema, inventory, "sql027-current-generation-v1", limits); err != nil {
 		t.Fatal("original markers rejected", err)
 	}
 

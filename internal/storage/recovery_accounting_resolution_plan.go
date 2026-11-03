@@ -136,7 +136,7 @@ func (s *Store) planRecoveryAccountingResolutionTx(ctx context.Context, tx pgx.T
 	if wantStatus == "reserved" {
 		wantStatus = "unknown"
 	}
-	if operationExists || current.pending != z.id || current.revision != z.revision || current.status != wantStatus || !sameAmount(current.actual, z.actual) || !validDigest(recoveryAccountingSourceV2CatalogSHA256) || recoverySemanticCatalogSHA256 != recoveryAccountingSourceV2CatalogSHA256 {
+	if operationExists || current.pending != z.id || current.revision != z.revision || current.status != wantStatus || !sameAmount(current.actual, z.actual) || !validDigest(recoveryAccountingSourceV2CatalogSHA256) || !recoveryAccountingV2HostCatalog(recoverySemanticCatalogSHA256) {
 		return RecoveryAccountingPlan{}, source, ErrRecoveryAccounting
 	}
 	var beforeSHA string

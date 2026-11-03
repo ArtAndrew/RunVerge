@@ -3,7 +3,6 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -33,22 +32,7 @@ type recoveryLineageGenerationEnd struct {
 // Derive SQL identifiers only from the exact trusted inventory. The projection
 // includes empty tables and excludes control, credentials and business tables.
 func recoveryLineageSourceInventory(inventory RecoverySnapshotInventory) (RecoverySnapshotInventory, error) {
-	raw, err := json.Marshal(inventory)
-	if err != nil || Hash(raw) != recoveryLineageSQL026Inventory {
-		return RecoverySnapshotInventory{}, ErrRecoverySnapshotSchema
-	}
-	out := RecoverySnapshotInventory{Tables: []RecoverySnapshotTable{}, Sequences: []RecoverySnapshotSequenceDefinition{}}
-	for _, table := range inventory.Tables {
-		switch table.Name {
-		case "recovery_import_receipts", "recovery_historical_rows", "recovery_evidence_batches", "recovery_evidence_chunks", "recovery_evidence_changes", "recovery_accounting_batches", "recovery_accounting_mutations", "recovery_accounting_applied", "recovery_usage_observations":
-			table.Exported = true
-			out.Tables = append(out.Tables, table)
-		}
-	}
-	if len(out.Tables) != 9 {
-		return RecoverySnapshotInventory{}, ErrRecoverySnapshotSchema
-	}
-	return out, nil
+	return recoveryLineageInventoryProfile(inventory, "sql026-current-generation-v1")
 }
 
 // writeRecoveryLineageGenerationTx exports existing operator metadata as inert
@@ -60,8 +44,9 @@ func writeRecoveryLineageGenerationTx(ctx context.Context, tx pgx.Tx, schema str
 	if tx == nil || w == nil || report == nil || !limits.valid() || report.Rows < 0 || report.Bytes < 0 || report.Rows > limits.MaxRows || report.Bytes > limits.MaxTotalBytes {
 		return ErrRecoverySnapshotLimit
 	}
-	if recoverySemanticCatalogSHA256 != recoveryLineageSQL026Catalog {
-		return ErrRecoverySnapshotSchema
+	profile, err := recoveryLineageCurrentProfile()
+	if err != nil {
+		return err
 	}
 	var boundedSnapshot bool
 	if err := tx.QueryRow(ctx, "SELECT current_setting('transaction_isolation')='repeatable read' AND current_setting('transaction_read_only')='on'").Scan(&boundedSnapshot); err != nil || !boundedSnapshot {
@@ -80,7 +65,7 @@ func writeRecoveryLineageGenerationTx(ctx context.Context, tx pgx.Tx, schema str
 	if err != nil {
 		return err
 	}
-	projected, err := recoveryLineageSourceInventory(inventory)
+	projected, err := recoveryLineageInventoryProfile(inventory, profile.Name)
 	if err != nil {
 		return err
 	}
@@ -104,7 +89,7 @@ func writeRecoveryLineageGenerationTx(ctx context.Context, tx pgx.Tx, schema str
 	if err != nil {
 		return err
 	}
-	start := recoveryLineageGenerationStart{Kind: "generation", Profile: "sql026-current-generation-v1", InstallationID: held.InstallationID, RestoreID: held.RestoreID, ImportedSourceID: receipt.SourceID, ImportedSnapshotSHA256: receipt.SnapshotSHA256, InventorySHA256: recoveryLineageSQL026Inventory, CatalogSHA256: recoveryLineageSQL026Catalog}
+	start := recoveryLineageGenerationStart{Kind: "generation", Profile: profile.Name, InstallationID: held.InstallationID, RestoreID: held.RestoreID, ImportedSourceID: receipt.SourceID, ImportedSnapshotSHA256: receipt.SnapshotSHA256, InventorySHA256: profile.InventorySHA256, CatalogSHA256: profile.CatalogSHA256}
 	if err = w.record(start); err != nil {
 		return err
 	}

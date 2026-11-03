@@ -6,14 +6,19 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 )
 
 func TestRecoveryLineagePayloadFlatIndex(t *testing.T) {
-	inventory := independentRecoveryFixtureNew(t).header.Inventory
-	projected, err := recoveryLineageSourceInventory(inventory)
+	rawInventory, err := os.ReadFile("testdata/recovery-sql027-inventory.json")
 	if err != nil {
+		t.Fatal(err)
+	}
+	var inventory RecoverySnapshotInventory
+	if err = json.Unmarshal(rawInventory, &inventory); err != nil {
 		t.Fatal(err)
 	}
 	first := recoveryLineageGenerationStart{Kind: "generation", Profile: "sql026-current-generation-v1", InstallationID: domain.NewID("inst"), RestoreID: domain.NewID("restore"), ImportedSourceID: domain.NewID("inst"), ImportedSnapshotSHA256: strings.Repeat("a", 64), InventorySHA256: recoveryLineageSQL026Inventory, CatalogSHA256: recoveryLineageSQL026Catalog}
@@ -21,7 +26,14 @@ func TestRecoveryLineagePayloadFlatIndex(t *testing.T) {
 	second.ImportedSourceID = first.InstallationID
 	second.InstallationID = domain.NewID("inst")
 	second.RestoreID = domain.NewID("restore")
+	second.Profile = "sql027-current-generation-v1"
+	second.InventorySHA256 = recoverySQL027Inventory
+	second.CatalogSHA256 = recoverySQL027Catalog
 	makeGeneration := func(identity recoveryLineageGenerationStart) []byte {
+		projected, err := recoveryLineageInventoryProfile(inventory, identity.Profile)
+		if err != nil {
+			t.Fatal(err)
+		}
 		var result bytes.Buffer
 		result.Write(independentRecoveryJSON(t, identity))
 		var size int64

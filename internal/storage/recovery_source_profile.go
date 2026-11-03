@@ -23,6 +23,12 @@ const recoverySQL026Schema = "bfbc41facbe90a48c1feb3cfc1d35f10e866f52519c51bb1ff
 const recoverySQL026Inventory = "2c9d16d3cdead2c3dc0c1baa34b0f7ea646a87bada95202d5fa1999d861aea24"
 const recoverySQL026Catalog = "873463718e42a33e7df8ba9eff916260ca46370d49affafc609423338674a9b8"
 
+// SQL027 identities captured from trusted DDL in a disposable DB.
+// The embedded migration and current inventory/catalog pins select this profile.
+const recoverySQL027Schema = "afe9fdcd108923f4013013f88aee9c59ee96aaf1422c61ca88c18a5428d048fc"
+const recoverySQL027Inventory = "7d3e1b741ecf3451d737251ff8afd90bcb603ac098f633056d84a9536c58382a"
+const recoverySQL027Catalog = "157f3653023ce2999a0f76d0c3c40d3299f8bf89845efe77c7b27896ff431af7"
+
 func SupportedRecoverySourceSchema(digest string) bool {
 	return digest == EmbeddedSchemaSHA256() || digest == recoverySQL023Schema || digest == recoverySQL024Schema || digest == recoverySQL025Schema || digest == recoverySQL026Schema
 }
@@ -60,11 +66,20 @@ func recoverySourceHeaderProfile(h recoverySnapshotHeader) bool {
 // The complete target catalog is checked before projection. SQL024/025 add
 // operator metadata; business binary layouts must match each exact source pin.
 func recoverySourceInventory(target RecoverySnapshotInventory, source string) (RecoverySnapshotInventory, error) {
-	raw, _ := json.Marshal(target)
-	if Hash(raw) != recoverySnapshotInventorySHA256 {
+	return recoverySourceInventoryProfile(target, source, recoverySnapshotInventorySHA256)
+}
+
+// Only explicit reviewed target profiles may supply historical SQL layouts.
+// Runtime callers still enter through the compiled-current wrapper above.
+func recoverySourceInventoryProfile(target RecoverySnapshotInventory, source, targetProfile string) (RecoverySnapshotInventory, error) {
+	if targetProfile != recoverySQL026Inventory && targetProfile != recoverySQL027Inventory {
 		return RecoverySnapshotInventory{}, ErrRecoveryStageSchema
 	}
-	if source == recoverySnapshotInventorySHA256 {
+	raw, _ := json.Marshal(target)
+	if Hash(raw) != targetProfile {
+		return RecoverySnapshotInventory{}, ErrRecoveryStageSchema
+	}
+	if source == targetProfile {
 		return target, nil
 	}
 	if source != recoverySQL023Inventory && source != recoverySQL024Inventory && source != recoverySQL025Inventory && source != recoverySQL026Inventory {

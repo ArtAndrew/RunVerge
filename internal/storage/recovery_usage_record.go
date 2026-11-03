@@ -103,12 +103,18 @@ func (s *Store) verifyRecoveryUsageStoredTx(ctx context.Context, tx pgx.Tx, curr
 			return fail()
 		}
 	}
+	// Preserve the original observation commitment across a metadata-only
+	// host upgrade. All other plan fields remain rederived from verified inputs.
+	if !recoveryUsageHistoricalCatalog(plan.TargetCatalogSHA256, current.TargetCatalogSHA256) {
+		return fail()
+	}
+	current.TargetCatalogSHA256 = plan.TargetCatalogSHA256
 	current.HeadID = plan.HeadID
 	current = recoveryUsageSealPlan(current)
 	if current.State != "request_identity_available" || current.PlanSHA256 != r.planSHA || acquisition.Version != 1 || acquisition.AccountMappingMethod != "current_host_operator_attestation" || acquisition.Request != recoveryUsageRequestFromPlan(current) || acquisition.Observation.ResponseSHA256 != r.responseSHA || !modelgateway.UsageObservationMatchesBytes(r.response, acquisition.Observation) {
 		return fail()
 	}
-	if admission.Version != 1 || admission.Algorithm != "recovery-usage-admission-v1" || admission.OperationID != r.id || admission.SourcePlanSHA256 != r.planSHA || admission.AcquisitionSHA256 != r.acquisitionSHA || admission.ResponseSHA256 != r.responseSHA || admission.TargetCatalogSHA256 != recoveryAccountingSourceV2CatalogSHA256 || admission.TargetCatalogSHA256 != plan.TargetCatalogSHA256 || admission.PolicySHA256 != acquisition.PolicySHA256 || admission.PolicyEpoch != acquisition.PolicyEpoch || admission.PolicyOperationID != acquisition.PolicyOperationID || admission.State != r.state || admission.AdmittedAt.Before(acquisition.Observation.ObservedAt) || !admission.AdmittedAt.Before(acquisition.Policy.ExpiresAt) {
+	if admission.Version != 1 || admission.Algorithm != "recovery-usage-admission-v1" || admission.OperationID != r.id || admission.SourcePlanSHA256 != r.planSHA || admission.AcquisitionSHA256 != r.acquisitionSHA || admission.ResponseSHA256 != r.responseSHA || !recoveryAccountingV2HostCatalog(admission.TargetCatalogSHA256) || admission.TargetCatalogSHA256 != plan.TargetCatalogSHA256 || admission.PolicySHA256 != acquisition.PolicySHA256 || admission.PolicyEpoch != acquisition.PolicyEpoch || admission.PolicyOperationID != acquisition.PolicyOperationID || admission.State != r.state || admission.AdmittedAt.Before(acquisition.Observation.ObservedAt) || !admission.AdmittedAt.Before(acquisition.Policy.ExpiresAt) {
 		return fail()
 	}
 	return RecoveryUsageRecording{OperationID: r.id, State: "recorded", ObservationState: r.state, SourcePlanSHA256: r.planSHA, AcquisitionSHA256: r.acquisitionSHA, AdmissionSHA256: r.admissionSHA, ResponseSHA256: r.responseSHA, ResponseBytes: len(r.response), RecordedAt: r.recorded, ExecutionHeld: true}, nil

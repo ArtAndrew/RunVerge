@@ -10,7 +10,7 @@ func TestRecoveryLineageReceiptProfiles(t *testing.T) {
 		schema, inventory string
 		version           int
 	}{
-		{EmbeddedSchemaSHA256(), recoveryLineageSQL026Inventory, 26},
+		{recoverySQL026Schema, recoveryLineageSQL026Inventory, 26},
 		{recoverySQL023Schema, recoverySQL023Inventory, 23},
 		{recoverySQL024Schema, recoverySQL024Inventory, 24},
 		{recoverySQL025Schema, recoverySQL025Inventory, 25},
@@ -29,7 +29,7 @@ func TestRecoveryLineageReceiptProfiles(t *testing.T) {
 			for _, seq := range source.Sequences {
 				receipt.Sequences = append(receipt.Sequences, RecoverySnapshotSequence{Name: seq.Name, ObservedLast: 1, NextMinimum: 2})
 			}
-			if err = validateRecoveryLineageReceiptLayout(receipt, inventory, limits); err != nil {
+			if err = validateRecoveryLineageReceiptLayout(receipt, inventory, "sql026-current-generation-v1", limits); err != nil {
 				t.Fatal("supported profile rejected", err)
 			}
 			for _, target := range []struct {
@@ -38,7 +38,7 @@ func TestRecoveryLineageReceiptProfiles(t *testing.T) {
 			}{{recoverySQL023Catalog, 23}, {recoverySQL024Catalog, 24}, {recoverySQL025Catalog, 25}, {recoveryLineageSQL026Catalog, 26}} {
 				candidate := receipt
 				candidate.CatalogSHA256 = target.catalog
-				accepted := validateRecoveryLineageReceiptLayout(candidate, inventory, limits) == nil
+				accepted := validateRecoveryLineageReceiptLayout(candidate, inventory, "sql026-current-generation-v1", limits) == nil
 				if accepted != (target.version >= profile.version) {
 					t.Fatalf("source%d target%d acceptance=%v", profile.version, target.version, accepted)
 				}
@@ -57,7 +57,7 @@ func TestRecoveryLineageReceiptProfiles(t *testing.T) {
 					bad.Tables = append([]RecoverySnapshotTableSummary{}, receipt.Tables...)
 					bad.Sequences = append([]RecoverySnapshotSequence{}, receipt.Sequences...)
 					mutate(&bad)
-					if validateRecoveryLineageReceiptLayout(bad, inventory, limits) == nil {
+					if validateRecoveryLineageReceiptLayout(bad, inventory, "sql026-current-generation-v1", limits) == nil {
 						t.Fatal("bad receipt accepted")
 					}
 				})

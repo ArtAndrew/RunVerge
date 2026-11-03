@@ -24,3 +24,17 @@ func recoveryAccountingCommitmentProfile(profile, kind string) (string, string, 
 		return "", "", false
 	}
 }
+
+// SQL027 changes only retained-lineage metadata. It hosts the unchanged V2
+// accounting contract; V2 commitment hashes keep their original SQL026 anchor.
+// This whitelist never substitutes for validation of the full actual catalog.
+func recoveryAccountingV2HostCatalog(catalog string) bool {
+	return catalog == recoverySQL026Catalog || catalog == recoverySQL027Catalog
+}
+
+// Historical observation hashes may be reconstructed on the same host profile
+// or the explicitly compatible forward upgrade, never on a downgraded host.
+func recoveryUsageHistoricalCatalog(stored, current string) bool {
+	return recoveryAccountingV2HostCatalog(stored) && recoveryAccountingV2HostCatalog(current) &&
+		(stored == current || stored == recoverySQL026Catalog && current == recoverySQL027Catalog)
+}

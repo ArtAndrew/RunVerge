@@ -104,6 +104,9 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
  EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_accounting_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_accounting_metadata_guard')
  AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_accounting_permanent' AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_accounting_metadata_guard')
  AND (c.relname<>'recovery_accounting_batches' OR EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_accounting_profile_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_accounting_profile_guard'))
+ WHEN c.relname IN('recovery_lineage_imports','recovery_lineage_chunks') THEN
+ EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_lineage_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_lineage_guard')
+ AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_lineage_permanent' AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_lineage_guard')
  WHEN c.relname='recovery_usage_observations' THEN
  EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_usage_observation_insert' AND t.tgenabled='O' AND t.tgtype=7 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_usage_observation_guard')
  AND EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid AND t.tgname='recovery_usage_observation_permanent' AND t.tgenabled='O' AND t.tgtype=58 AND NOT t.tgisinternal AND f.pronamespace=c.relnamespace AND f.proname='recovery_usage_observation_guard')
@@ -133,9 +136,9 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	// SQL026 has 68 business relations plus nine target-local metadata
+	// SQL027 has 68 business relations plus eleven target-local metadata
 	// relations here; schema_migrations and runtime_recovery_control are separate.
-	if len(relations) != 77 {
+	if len(relations) != 79 {
 		t.Fatal("unexpected recovery relation inventory", len(relations))
 	}
 	if _, err := s.PrepareRecoveryTarget(ctx, independentRecoverySpec(t, s)); err != nil {
@@ -153,7 +156,7 @@ func TestRecoveryGateIndependentAllRelationsAndRawStatements(t *testing.T) {
 			} {
 				_, err := s.Pool.Exec(ctx, statement)
 				expected := "55000"
-				if strings.HasPrefix(statement, "INSERT ") && (r.name == "recovery_evidence_batches" || r.name == "recovery_evidence_chunks" || r.name == "recovery_evidence_changes" || r.name == "recovery_accounting_batches" || r.name == "recovery_accounting_mutations" || r.name == "recovery_accounting_applied" || r.name == "recovery_usage_observations") {
+				if strings.HasPrefix(statement, "INSERT ") && (r.name == "recovery_evidence_batches" || r.name == "recovery_evidence_chunks" || r.name == "recovery_evidence_changes" || r.name == "recovery_accounting_batches" || r.name == "recovery_accounting_mutations" || r.name == "recovery_accounting_applied" || r.name == "recovery_usage_observations" || r.name == "recovery_lineage_imports" || r.name == "recovery_lineage_chunks") {
 					// Evidence, accounting and usage guards require a committed import. On
 					// this empty held target its STRICT receipt lookup refuses
 					// the insert before any default/null constraint is checked.

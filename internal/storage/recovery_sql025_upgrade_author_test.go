@@ -26,6 +26,7 @@ func TestRecoverySQL025AuthorPopulatedUpgrade(t *testing.T) {
 }
 
 type recoverySQL025UpgradeFixture struct {
+	oldProfile                                                                                                        string
 	org, reservation, capacityReservation, invoice, correction, capacityInvoice, capacityCorrection, quarantine, mode string
 	oldPlans                                                                                                          []RecoveryAccountingPlan
 	oldRows                                                                                                           string
@@ -34,7 +35,7 @@ type recoverySQL025UpgradeFixture struct {
 func recoverySQL025LateFacts(t *testing.T, s *Store, org, mode string) *recoverySQL025UpgradeFixture {
 	t.Helper()
 	ctx := context.Background()
-	f := &recoverySQL025UpgradeFixture{org: org, mode: mode}
+	f := &recoverySQL025UpgradeFixture{org: org, mode: mode, oldProfile: recoveryAccountingMutationV1}
 	if err := s.Pool.QueryRow(ctx, "SELECT id FROM reservations WHERE organization_id=$1 AND status='unknown' AND amount_microusd=37", org).Scan(&f.reservation); err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +165,7 @@ func (f *recoverySQL025UpgradeFixture) checkUpgraded(t *testing.T, s *Store, sel
 		t.Fatal("migration changed old immutable accounting content")
 	}
 	var count int
-	if s.Pool.QueryRow(ctx, "SELECT count(*) FROM "+q("recovery_accounting_batches")+" WHERE mutation_profile=$1", recoveryAccountingMutationV1).Scan(&count) != nil || count != len(f.oldPlans) {
+	if s.Pool.QueryRow(ctx, "SELECT count(*) FROM "+q("recovery_accounting_batches")+" WHERE mutation_profile=$1", f.oldProfile).Scan(&count) != nil || count != len(f.oldPlans) {
 		t.Fatal("historical profile not explicit")
 	}
 	replay := func() {
@@ -174,11 +175,11 @@ func (f *recoverySQL025UpgradeFixture) checkUpgraded(t *testing.T, s *Store, sel
 			request.Mode, request.QuarantineID = old.Mode, old.QuarantineID
 			plan, err := s.PlanRecoveryAccounting(ctx, selected, late, verified, spec, limits, request)
 			if err != nil || plan.State != "already_recorded" || plan.PlanSHA256 != old.PlanSHA256 || plan.RequestSHA256 != old.RequestSHA256 || plan.OperationID != old.OperationID {
-				t.Fatal("V1 commitment changed on upgraded replay", err)
+				t.Fatal("historical commitment changed on upgraded replay", err)
 			}
 			result, err := s.ApplyRecoveryAccounting(ctx, selected, late, verified, spec, limits, request, plan.PlanSHA256)
 			if err != nil || result.NewlyRecorded || result.Receipt.ID != old.OperationID {
-				t.Fatal("V1 replay mutated history", err)
+				t.Fatal("historical replay mutated history", err)
 			}
 		}
 	}

@@ -48,3 +48,51 @@ func TestRecoverySQL026FrozenProfile(t *testing.T) {
 		t.Fatal("newer source attributed to older target")
 	}
 }
+
+func TestRecoverySQL027HistoricalInventoryProjection(t *testing.T) {
+	raw, err := os.ReadFile("testdata/recovery-sql027-inventory.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var target RecoverySnapshotInventory
+	if err = json.Unmarshal(raw, &target); err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := json.Marshal(target)
+	if err != nil || Hash(canonical) != recoverySQL027Inventory {
+		t.Fatal("candidate27 inventory mismatch", err)
+	}
+	for _, profile := range []string{recoverySQL023Inventory, recoverySQL024Inventory, recoverySQL025Inventory, recoverySQL026Inventory, recoverySQL027Inventory} {
+		projected, err := recoverySourceInventoryProfile(target, profile, recoverySQL027Inventory)
+		if err != nil {
+			t.Fatal("historical projection failed", profile, err)
+		}
+		encoded, err := json.Marshal(projected)
+		if err != nil || Hash(encoded) != profile {
+			t.Fatal("historical inventory not exact", err)
+		}
+	}
+	oldRaw, err := os.ReadFile("testdata/recovery-sql026-inventory.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var old RecoverySnapshotInventory
+	if err = json.Unmarshal(oldRaw, &old); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = recoverySourceInventoryProfile(old, recoverySQL027Inventory, recoverySQL026Inventory); err == nil {
+		t.Fatal("older target fabricated newer layout")
+	}
+	// Projection must not erase fields from the caller's current inventory.
+	after, err := json.Marshal(target)
+	if err != nil || Hash(after) != recoverySQL027Inventory {
+		t.Fatal("current inventory mutated", err)
+	}
+	if _, err = recoverySourceInventoryProfile(target, recoverySQL026Inventory, "unknown"); err == nil {
+		t.Fatal("unreviewed current profile accepted")
+	}
+	target.Tables[0].Name = "untrusted_relation"
+	if _, err = recoverySourceInventoryProfile(target, recoverySQL026Inventory, recoverySQL027Inventory); err == nil {
+		t.Fatal("changed target layout accepted")
+	}
+}

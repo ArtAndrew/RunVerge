@@ -210,7 +210,7 @@ func (s *Store) planRecoveryAccountingFactTx(ctx context.Context, tx pgx.Tx, in 
 		plan.PlanSHA256, plan.RequestSHA256, plan.PreviousID, plan.TargetRevision = selectedMapping.planSHA256, selectedMapping.requestSHA256, selectedMapping.previousID, selectedMapping.revision
 		return plan, source, nil, nil
 	}
-	if firstMissing != request.SourceEvidenceID || current.pending != "" || !validDigest(recoveryAccountingSourceV2CatalogSHA256) || recoverySemanticCatalogSHA256 != recoveryAccountingSourceV2CatalogSHA256 {
+	if firstMissing != request.SourceEvidenceID || current.pending != "" || !validDigest(recoveryAccountingSourceV2CatalogSHA256) || !recoveryAccountingV2HostCatalog(recoverySemanticCatalogSHA256) {
 		return RecoveryAccountingPlan{}, source, nil, ErrRecoveryAccounting
 	}
 	if source.evidence.kind == "adjustment" {
