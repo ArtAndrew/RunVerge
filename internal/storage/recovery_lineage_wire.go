@@ -36,6 +36,12 @@ type recoveryLineageEnd struct {
 }
 
 func readRecoverySnapshotLineage(r *recoverySnapshotReader, limits RecoverySnapshotLimits, report *RecoverySnapshotReport) error {
+	return readRecoverySnapshotLineageTo(r, limits, report, nil)
+}
+
+// The sink is caller-owned staging only. Any error, including a later enclosing
+// archive failure, invalidates all written bytes; callers must discard them.
+func readRecoverySnapshotLineageTo(r *recoverySnapshotReader, limits RecoverySnapshotLimits, report *RecoverySnapshotReport, sink io.Writer) error {
 	line, err := r.line()
 	if err != nil {
 		return err
@@ -65,6 +71,15 @@ func readRecoverySnapshotLineage(r *recoverySnapshotReader, limits RecoverySnaps
 		raw, e := base64.StdEncoding.Strict().DecodeString(chunk.Data)
 		if e != nil || base64.StdEncoding.EncodeToString(raw) != chunk.Data || commitment.Add(ordinal, raw) != nil {
 			return ErrRecoverySnapshotInvalid
+		}
+		if sink != nil {
+			if err = r.ctx.Err(); err != nil {
+				return err
+			}
+			n, writeErr := sink.Write(raw)
+			if writeErr != nil || n != len(raw) {
+				return recoverySnapshotError(r.ctx, ErrRecoverySnapshotIO)
+			}
 		}
 		r.accept(line)
 	}

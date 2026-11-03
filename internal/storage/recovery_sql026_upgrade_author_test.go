@@ -86,8 +86,18 @@ func (f *recoverySQL026UsageUpgradeFixture) checkUpgraded(t *testing.T, s *Store
 	t.Helper()
 	f.stageGeneration(t, s)
 	inspected, err := s.InspectRecoveryUsage(context.Background(), selected, late, verified, spec, DefaultRecoverySnapshotLimits(), f.selection, f.recorded.OperationID, f.recorded.AcquisitionSHA256)
-	if err != nil || !reflect.DeepEqual(inspected, f.recorded) {
-		t.Fatal("SQL026 observation changed after SQL027 upgrade", err)
+	if err != nil {
+		t.Fatal("SQL026 observation unreadable after SQL027 upgrade", err)
+	}
+	// JSON returns UTC for Z; pgx binary timestamps use time.Local. Compare
+	// instants, then normalize only the location for exact remaining fields.
+	if !inspected.RecordedAt.Equal(f.recorded.RecordedAt) {
+		t.Fatal("upgrade changed observation timestamp")
+	}
+	expected := f.recorded
+	inspected.RecordedAt, expected.RecordedAt = inspected.RecordedAt.UTC(), expected.RecordedAt.UTC()
+	if !reflect.DeepEqual(inspected, expected) {
+		t.Fatal("upgrade changed observation fields")
 	}
 	if recoverySQL026UsageRows(t, s) != f.rows || f.calls.Load() != f.beforeCalls {
 		t.Fatal("upgrade inspection changed history or contacted provider")

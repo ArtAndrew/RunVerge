@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 )
@@ -25,6 +27,23 @@ func TestRecoveryLineageEnvelopeFraming(t *testing.T) {
 	report, err := validateRecoverySnapshotEnvelope(ctx, bytes.NewReader(f.bytes(t)), limits, true)
 	if err != nil || report.Lineage == nil || report.Lineage.PayloadBytes != 3 || report.Lineage.Records != 1 {
 		t.Fatal("bounded v2 framing rejected", err)
+	}
+	var extracted bytes.Buffer
+	extractedReport, extractErr := validateRecoverySnapshotEnvelopeTo(ctx, bytes.NewReader(f.bytes(t)), limits, true, &extracted)
+	if extractErr != nil || extracted.String() != "abc" || extractedReport.SHA256 != report.SHA256 {
+		t.Fatal("extracted payload differs", extractErr)
+	}
+	for name, sink := range map[string]io.Writer{"short": recoveryLineageTestSink{short: true}, "failure": recoveryLineageTestSink{}} {
+		t.Run(name, func(t *testing.T) {
+			got, err := validateRecoverySnapshotEnvelopeTo(ctx, bytes.NewReader(f.bytes(t)), limits, true, sink)
+			if !errors.Is(err, ErrRecoverySnapshotIO) || got.Lineage != nil {
+				t.Fatal("failed extraction returned a valid report", err)
+			}
+		})
+	}
+	var incomplete bytes.Buffer
+	if got, err := validateRecoverySnapshotEnvelopeTo(ctx, bytes.NewReader(append(f.bytes(t), 'x')), limits, true, &incomplete); err == nil || got.Lineage != nil {
+		t.Fatal("extracted bytes bypassed envelope completion")
 	}
 	if _, err = ValidateRecoverySnapshot(ctx, bytes.NewReader(f.bytes(t)), limits); err == nil {
 		t.Fatal("unfinished v2 import publicly enabled")
@@ -120,4 +139,13 @@ func TestRecoveryLineageEnvelopeWriterMultiChunk(t *testing.T) {
 			}
 		})
 	}
+}
+
+type recoveryLineageTestSink struct{ short bool }
+
+func (w recoveryLineageTestSink) Write(p []byte) (int, error) {
+	if w.short {
+		return len(p) - 1, nil
+	}
+	return 0, io.ErrClosedPipe
 }

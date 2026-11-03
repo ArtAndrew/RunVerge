@@ -397,6 +397,12 @@ func ValidateRecoverySnapshot(ctx context.Context, in io.Reader, limits Recovery
 
 // The v2 reader remains internal until semantic lineage import is implemented.
 func validateRecoverySnapshotEnvelope(ctx context.Context, in io.Reader, limits RecoverySnapshotLimits, allowLineage bool) (RecoverySnapshotReport, error) {
+	return validateRecoverySnapshotEnvelopeTo(ctx, in, limits, allowLineage, nil)
+}
+
+// Extracted bytes are usable only after the entire envelope succeeds and the
+// caller verifies its authenticated manifest. This does not confer import authority.
+func validateRecoverySnapshotEnvelopeTo(ctx context.Context, in io.Reader, limits RecoverySnapshotLimits, allowLineage bool, lineageSink io.Writer) (RecoverySnapshotReport, error) {
 	var report RecoverySnapshotReport
 	if in == nil || !limits.valid() {
 		return report, ErrRecoverySnapshotLimit
@@ -437,7 +443,7 @@ func validateRecoverySnapshotEnvelope(ctx context.Context, in io.Reader, limits 
 	}
 	r.accept(line)
 	if h.Format == recoverySnapshotLineageFormat {
-		if err = readRecoverySnapshotLineage(r, limits, &report); err != nil {
+		if err = readRecoverySnapshotLineageTo(r, limits, &report, lineageSink); err != nil {
 			return RecoverySnapshotReport{}, err
 		}
 	}
