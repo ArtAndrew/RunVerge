@@ -138,5 +138,25 @@ SELECT repeat('b',32),restore_id,target_installation_id,id,'synthetic-org','synt
 	if err != nil || staged.Rows != exported.Rows || staged.Bytes != exported.Bytes {
 		t.Fatal("nonempty metadata PostgreSQL staging failed", err)
 	}
+	var stagedSchema string
+	if err = stageTx.QueryRow(ctx, "SELECT nspname FROM pg_catalog.pg_namespace WHERE oid=pg_catalog.pg_my_temp_schema()").Scan(&stagedSchema); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = stageTx.Exec(ctx, "SAVEPOINT missing_marker"); err != nil {
+		t.Fatal(err)
+	}
+	tag, err := stageTx.Exec(ctx, "DELETE FROM pg_temp.recovery_historical_rows WHERE ctid IN(SELECT ctid FROM pg_temp.recovery_historical_rows LIMIT 1)")
+	if err != nil || tag.RowsAffected() != 1 {
+		t.Fatal("marker corruption fixture", err)
+	}
+	if validateRecoveryLineageReceipt(ctx, stageTx, stagedSchema, inventory, limits) == nil {
+		t.Fatal("missing historical row marker accepted")
+	}
+	if _, err = stageTx.Exec(ctx, "ROLLBACK TO SAVEPOINT missing_marker"); err != nil {
+		t.Fatal(err)
+	}
+	if err = validateRecoveryLineageReceipt(ctx, stageTx, stagedSchema, inventory, limits); err != nil {
+		t.Fatal("original markers rejected", err)
+	}
 
 }

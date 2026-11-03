@@ -115,5 +115,8 @@ func stageRecoveryLineageGeneration(ctx context.Context, tx pgx.Tx, sourceSchema
 	if err = validateRecoveryLineageEvidence(ctx, tx, stage, limits); err != nil {
 		return empty, err
 	}
+	if err = validateRecoveryLineageReceipt(ctx, tx, stage, inventory, limits); err != nil {
+		return empty, err
+	}
 	return report, nil
 }
