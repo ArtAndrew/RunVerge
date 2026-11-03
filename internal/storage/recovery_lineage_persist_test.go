@@ -2,10 +2,14 @@
 package storage
 
 import (
+	"agentplatform.local/platform/internal/installation"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"flag"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,7 +17,10 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// This verifies the unapplied SQL027 storage/transaction guards only. The
+var recoveryLineageCandidateOutput = flag.String("recovery-lineage-candidate-output", "", "test-only candidate inventory output directory")
+
+// This verifies SQL027 candidate storage/transaction guards only. The DDL is
+// applied in this disposable fixture; it is not an embedded product migration. The
 // synthetic receipt has no business import: this is not full restore acceptance.
 func TestRecoveryLineagePersistenceCandidate(t *testing.T) {
 	guardFailure := func(t *testing.T, err error) {
@@ -33,8 +40,55 @@ func TestRecoveryLineagePersistenceCandidate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if Hash(ddl) != "ba90c0438b93dbca1c381e2c317daf59862b11d437d5bfb8095c79b3ef4ddfc3" {
+		t.Fatal("applied candidate SQL identity changed")
+	}
 	if _, err = s.Pool.Exec(ctx, string(ddl)); err != nil {
 		t.Fatal("candidate schema failed", err)
+	}
+	if *recoveryLineageCandidateOutput != "" {
+		tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+		if err != nil {
+			t.Fatal(err)
+		}
+		inventory, err := recoverySnapshotInventory(ctx, tx, s.runtimeSchema, true)
+		defer tx.Rollback(ctx)
+		if err != nil {
+			t.Fatal("candidate inventory capture", err)
+		}
+		canonical, err := json.Marshal(inventory)
+		if err != nil {
+			t.Fatal(err)
+		}
+		migrations := append(EmbeddedSchemaIdentity(), installation.Migration{Name: "migrations/027_recovery_lineage.sql", SHA256: Hash(ddl)})
+		migrationBytes, err := json.Marshal(migrations)
+		if err != nil {
+			t.Fatal(err)
+		}
+		catalog, err := readRecoverySemanticCatalogProfile(ctx, tx, s.runtimeSchema, Hash(canonical), Hash(migrationBytes))
+		if err != nil {
+			t.Fatal("candidate semantic reference capture", err)
+		}
+		catalogCanonical, err := json.Marshal(catalog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = tx.Rollback(ctx); err != nil {
+			t.Fatal(err)
+		}
+		identities := struct{ Scope, SQLSHA256, SchemaSHA256, InventorySHA256, CatalogSHA256 string }{"candidate-reference-not-runtime-acceptance", Hash(ddl), Hash(migrationBytes), Hash(canonical), Hash(catalogCanonical)}
+		if err = os.MkdirAll(*recoveryLineageCandidateOutput, 0700); err != nil {
+			t.Fatal(err)
+		}
+		for name, value := range map[string]any{"inventory.json": inventory, "identities.json": identities, "catalog.json": catalog} {
+			raw, err := json.MarshalIndent(value, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = os.WriteFile(filepath.Join(*recoveryLineageCandidateOutput, name), raw, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	persistence := recoveryLineagePersistence{RestoreID: spec.RestoreID, TargetInstallationID: spec.TargetInstallationID, SnapshotSHA256: strings.Repeat("a", 64), Generations: 1, PayloadBytes: 3, ChunksSHA256: "6ae408386a61f69681602a20e7ea6f4916caffd320353b0477e11293fdc7438c"}
 	start := func(t *testing.T) pgx.Tx {

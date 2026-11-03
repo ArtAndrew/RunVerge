@@ -21,7 +21,7 @@ const RecoverySnapshotFormat = "runverge-pg18-copy-ndjson-v1"
 // Recovery metadata is target-local authority/fencing, never source business data.
 func recoveryBusinessTable(name string) bool {
 	switch name {
-	case "schema_migrations", "runtime_recovery_control", "recovery_import_receipts", "recovery_historical_rows", "recovery_evidence_batches", "recovery_evidence_chunks", "recovery_evidence_changes", "recovery_accounting_batches", "recovery_accounting_mutations", "recovery_accounting_applied", "recovery_usage_observations":
+	case "schema_migrations", "runtime_recovery_control", "recovery_import_receipts", "recovery_historical_rows", "recovery_evidence_batches", "recovery_evidence_chunks", "recovery_evidence_changes", "recovery_accounting_batches", "recovery_accounting_mutations", "recovery_accounting_applied", "recovery_usage_observations", "recovery_lineage_imports", "recovery_lineage_chunks":
 		return false
 	}
 	return true

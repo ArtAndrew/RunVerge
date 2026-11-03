@@ -34,7 +34,7 @@ func validateRecoveryLineageReceiptLayout(receipt RecoveryImportReceipt, invento
 	var expectedInventory string
 	var sourceVersion int
 	switch receipt.SchemaSHA256 {
-	case EmbeddedSchemaSHA256():
+	case recoverySQL026Schema:
 		expectedInventory, sourceVersion = recoveryLineageSQL026Inventory, 26
 	case recoverySQL023Schema:
 		expectedInventory, sourceVersion = recoverySQL023Inventory, 23

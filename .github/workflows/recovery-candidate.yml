@@ -105,7 +105,7 @@ jobs:
         if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only && !inputs.outbound_only }}
         run: |
           go test -mod=readonly -race ./internal/recoverylineage -count=1 -v
-          go test -mod=readonly ./internal/storage -run '^TestRecovery(LineageEnvelope|LineageSource|LineageGeneration|LineageRelations|LineageBinary|LineageReceipt|LineageChain|LineagePayload|LineagePersistence|Snapshot(CopyBoundariesAndLimits|StrictWireObjects|OutputFailureAndBounds|Independent))' -count=1 -v
+          go test -mod=readonly ./internal/storage -run '^TestRecovery(LineageEnvelope|LineageSource|LineageGeneration|LineageRelations|LineageBinary|LineageReceipt|LineageChain|LineagePayload|LineagePersistence|SQL026FrozenProfile|Snapshot(CopyBoundariesAndLimits|StrictWireObjects|OutputFailureAndBounds|Independent))' -count=1 -v -recovery-lineage-candidate-output="$GITHUB_WORKSPACE/recovery-lineage-reference"
           go test -mod=readonly ./internal/storage -run '^TestRecoverySnapshot(PopulatedAndStrictValidation|OneCutAndSequenceHighWater|RefusesDriftHeldAndOversizeBeforeOutput|ExportFailureAndCancellation)$' -timeout=8m -count=1 -v
       - name: Check restored outbound profiles and ordinary workers
         if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.accounting_only && !inputs.usage_only }}
@@ -165,5 +165,14 @@ jobs:
         with:
           name: recovery-schema-reference
           path: recovery-reference/*.json
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Retain candidate lineage schema reference
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ always() && !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only && !inputs.outbound_only }}
+        with:
+          name: recovery-lineage-schema-reference
+          path: recovery-lineage-reference/*.json
           if-no-files-found: error
           retention-days: 3

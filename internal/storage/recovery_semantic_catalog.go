@@ -175,7 +175,17 @@ func validateRecoverySemanticCatalog(ctx context.Context, tx pgx.Tx, schema stri
 	}
 	return catalog, nil
 }
-func readRecoverySemanticCatalog(ctx context.Context, tx pgx.Tx, schema string) (catalog RecoverySemanticCatalog, err error) {
+func readRecoverySemanticCatalog(ctx context.Context, tx pgx.Tx, schema string) (RecoverySemanticCatalog, error) {
+	return readRecoverySemanticCatalogProfile(ctx, tx, schema, recoverySnapshotInventorySHA256, EmbeddedSchemaSHA256())
+}
+
+// The production wrapper supplies compiled identities only. Test-only trusted
+// DDL capture may read an unsealed candidate reference with an explicit profile;
+// this reader is not the catalogue validator and grants no runtime acceptance.
+func readRecoverySemanticCatalogProfile(ctx context.Context, tx pgx.Tx, schema, inventorySHA256, schemaSHA256 string) (catalog RecoverySemanticCatalog, err error) {
+	if !validDigest(inventorySHA256) || !validDigest(schemaSHA256) {
+		return catalog, ErrRecoverySemanticCatalog
+	}
 	if schema == "" || len(schema) > 63 || strings.IndexByte(schema, 0) >= 0 {
 		return catalog, ErrRecoverySemanticCatalog
 	}
@@ -208,7 +218,7 @@ func readRecoverySemanticCatalog(ctx context.Context, tx pgx.Tx, schema string) 
 		return fail()
 	}
 	inventoryRaw, _ := json.Marshal(inventory)
-	if Hash(inventoryRaw) != recoverySnapshotInventorySHA256 {
+	if Hash(inventoryRaw) != inventorySHA256 {
 		return fail()
 	}
 	// Current trusted migrations create no operators, custom scalar types, rules,
@@ -241,7 +251,7 @@ func readRecoverySemanticCatalog(ctx context.Context, tx pgx.Tx, schema string) 
 	if err = tx.QueryRow(ctx, `SELECT pg_catalog.current_setting('server_version_num')::integer,pg_catalog.current_setting('server_encoding'),d.datcollate,d.datctype,d.datlocprovider::text,COALESCE(d.datlocale,'') FROM pg_catalog.pg_database d WHERE d.datname=pg_catalog.current_database()`).Scan(&serverVersion, &encoding, &catalog.DatabaseCollation, &catalog.DatabaseCType, &catalog.DatabaseLocaleProvider, &catalog.DatabaseLocale); err != nil || serverVersion < 180000 || serverVersion >= 190000 || encoding != "UTF8" {
 		return fail()
 	}
-	catalog.SchemaSHA256 = EmbeddedSchemaSHA256()
+	catalog.SchemaSHA256 = schemaSHA256
 	total := 0
 	catalog.Relations, err = recoverySemanticRows[RecoverySemanticRelation](ctx, tx, `SELECT pg_catalog.jsonb_build_object('table',c.relname,'kind',c.relkind::text,'persistence',c.relpersistence::text,'row_security',c.relrowsecurity,'force_row_security',c.relforcerowsecurity,'replica_identity',c.relreplident::text,'options',COALESCE(c.reloptions,ARRAY[]::text[])) AS value FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=$1 AND c.relkind IN('r','p','f','v','m')`, schema, 256, &total)
 	if err != nil {
