@@ -214,7 +214,7 @@ func (s *Store) buildRecoveryAccountingReviewTx(ctx context.Context, tx pgx.Tx, 
 							if supported {
 								f.NextStep = "prepare_resolution_plan"
 							}
-							if recoverySemanticCatalogSHA256 != recoveryAccountingSourceV1CatalogSHA256 {
+							if recoverySemanticCatalogSHA256 != recoveryAccountingSourceV2CatalogSHA256 {
 								f.NextStep = "unsupported_catalog"
 							}
 						} else {
@@ -252,7 +252,7 @@ func (s *Store) buildRecoveryAccountingReviewTx(ctx context.Context, tx pgx.Tx, 
 						} else if (e.kind == "adjustment" && current.history.status != "settled") || (e.kind != "adjustment" && current.history.status == "settled") {
 							f.NextStep = "unsupported_target_state"
 						}
-						if recoverySemanticCatalogSHA256 != recoveryAccountingSourceV1CatalogSHA256 {
+						if recoverySemanticCatalogSHA256 != recoveryAccountingSourceV2CatalogSHA256 {
 							f.NextStep = "unsupported_catalog"
 						}
 					}
