@@ -57,7 +57,6 @@ jobs:
       RUNVERGE_RECOVERY_OWNED_PG: '1'
       RUNVERGE_RECOVERY_INDEPENDENT_OWNED_PG: '1'
       RUNVERGE_RECOVERY_OWNED_USAGE_HTTPS: '1'
-      RUNVERGE_RECOVERY_OWNED_PG_CONTAINER: ${{ job.services.postgres.id }}
       GOTOOLCHAIN: local
     steps:
       - name: Refuse conflicting development modes
@@ -92,6 +91,8 @@ jobs:
           echo "RUNVERGE_RECOVERY_SQL024_BINARY=$RUNNER_TEMP/platform-sql024" >> "$GITHUB_ENV"
       - name: Check usage acquisition authority, transport and source binding
         if: ${{ !inputs.schema_reference && !inputs.accounting_only }}
+        env:
+          RUNVERGE_RECOVERY_OWNED_PG_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           go test -mod=readonly -race ./internal/modelgateway -count=1 -v
           go test -mod=readonly -race ./internal/recoveryaccess -count=1 -v
