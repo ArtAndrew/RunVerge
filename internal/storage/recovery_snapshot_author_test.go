@@ -369,7 +369,7 @@ func TestRecoverySnapshotRefusesDriftHeldAndOversizeBeforeOutput(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				_, err = s.PrepareRecoveryTarget(ctx, RecoveryTargetSpec{TargetInstallationID: state.InstallationID, RestoreID: domain.NewID("restore"), BackupID: domain.NewID("bak"), SourceID: domain.NewID("inst"), CutUTC: time.Now().UTC().Format(time.RFC3339Nano), SchemaSHA256: EmbeddedSchemaSHA256()})
+				_, err = s.PrepareRecoveryTarget(ctx, RecoveryTargetSpec{TargetInstallationID: state.InstallationID, RestoreID: domain.NewID("restore"), BackupID: domain.NewID("bak"), SourceID: domain.NewID("inst"), CutUTC: time.Now().UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano), SchemaSHA256: EmbeddedSchemaSHA256()})
 				if err != nil {
 					t.Fatal(err)
 				}
