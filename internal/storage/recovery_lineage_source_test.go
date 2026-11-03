@@ -3,9 +3,12 @@ package storage
 
 import (
 	"agentplatform.local/platform/internal/domain"
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
+	"io"
 	"strings"
 	"testing"
 
@@ -66,6 +69,23 @@ func TestRecoveryLineageSourceAuthorActualImportedGeneration(t *testing.T) {
 	}
 	if len(report.Tables) != 9 || report.Rows < 2 || report.Bytes < 1 || !bytes.Contains(out.Bytes(), []byte(`"kind":"generation_end"`)) {
 		t.Fatal("incomplete generation export")
+	}
+	// Validate the actual database-produced generation using the independently
+	// trusted inventory and identity, without ending the caller transaction.
+	var header recoveryLineageGenerationStart
+	if err = json.Unmarshal(bytes.SplitN(out.Bytes(), []byte("\n"), 2)[0], &header); err != nil {
+		t.Fatal(err)
+	}
+	if header.InstallationID != f.held.InstallationID || header.RestoreID != f.held.RestoreID || header.ImportedSourceID != f.receipt.SourceID || header.ImportedSnapshotSHA256 != f.receipt.SnapshotSHA256 {
+		t.Fatal("exported generation identity mismatch")
+	}
+	reader := &recoverySnapshotReader{ctx: ctx, reader: bufio.NewReader(bytes.NewReader(out.Bytes())), hash: sha256.New(), limit: limits.MaxWireBytes}
+	var parsed RecoverySnapshotReport
+	if err = readRecoveryLineageGeneration(reader, f.inventory, header, limits, &parsed); err != nil || parsed.Rows != report.Rows || parsed.Bytes != report.Bytes {
+		t.Fatal("actual generation layout rejected", err)
+	}
+	if _, err = reader.reader.Peek(1); err != io.EOF {
+		t.Fatal("unexpected generation trailing bytes", err)
 	}
 	var count int
 	if err = tx.QueryRow(ctx, "SELECT count(*) FROM recovery_import_receipts").Scan(&count); err != nil || count != 1 {
