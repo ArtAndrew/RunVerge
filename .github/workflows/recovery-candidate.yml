@@ -57,6 +57,7 @@ jobs:
       RUNVERGE_RECOVERY_OWNED_PG: '1'
       RUNVERGE_RECOVERY_INDEPENDENT_OWNED_PG: '1'
       RUNVERGE_RECOVERY_OWNED_USAGE_HTTPS: '1'
+      RUNVERGE_RECOVERY_OWNED_PG_CONTAINER: ${{ job.services.postgres.id }}
       GOTOOLCHAIN: local
     steps:
       - name: Refuse conflicting development modes

@@ -268,6 +268,26 @@ func recoveryUsageAdvanceAccounting(t *testing.T, f *evidenceAuthorFixture, sele
 
 func TestRecoveryUsageAuthorOwnedAcquisitionPersistence(t *testing.T) {
 	calls := recoveryUsageOwnedHTTPS(t)
+	t.Run("actual_database_restart", func(t *testing.T) {
+		f, selection, path, o := recoveryUsageRecordingFixture(t)
+		beforeCalls := calls.Load()
+		ctx := context.Background()
+		limits := DefaultRecoverySnapshotLimits()
+		op := strings.Repeat("9", 32)
+		before := recoveryUsageBusinessState(t, f.target)
+		written, err := f.target.RecordRecoveryUsage(ctx, f.selected, f.late, f.verified, f.spec, limits, selection, path, op, o)
+		if err != nil {
+			t.Fatal("record before restart", err)
+		}
+		fresh := recoveryUsageRestartOwnedPostgres(t, f.target)
+		inspected, err := fresh.InspectRecoveryUsage(ctx, f.selected, f.late, f.verified, f.spec, limits, selection, op, o.Receipt().ReceiptSHA256)
+		if err != nil || inspected.State != "recorded" || inspected.AdmissionSHA256 != written.AdmissionSHA256 || inspected.ResponseSHA256 != written.ResponseSHA256 || !inspected.RecordedAt.Equal(written.RecordedAt) {
+			t.Fatal("restart changed observation", err)
+		}
+		if recoveryUsageBusinessState(t, fresh) != before || calls.Load() != beforeCalls {
+			t.Fatal("restart inspection changed business state or called provider")
+		}
+	})
 	t.Run("record_duplicate_conflict_revoke_fresh_inspect", func(t *testing.T) {
 		f, selection, path, o := recoveryUsageRecordingFixture(t)
 		beforeCalls := calls.Load()
