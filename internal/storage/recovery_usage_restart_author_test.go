@@ -27,8 +27,11 @@ func recoveryUsageRestartOwnedPostgres(t *testing.T, s *Store) *Store {
 	defer cancel()
 	var beforeStart time.Time
 	var peer, systemID string
-	if err := s.Pool.QueryRow(ctx, "SELECT inet_server_addr()::text,pg_postmaster_start_time(),system_identifier::text FROM pg_control_system()").Scan(&peer, &beforeStart, &systemID); err != nil || net.ParseIP(peer) == nil || systemID == "" {
-		t.Fatal("owned database identity unavailable")
+	if err := s.Pool.QueryRow(ctx, "SELECT pg_catalog.host(pg_catalog.inet_server_addr()),pg_catalog.pg_postmaster_start_time(),system_identifier::text FROM pg_catalog.pg_control_system()").Scan(&peer, &beforeStart, &systemID); err != nil {
+		t.Fatal("owned database identity query failed")
+	}
+	if net.ParseIP(peer) == nil || systemID == "" {
+		t.Fatal("owned database identity format refused")
 	}
 	type containerInfo struct {
 		ID     string `json:"Id"`
@@ -100,7 +103,7 @@ func recoveryUsageRestartOwnedPostgres(t *testing.T, s *Store) *Store {
 	t.Cleanup(fresh.Close)
 	var afterStart time.Time
 	var afterSystem string
-	if err = fresh.Pool.QueryRow(ctx, "SELECT pg_postmaster_start_time(),system_identifier::text FROM pg_control_system()").Scan(&afterStart, &afterSystem); err != nil || !afterStart.After(beforeStart) || afterSystem != systemID || fresh.runtimeSchema != schema {
+	if err = fresh.Pool.QueryRow(ctx, "SELECT pg_catalog.pg_postmaster_start_time(),system_identifier::text FROM pg_catalog.pg_control_system()").Scan(&afterStart, &afterSystem); err != nil || !afterStart.After(beforeStart) || afterSystem != systemID || fresh.runtimeSchema != schema {
 		t.Fatal("restart did not preserve cluster and schema identity")
 	}
 	if !errors.Is(fresh.CheckRuntimeAdmission(ctx), RecoveryHeld) {
