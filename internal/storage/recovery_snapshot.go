@@ -156,6 +156,7 @@ type RecoverySnapshotOrganization struct {
 // Report contains no row payloads, credentials or database connection strings.
 // Key names and tenant IDs remain private operational metadata.
 type RecoverySnapshotReport struct {
+	Lineage         *RecoveryLineageFramingReport  `json:"lineage,omitempty"`
 	Metadata        RecoverySnapshotMetadata       `json:"metadata"`
 	Format          string                         `json:"format"`
 	InventorySHA256 string                         `json:"inventory_sha256"`
@@ -343,31 +344,8 @@ func (s *Store) exportRecoverySnapshot(ctx context.Context, out io.Writer, limit
 		return report, err
 	}
 	report = RecoverySnapshotReport{Metadata: header.Metadata, Format: header.Format, InventorySHA256: header.InventorySHA256, Tables: []RecoverySnapshotTableSummary{}}
-	for _, table := range header.Inventory.Tables {
-		if !table.Exported {
-			continue
-		}
-		if err = w.record(recoverySnapshotTableStart{Kind: "table", Name: table.Name}); err != nil {
-			return RecoverySnapshotReport{}, err
-		}
-		cw := newRecoverySnapshotCopyWriter(w, table, limits, limits.MaxTotalBytes-report.Bytes, limits.MaxRows-report.Rows)
-		tag, copyErr := tx.Conn().PgConn().CopyTo(ctx, cw, recoverySnapshotCopySQL(schema, table))
-		if copyErr != nil {
-			return RecoverySnapshotReport{}, recoverySnapshotError(ctx, cw.failureOr(ErrRecoverySnapshotSource))
-		}
-		if err = cw.finish(); err != nil {
-			return RecoverySnapshotReport{}, err
-		}
-		if tag.RowsAffected() != cw.parser.rows || cw.parser.rows != counts[table.Name] {
-			return RecoverySnapshotReport{}, ErrRecoverySnapshotInvalid
-		}
-		summary := RecoverySnapshotTableSummary{Name: table.Name, Rows: cw.parser.rows, Bytes: cw.bytes, SHA256: recoverySnapshotHash(cw.hash)}
-		if err = w.record(recoverySnapshotTableEnd{Kind: "table_end", Summary: summary}); err != nil {
-			return RecoverySnapshotReport{}, err
-		}
-		report.Tables = append(report.Tables, summary)
-		report.Rows += summary.Rows
-		report.Bytes += summary.Bytes
+	if err = writeRecoverySnapshotTables(ctx, tx, schema, header.Inventory, counts, w, limits, &report); err != nil {
+		return RecoverySnapshotReport{}, err
 	}
 	state, err := recoverySnapshotReadState(ctx, tx, schema, limits)
 	if err != nil {
@@ -392,4 +370,40 @@ func (s *Store) exportRecoverySnapshot(ctx context.Context, out io.Writer, limit
 	report.Sequences, report.KeyReferences, report.Organizations = state.Sequences, state.KeyReferences, state.Organizations
 	report.WireBytes, report.SHA256 = w.bytes, recoverySnapshotHash(w.hash)
 	return report, nil
+}
+
+// writeRecoverySnapshotTables shares the caller's transaction, wire writer and
+// cumulative report. Additional archive sections must consume the same byte and
+// row budgets; this helper neither opens a snapshot nor writes a final marker.
+func writeRecoverySnapshotTables(ctx context.Context, tx pgx.Tx, schema string, inventory RecoverySnapshotInventory, counts map[string]int64, w *recoverySnapshotWriter, limits RecoverySnapshotLimits, report *RecoverySnapshotReport) error {
+	if report == nil || report.Bytes < 0 || report.Rows < 0 || report.Bytes > limits.MaxTotalBytes || report.Rows > limits.MaxRows {
+		return ErrRecoverySnapshotLimit
+	}
+	for _, table := range inventory.Tables {
+		if !table.Exported {
+			continue
+		}
+		if err := w.record(recoverySnapshotTableStart{Kind: "table", Name: table.Name}); err != nil {
+			return err
+		}
+		cw := newRecoverySnapshotCopyWriter(w, table, limits, limits.MaxTotalBytes-report.Bytes, limits.MaxRows-report.Rows)
+		tag, copyErr := tx.Conn().PgConn().CopyTo(ctx, cw, recoverySnapshotCopySQL(schema, table))
+		if copyErr != nil {
+			return recoverySnapshotError(ctx, cw.failureOr(ErrRecoverySnapshotSource))
+		}
+		if err := cw.finish(); err != nil {
+			return err
+		}
+		if tag.RowsAffected() != cw.parser.rows || cw.parser.rows != counts[table.Name] {
+			return ErrRecoverySnapshotInvalid
+		}
+		summary := RecoverySnapshotTableSummary{Name: table.Name, Rows: cw.parser.rows, Bytes: cw.bytes, SHA256: recoverySnapshotHash(cw.hash)}
+		if err := w.record(recoverySnapshotTableEnd{Kind: "table_end", Summary: summary}); err != nil {
+			return err
+		}
+		report.Tables = append(report.Tables, summary)
+		report.Rows += summary.Rows
+		report.Bytes += summary.Bytes
+	}
+	return nil
 }

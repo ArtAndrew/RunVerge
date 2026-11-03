@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: Elastic-2.0
+package storage
+
+import (
+	"agentplatform.local/platform/internal/domain"
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"strings"
+	"testing"
+
+	"github.com/jackc/pgx/v5"
+)
+
+func TestRecoveryLineageSourceInventory(t *testing.T) {
+	f := independentRecoveryFixtureNew(t)
+	projected, err := recoveryLineageSourceInventory(f.header.Inventory)
+	if err != nil || len(projected.Tables) != 9 || len(projected.Sequences) != 0 {
+		t.Fatal("trusted history projection failed", err)
+	}
+	for _, table := range projected.Tables {
+		if !table.Exported || table.Name == "runtime_recovery_control" || table.Name == "access_tokens" {
+			t.Fatal("authority in history projection")
+		}
+	}
+	// A caller cannot inject a table even with a syntactically safe identifier.
+	altered := f.header.Inventory
+	altered.Tables = append([]RecoverySnapshotTable{}, altered.Tables...)
+	altered.Tables[0].Name = "arbitrary_table"
+	if _, err = recoveryLineageSourceInventory(altered); err == nil {
+		t.Fatal("untrusted catalog accepted")
+	}
+	if _, err = recoveryLineageSourceInventory(f.header.Inventory); err != nil {
+		t.Fatal("projection modified source inventory", err)
+	}
+}
+
+func TestRecoveryLineageSourceAuthorActualImportedGeneration(t *testing.T) {
+	f := independentImportFixture(t)
+	ctx := context.Background()
+	limits := DefaultRecoverySnapshotLimits()
+	for _, options := range []pgx.TxOptions{{IsoLevel: pgx.ReadCommitted, AccessMode: pgx.ReadOnly}, {IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadWrite}} {
+		tx, err := f.target.Pool.BeginTx(ctx, options)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out bytes.Buffer
+		w := &recoverySnapshotWriter{ctx: ctx, out: &out, hash: sha256.New(), limit: limits.MaxWireBytes}
+		report := RecoverySnapshotReport{}
+		err = writeRecoveryLineageGenerationTx(ctx, tx, f.target.runtimeSchema, w, limits, &report)
+		_ = tx.Rollback(ctx)
+		if err == nil || out.Len() != 0 {
+			t.Fatal("non-read-only RR export admitted")
+		}
+	}
+	tx, err := f.target.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	var out bytes.Buffer
+	w := &recoverySnapshotWriter{ctx: ctx, out: &out, hash: sha256.New(), limit: limits.MaxWireBytes}
+	report := RecoverySnapshotReport{}
+	if err = writeRecoveryLineageGenerationTx(ctx, tx, f.target.runtimeSchema, w, limits, &report); err != nil {
+		t.Fatal("actual generation export failed", err)
+	}
+	if len(report.Tables) != 9 || report.Rows < 2 || report.Bytes < 1 || !bytes.Contains(out.Bytes(), []byte(`"kind":"generation_end"`)) {
+		t.Fatal("incomplete generation export")
+	}
+	var count int
+	if err = tx.QueryRow(ctx, "SELECT count(*) FROM recovery_import_receipts").Scan(&count); err != nil || count != 1 {
+		t.Fatal("export ended caller transaction", err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	after, err := f.target.InspectRecoveryTarget(ctx)
+	if err != nil || after != f.held {
+		t.Fatal("read-only history export changed hold", err)
+	}
+	independentImportAssertRows(t, f.rows, independentImportRows(t, f.target, f.inventory, false))
+}
+
+func TestRecoveryLineageSourceAuthorFullEvidenceChunk(t *testing.T) {
+	ctx := context.Background()
+	f := evidenceAuthorSetupWithMutation(t, func(source *Store) {
+		p, _ := identity(t, source, 1_000_000)
+		a := agent(t, source, p)
+		task := task(t, source, p, a)
+		for i := 0; i < 3; i++ {
+			if _, err := source.CreateMaterial(ctx, p, task.ID, domain.NewID("key"), domain.CreateMaterial{Name: "Synthetic large retained evidence", MediaType: "text/plain", Content: strings.Repeat("x", domain.MaxMaterialContentBytes)}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+	if _, err := f.target.IngestRecoveryEvidence(ctx, f.selected, f.late, f.verified, f.spec, DefaultRecoverySnapshotLimits()); err != nil {
+		t.Fatal("actual evidence ingestion failed", err)
+	}
+	var fullChunks int
+	if err := f.target.Pool.QueryRow(ctx, "SELECT count(*) FROM recovery_evidence_chunks WHERE octet_length(payload)=1048576").Scan(&fullChunks); err != nil || fullChunks == 0 {
+		t.Fatal("fixture lacks a full size evidence chunk", err)
+	}
+	tx, err := f.target.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	limits := DefaultRecoverySnapshotLimits()
+	var out bytes.Buffer
+	w := &recoverySnapshotWriter{ctx: ctx, out: &out, hash: sha256.New(), limit: limits.MaxWireBytes}
+	report := RecoverySnapshotReport{}
+	if err = writeRecoveryLineageGenerationTx(ctx, tx, f.target.runtimeSchema, w, limits, &report); err != nil {
+		t.Fatal("full chunk plus metadata rejected", err)
+	}
+	found := false
+	for _, table := range report.Tables {
+		if table.Name == "recovery_evidence_chunks" && table.Bytes > 1<<20 {
+			found = true
+		}
+	}
+	if !found || limits.MaxRowBytes != 1<<20 {
+		t.Fatal("metadata missing or business limit changed")
+	}
+	if err = tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
