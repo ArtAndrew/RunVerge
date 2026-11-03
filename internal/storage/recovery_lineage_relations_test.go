@@ -2,7 +2,9 @@
 package storage
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"testing"
 
 	"agentplatform.local/platform/internal/domain"
@@ -24,7 +26,7 @@ func TestRecoveryLineageRelationsActualEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := recoveryLineageGenerationStart{InstallationID: receipt.TargetInstallationID, RestoreID: receipt.RestoreID, ImportedSourceID: receipt.SourceID, ImportedSnapshotSHA256: receipt.SnapshotSHA256}
+	expected := recoveryLineageGenerationStart{Kind: "generation", Profile: "sql026-current-generation-v1", InventorySHA256: recoveryLineageSQL026Inventory, CatalogSHA256: recoveryLineageSQL026Catalog, InstallationID: receipt.TargetInstallationID, RestoreID: receipt.RestoreID, ImportedSourceID: receipt.SourceID, ImportedSnapshotSHA256: receipt.SnapshotSHA256}
 	if err := validateRecoveryLineageRelations(ctx, tx, f.target.runtimeSchema, expected); err == nil {
 		t.Fatal("permanent schema accepted as staging")
 	}
@@ -107,4 +109,33 @@ SELECT repeat('b',32),restore_id,target_installation_id,id,'synthetic-org','synt
 	if err = validateRecoveryLineageRelations(ctx, tx, schema, expected); err != nil {
 		t.Fatal("rollback did not preserve original history", err)
 	}
+	// Exercise PostgreSQL binary receive/send of nonempty name/xid8 values,
+	// using the explicit synthetic metadata above, not current authority.
+	limits := DefaultRecoverySnapshotLimits()
+	counts, err := recoverySnapshotPreflight(ctx, tx, schema, projected, limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire bytes.Buffer
+	writer := &recoverySnapshotWriter{ctx: ctx, out: &wire, hash: sha256.New(), limit: limits.MaxWireBytes}
+	var exported RecoverySnapshotReport
+	if err = writer.record(expected); err != nil {
+		t.Fatal(err)
+	}
+	if err = writeRecoverySnapshotTables(ctx, tx, schema, projected, counts, writer, limits, &exported); err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.record(recoveryLineageGenerationEnd{Kind: "generation_end", Tables: len(exported.Tables), Rows: exported.Rows, Bytes: exported.Bytes}); err != nil {
+		t.Fatal(err)
+	}
+	stageTx, err := f.target.Pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stageTx.Rollback(ctx)
+	staged, err := stageRecoveryLineageGeneration(ctx, stageTx, f.target.runtimeSchema, bytes.NewReader(wire.Bytes()), inventory, expected, limits)
+	if err != nil || staged.Rows != exported.Rows || staged.Bytes != exported.Bytes {
+		t.Fatal("nonempty metadata PostgreSQL staging failed", err)
+	}
+
 }

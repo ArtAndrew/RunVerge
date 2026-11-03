@@ -144,4 +144,22 @@ func TestRecoveryLineageSourceAuthorFullEvidenceChunk(t *testing.T) {
 	if err = tx.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
+	stageTx, err := f.target.Pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stageTx.Rollback(ctx)
+	inventory, err := recoverySnapshotInventory(ctx, stageTx, f.target.runtimeSchema, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := readRecoveryImportReceipt(ctx, stageTx, f.target.runtimeSchema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := recoveryLineageGenerationStart{Kind: "generation", Profile: "sql026-current-generation-v1", InstallationID: receipt.TargetInstallationID, RestoreID: receipt.RestoreID, ImportedSourceID: receipt.SourceID, ImportedSnapshotSHA256: receipt.SnapshotSHA256, InventorySHA256: recoveryLineageSQL026Inventory, CatalogSHA256: recoveryLineageSQL026Catalog}
+	staged, err := stageRecoveryLineageGeneration(ctx, stageTx, f.target.runtimeSchema, bytes.NewReader(out.Bytes()), inventory, expected, limits)
+	if err != nil || staged.Rows != report.Rows || staged.Bytes != report.Bytes {
+		t.Fatal("large actual generation staging rejected", err)
+	}
 }
