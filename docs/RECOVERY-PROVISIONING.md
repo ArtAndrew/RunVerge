@@ -108,6 +108,9 @@ repairs a partial creation, resumes an old queue or declares recovery complete.
 
 ## Verification of this candidate
 
+The checks in this section cover the original provisioning path. The controlled
+handoff extension below is a new candidate and its installed checks are pending.
+
 [The disposable PostgreSQL run](https://github.com/ArtAndrew/RunVerge/actions/runs/41316164535)
 passed creation, authenticated import, exact result reading with fresh access,
 revocation and retained execution hold. It also checked raw connection denial for
@@ -116,3 +119,57 @@ before and after the database creation statement. Commands ran through compiled
 test helper processes. This is not an installed-package restore drill, a test of a
 specific old application binary, a macOS deployment check or permission to enable
 new work. The later source change only corrects this test's explanatory comment.
+
+## Use a drained capture as a new baseline
+
+For a controlled handoff, first complete the bound source shutdown and V2 capture
+described in [source shutdown](RECOVERY-CONTAINER-STOP.md). Keep exclusive control
+of that source host. This path selects the **later, drained archive** for a new
+held database. It does not change an existing recovery target or reconcile an
+older backup's missing interval.
+
+Use the exact late directory, key file and staging directory saved in the source
+plan. `LATE_RECEIPT_SHA256` is `link.evidence_receipt_sha256` from its authenticated
+`.capture` file. Keep the source plan, `.capture`, `.capture-state`, final stop
+receipt and both archives available; all private authority and output files must
+remain outside both archives.
+
+```sh
+platform recovery provision-plan \
+  --admin-config "$PRIVATE/maintenance.json" \
+  --backup-dir "$PRIVATE/late-evidence" \
+  --keys-file "$PRIVATE/archive-keys.json" \
+  --staging-parent "$PRIVATE/staging" \
+  --expected-receipt-sha256 "$LATE_RECEIPT_SHA256" \
+  --handoff-source-intent-file "$PRIVATE/source-stop.json" \
+  --handoff-source-stop-file "$PRIVATE/source-stop.json.source-stop" \
+  --out "$PRIVATE/handoff-provision.json"
+```
+
+Review the new database name, then use `provision-apply` as above with this new
+plan. The command authenticates the retained capture and final stop, checks that
+the same source processes remain stopped, and commits the provenance digest to
+the new database and owner markers. It rechecks the source before creation.
+Version 1 capture links cannot be used for this profile.
+
+Import only the selected late archive:
+
+```sh
+platform recovery archive-import \
+  --backup-dir "$PRIVATE/late-evidence" \
+  --keys-file "$PRIVATE/archive-keys.json" \
+  --staging-parent "$PRIVATE/staging" \
+  --target-config "$PRIVATE/handoff-provision.json.target.json"
+```
+
+Import checks the physical target through the saved provisioning plan, rechecks
+source stop, and preserves the captured history and obligations. Removing the
+handoff fields from the target file does not permit generic import into this
+database. No historical row is turned into current authority and no unresolved
+reservation is released. `committed_held` still denies ordinary access and work.
+
+After lost output, use `provision-inspect` and `import-inspect`; do not repeat
+creation. Read-only provisioning inspection does not require the source to be
+reachable or still stopped. It reports the target state, not permission to
+continue. New credentials, late financial reconciliation and productive recovery
+require subsequent admission work and are not implemented by these commands.

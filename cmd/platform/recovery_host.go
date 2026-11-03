@@ -32,6 +32,8 @@ type recoveryHostTarget struct {
 	SchemaSHA256         string `json:"schema_sha256"`
 	SnapshotSHA256       string `json:"snapshot_sha256"`
 	ReceiptSHA256        string `json:"receipt_sha256,omitempty"`
+	HandoffPlanFile      string `json:"handoff_plan_file,omitempty"`
+	ProvenanceSHA256     string `json:"provenance_sha256,omitempty"`
 }
 type recoveryHostScopes struct {
 	Scopes []struct {

@@ -76,6 +76,9 @@ func (s *Store) ImportRecoverySnapshot(ctx context.Context, archive *recoveryarc
 			result, resultErr = RecoveryImportReceipt{}, ErrRecoveryImportCleanup
 		}
 	}()
+	if err = s.checkRecoveryProvisionImportTx(ctx, tx, spec, snapshot.SHA256); err != nil {
+		return result, err
+	}
 	staged, err := s.stageRecoverySnapshotTx(ctx, tx, archive, spec, snapshot, limits)
 	if err != nil {
 		return result, err

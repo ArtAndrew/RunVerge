@@ -24,12 +24,13 @@ import (
 var migrations embed.FS
 
 type Store struct {
-	Pool          *pgxpool.Pool
-	loginCipher   cipher.AEAD
-	runtimeSchema string
-	eventMu       sync.Mutex
-	eventHub      *taskEventHub
-	closed        bool
+	Pool              *pgxpool.Pool
+	loginCipher       cipher.AEAD
+	runtimeSchema     string
+	recoveryProvision *recoveryProvisionImportBinding
+	eventMu           sync.Mutex
+	eventHub          *taskEventHub
+	closed            bool
 }
 
 func Open(ctx context.Context, dsn string) (*Store, error) {

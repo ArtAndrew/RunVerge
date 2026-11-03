@@ -21,6 +21,7 @@ type recoveryProvisionFile struct {
 	ReceiptSHA256    string                          `json:"receipt_sha256"`
 	CutUTC           string                          `json:"cut_utc"`
 	Intent           storage.RecoveryProvisionIntent `json:"intent"`
+	Handoff          *recoveryProvisionHandoff       `json:"handoff,omitempty"`
 }
 
 func runRecoveryProvisionHost(ctx context.Context, args []string, out io.Writer) error {
@@ -30,7 +31,7 @@ func runRecoveryProvisionHost(ctx context.Context, args []string, out io.Writer)
 	}
 	f := flag.NewFlagSet("recovery-provision", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	var adminFile, bundle, keys, stage, receipt, path, expected string
+	var adminFile, bundle, keys, stage, receipt, path, expected, sourceIntent, sourceStop string
 	var confirm bool
 	switch args[0] {
 	case "provision-plan":
@@ -40,6 +41,8 @@ func runRecoveryProvisionHost(ctx context.Context, args []string, out io.Writer)
 		f.StringVar(&stage, "staging-parent", "", "private temporary staging directory")
 		f.StringVar(&receipt, "expected-receipt-sha256", "", "independently recorded receipt digest")
 		f.StringVar(&path, "out", "", "new private provisioning plan outside backup")
+		f.StringVar(&sourceIntent, "handoff-source-intent-file", "", "bound source capture plan; select its late archive as a new baseline")
+		f.StringVar(&sourceStop, "handoff-source-stop-file", "", "signed final stop to recheck before provisioning")
 	case "provision-apply", "provision-inspect":
 		f.StringVar(&path, "intent-file", "", "saved private provisioning plan")
 		if args[0] == "provision-apply" {
@@ -84,6 +87,18 @@ func runRecoveryProvisionHost(ctx context.Context, args []string, out io.Writer)
 		if err = archive.Close(); err != nil {
 			return err
 		}
+		if sourceIntent != "" || sourceStop != "" {
+			if sourceIntent == "" || sourceStop == "" {
+				return usage
+			}
+			saved.Handoff, err = inspectProvisionHandoff(ctx, sourceIntent, sourceStop, bundle, keys, stage, receipt, path, adminFile)
+			if err != nil {
+				return err
+			}
+			if !saved.Handoff.matchesManifest(manifest) {
+				return errors.New("handoff requires the exact late archive as a new baseline")
+			}
+		}
 		saved.BackupDirectory = bundle
 		saved.ReceiptSHA256 = receipt
 		saved.CutUTC = m.CutUTC
@@ -94,6 +109,9 @@ func runRecoveryProvisionHost(ctx context.Context, args []string, out io.Writer)
 	} else {
 		if readRecoveryFenceJSON(path, &saved) != nil {
 			return errors.New("invalid private provisioning plan")
+		}
+		if !provisionHandoffBindingValid(saved) {
+			return errors.New("provisioning provenance differs from saved intent")
 		}
 		if args[0] == "provision-apply" && (!confirm || expected == "" || expected != saved.Intent.Database) {
 			return usage
@@ -118,7 +136,11 @@ func runRecoveryProvisionHost(ctx context.Context, args []string, out io.Writer)
 	}()
 	emit := func(v any) error { return json.NewEncoder(out).Encode(v) }
 	if args[0] == "provision-plan" {
-		saved.Intent, err = storage.PlanRecoveryProvision(ctx, admin, saved.Intent.BackupID, saved.Intent.SourceID, saved.Intent.SnapshotSHA256, saved.Intent.SchemaSHA256)
+		provenance := ""
+		if saved.Handoff != nil {
+			provenance = captureHash(saved.Handoff)
+		}
+		saved.Intent, err = storage.PlanRecoveryProvisionWithProvenance(ctx, admin, saved.Intent.BackupID, saved.Intent.SourceID, saved.Intent.SnapshotSHA256, saved.Intent.SchemaSHA256, provenance)
 		if err != nil {
 			return err
 		}
@@ -136,6 +158,11 @@ func runRecoveryProvisionHost(ctx context.Context, args []string, out io.Writer)
 	}
 	if ob.State != "not_created" {
 		return errors.New("target creation already started; inspect saved outputs instead of repeating")
+	}
+	if saved.Handoff != nil {
+		if err = recheckProvisionHandoff(ctx, saved, path); err != nil {
+			return err
+		}
 	}
 	if err = recoveryarchive.WriteHostJSONOutside(saved.BackupDirectory, path+".apply", struct {
 		OperationID string    `json:"operation_id"`
@@ -171,6 +198,10 @@ func runRecoveryProvisionHost(ctx context.Context, args []string, out io.Writer)
 		return errors.New("fresh target identity not confirmed")
 	}
 	config := recoveryHostTarget{DatabaseURL: targetURI, TargetInstallationID: state.InstallationID, RestoreID: saved.Intent.OperationID, BackupID: saved.Intent.BackupID, SourceID: saved.Intent.SourceID, CutUTC: saved.CutUTC, SchemaSHA256: saved.Intent.SchemaSHA256, SnapshotSHA256: saved.Intent.SnapshotSHA256, ReceiptSHA256: saved.ReceiptSHA256}
+	if saved.Handoff != nil {
+		config.HandoffPlanFile = path
+		config.ProvenanceSHA256 = saved.Intent.ProvenanceSHA256
+	}
 	if err = recoveryarchive.WriteHostJSONOutside(saved.BackupDirectory, path+".target.json", config); err != nil {
 		return err
 	}

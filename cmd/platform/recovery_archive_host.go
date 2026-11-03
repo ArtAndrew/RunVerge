@@ -238,15 +238,11 @@ func runRecoveryArchiveHost(ctx context.Context, args []string, out io.Writer) e
 	if config.SnapshotSHA256 != report.SHA256 || config.SourceID != m.SourceID || config.BackupID != m.BackupID || config.CutUTC != m.CutUTC || config.SchemaSHA256 != m.SchemaSHA256 {
 		return errors.New("selected archive differs from durable target intent")
 	}
-	dsn, err := explicitRecoveryDSN(config.DatabaseURL)
-	if err != nil {
-		return err
-	}
-	s, err := storage.Open(ctx, dsn)
+	s, closeTarget, err := openRecoveryImportTarget(ctx, config, targetFile, bundle, keys, stage)
 	if err != nil {
 		return errors.New("cannot open explicit import target")
 	}
-	defer s.Close()
+	defer closeTarget()
 	if _, err = s.ImportRecoverySnapshot(ctx, archive, config.spec(), storage.DefaultRecoverySnapshotLimits()); err != nil {
 		return err
 	}

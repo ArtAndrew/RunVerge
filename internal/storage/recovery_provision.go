@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 
 	"agentplatform.local/platform/internal/domain"
@@ -16,19 +17,20 @@ import (
 var ErrRecoveryProvision = errors.New("recovery target creation not confirmed; inspect the saved plan; do not overwrite or repeat")
 
 type RecoveryProvisionIntent struct {
-	Version         int       `json:"version"`
-	OperationID     string    `json:"operation_id"`
-	SystemID        string    `json:"system_id"`
-	ServerStartedAt time.Time `json:"server_started_at"`
-	MaintenanceOID  uint32    `json:"maintenance_oid"`
-	AdminOID        uint32    `json:"admin_oid"`
-	Database        string    `json:"database"`
-	Owner           string    `json:"owner"`
-	BackupID        string    `json:"backup_id"`
-	SourceID        string    `json:"source_id"`
-	SnapshotSHA256  string    `json:"snapshot_sha256"`
-	SchemaSHA256    string    `json:"schema_sha256"`
-	CreatedAt       time.Time `json:"created_at"`
+	Version          int       `json:"version"`
+	OperationID      string    `json:"operation_id"`
+	SystemID         string    `json:"system_id"`
+	ServerStartedAt  time.Time `json:"server_started_at"`
+	MaintenanceOID   uint32    `json:"maintenance_oid"`
+	AdminOID         uint32    `json:"admin_oid"`
+	Database         string    `json:"database"`
+	Owner            string    `json:"owner"`
+	BackupID         string    `json:"backup_id"`
+	SourceID         string    `json:"source_id"`
+	SnapshotSHA256   string    `json:"snapshot_sha256"`
+	SchemaSHA256     string    `json:"schema_sha256"`
+	CreatedAt        time.Time `json:"created_at"`
+	ProvenanceSHA256 string    `json:"provenance_sha256,omitempty"`
 }
 
 type RecoveryProvisionObservation struct {
@@ -43,18 +45,57 @@ type RecoveryProvisionObservation struct {
 var recoveryProvisionName = regexp.MustCompile(`^rvg_(target|owner)_[a-f0-9]{32}$`)
 
 func validRecoveryProvision(p RecoveryProvisionIntent) bool {
+	if p.ProvenanceSHA256 != "" && !validDigest(p.ProvenanceSHA256) {
+		return false
+	}
 	return p.Version == 1 && validRecoveryID(p.OperationID, "restore") && p.SystemID != "" && p.MaintenanceOID != 0 && p.AdminOID != 0 && !p.ServerStartedAt.IsZero() && !p.CreatedAt.IsZero() && recoveryProvisionName.MatchString(p.Database) && recoveryProvisionName.MatchString(p.Owner) && p.Database == "rvg_target_"+p.OperationID[8:] && p.Owner == "rvg_owner_"+p.OperationID[8:] && validRecoveryID(p.BackupID, "bak") && validRecoveryID(p.SourceID, "inst") && validDigest(p.SnapshotSHA256) && SupportedRecoverySourceSchema(p.SchemaSHA256)
 }
 
 func recoveryProvisionMarker(p RecoveryProvisionIntent) string {
 	body, _ := json.Marshal(p)
+	if p.ProvenanceSHA256 != "" {
+		return "runverge-recovery-provision-v2:" + Hash(body)
+	}
 	return "runverge-recovery-provision-v1:" + Hash(body)
+}
+
+type recoveryProvisionImportBinding struct {
+	intent      RecoveryProvisionIntent
+	databaseOID uint32
+}
+
+// Check the physical marker inside the actual import transaction. Removing
+// handoff fields from host JSON cannot downgrade this target to generic import.
+func (s *Store) checkRecoveryProvisionImportTx(ctx context.Context, tx pgx.Tx, spec RecoveryTargetSpec, snapshot string) error {
+	var marker string
+	var oid uint32
+	if tx.QueryRow(ctx, `SELECT d.oid,COALESCE(pg_catalog.shobj_description(d.oid,'pg_database'),'') FROM pg_catalog.pg_database d WHERE d.datname=pg_catalog.current_database()`).Scan(&oid, &marker) != nil {
+		return ErrRecoveryProvision
+	}
+	if s.recoveryProvision == nil {
+		if strings.HasPrefix(marker, "runverge-recovery-provision-") && !strings.HasPrefix(marker, "runverge-recovery-provision-v1:") {
+			return ErrRecoveryProvision
+		}
+		return nil
+	}
+	p := s.recoveryProvision.intent
+	if oid != s.recoveryProvision.databaseOID || marker != recoveryProvisionMarker(p) || p.ProvenanceSHA256 == "" || p.OperationID != spec.RestoreID || p.BackupID != spec.BackupID || p.SourceID != spec.SourceID || p.SchemaSHA256 != spec.SchemaSHA256 || p.SnapshotSHA256 != snapshot {
+		return ErrRecoveryProvision
+	}
+	return nil
 }
 
 // PlanRecoveryProvision reads an explicitly trusted maintenance connection.
 // The caller authenticates/selects the archive and persists this intent before
 // creation. SourceID binds the selected snapshot, not live source processes.
 func PlanRecoveryProvision(ctx context.Context, admin *pgx.Conn, backup, source, snapshot, schema string) (RecoveryProvisionIntent, error) {
+	return PlanRecoveryProvisionWithProvenance(ctx, admin, backup, source, snapshot, schema, "")
+}
+
+// PlanRecoveryProvisionWithProvenance additionally commits the host-verified
+// source provenance into both physical provisioning markers. This is still a
+// restricted held target, not clearance or a grant of ordinary credentials.
+func PlanRecoveryProvisionWithProvenance(ctx context.Context, admin *pgx.Conn, backup, source, snapshot, schema, provenance string) (RecoveryProvisionIntent, error) {
 	var p RecoveryProvisionIntent
 	if admin == nil {
 		return p, ErrRecoveryProvision
@@ -69,6 +110,7 @@ func PlanRecoveryProvision(ctx context.Context, admin *pgx.Conn, backup, source,
 	}
 	operation := domain.NewID("restore")
 	p = RecoveryProvisionIntent{Version: 1, OperationID: operation, SystemID: server.SystemID, ServerStartedAt: server.Started, MaintenanceOID: server.DatabaseOID, AdminOID: role, Database: "rvg_target_" + operation[8:], Owner: "rvg_owner_" + operation[8:], BackupID: backup, SourceID: source, SnapshotSHA256: snapshot, SchemaSHA256: schema, CreatedAt: time.Now().UTC()}
+	p.ProvenanceSHA256 = provenance
 	if !validRecoveryProvision(p) {
 		return RecoveryProvisionIntent{}, ErrRecoveryProvision
 	}
@@ -216,7 +258,11 @@ func OpenRecoveryProvisionTarget(ctx context.Context, admin *pgx.Conn, dsn strin
 		pool.Close()
 		return nil, ErrRecoveryProvision
 	}
-	return &Store{Pool: pool, runtimeSchema: "public"}, nil
+	s := &Store{Pool: pool, runtimeSchema: "public"}
+	if p.ProvenanceSHA256 != "" {
+		s.recoveryProvision = &recoveryProvisionImportBinding{intent: p, databaseOID: expectedOID}
+	}
+	return s, nil
 }
 
 // Equal DSN names/control-file IDs alone do not establish that a routed

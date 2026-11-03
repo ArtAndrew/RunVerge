@@ -532,12 +532,105 @@ def verify_held_evidence(command, env, private, project, source_database,
         if os.environ.get('RUNVERGE_OWNED_USAGE_DRILL') == '1':
             verify_recovery_usage.verify(command, env, private, project, created, ports, planned['database'],
                                         source_plan, target, image, require, progress)
+        verify_installed_handoff(command, private, name, config, source_plan, target,
+                                 planned['database'], cli, require, progress)
     finally:
         if created and re.fullmatch(r'[a-f0-9]{64}', created):
             owned = json.loads(command(['docker', 'inspect', created]))[0]
             if owned['Config']['Labels'].get('runverge.check.owner') != project:
                 raise RuntimeError('Recovery fixture ownership changed')
             command(['docker', 'rm', '-f', '-v', created])
+
+
+def verify_installed_handoff(command, private, container, maintenance, source_plan,
+                             original_target, original_database, cli, require, progress):
+    """A second held database selects the drained late archive, not an old target."""
+    plan = private / 'handoff-provision.json'
+    capture = json.loads(Path(str(source_plan) + '.capture').read_text())['link']
+    selection = ['--backup-dir', str(private / 'late-evidence'), '--keys-file', str(private / 'keys.json'),
+                 '--staging-parent', str(private / 'stage')]
+    flags = ['--handoff-source-intent-file', str(source_plan),
+             '--handoff-source-stop-file', str(source_plan) + '.source-stop']
+    args = ['provision-plan', '--admin-config', str(maintenance), *selection,
+            '--expected-receipt-sha256', capture['evidence_receipt_sha256'], *flags, '--out', str(plan)]
+    wrong = list(args)
+    wrong[wrong.index('--backup-dir') + 1] = str(private / 'backup')
+    wrong[wrong.index('--expected-receipt-sha256') + 1] = capture['selected_receipt_sha256']
+    if cli(wrong).returncode == 0 or plan.exists():
+        raise RuntimeError('Handoff accepted the older archive as its baseline')
+    planned = require(cli(args), 'handoff-plan')
+    if (len(planned.get('provenance_sha256', '')) != 64 or planned['database'] == original_database
+            or planned['snapshot_sha256'] != capture['evidence_snapshot_sha256']):
+        raise RuntimeError('Handoff plan did not select a separate late baseline')
+    apply = ['provision-apply', '--intent-file', str(plan), '--expected-database',
+             planned['database'], '--confirm-create-target']
+    with open('/dev/full', 'wb') as lost:
+        if cli(apply, stdout=lost).returncode == 0:
+            raise RuntimeError('Handoff provisioning output loss not reported')
+    observed = require(cli(['provision-inspect', '--intent-file', str(plan)]), 'handoff-created-inspect')
+    if observed['state'] != 'database_restricted' or not observed['ordinary_connections_denied']:
+        raise RuntimeError('Handoff target lost physical isolation')
+    if cli(apply).returncode == 0:
+        raise RuntimeError('Handoff provisioning replayed')
+    target = Path(str(plan) + '.target.json')
+    config = json.loads(target.read_text())
+    if config['provenance_sha256'] != planned['provenance_sha256'] or config['snapshot_sha256'] != capture['evidence_snapshot_sha256']:
+        raise RuntimeError('Handoff target did not retain exact provenance')
+
+    def private_json(path, value):
+        with path.open('x') as stream:
+            path.chmod(0o600)
+            json.dump(value, stream)
+
+    stripped = dict(config)
+    stripped.pop('handoff_plan_file')
+    stripped.pop('provenance_sha256')
+    stripped_file = private / 'handoff-stripped-target.json'
+    private_json(stripped_file, stripped)
+    if cli(['archive-import', '--target-config', str(stripped_file), *selection]).returncode == 0:
+        raise RuntimeError('Handoff metadata stripping bypassed physical import binding')
+    old_config = json.loads(Path(original_target).read_text())
+    rebound = dict(config)
+    rebound['database_url'] = old_config['database_url']
+    rebound['target_installation_id'] = old_config['target_installation_id']
+    rebound_file = private / 'handoff-rebound-target.json'
+    private_json(rebound_file, rebound)
+    if cli(['archive-import', '--target-config', str(rebound_file), *selection]).returncode == 0:
+        raise RuntimeError('Handoff rebound an already restored target')
+    require(cli(['archive-import', '--target-config', str(target), *selection]), 'handoff-import')
+    inspected = require(cli(['import-inspect', '--target-config', str(target)]), 'handoff-import-inspect')
+    if inspected['state'] != 'committed_held':
+        raise RuntimeError('Handoff import did not remain held')
+    # Inspection after ambiguous output does not require the source files or a
+    # fresh live source check. It cannot enable work or repeat provisioning.
+    hidden = private / 'retained-source-plan-for-inspection.json'
+    source_plan.rename(hidden)
+    try:
+        if require(cli(['provision-inspect', '--intent-file', str(plan)]), 'handoff-offline-inspect')['state'] != 'database_restricted':
+            raise RuntimeError('Source-independent handoff inspection failed')
+    finally:
+        hidden.rename(source_plan)
+    late_org = json.loads((private / 'late-owner.json').read_text())['organization_id']
+    usage = json.loads((private / 'financial-after.json').read_text())
+    for value, prefix in ((late_org, 'org'), (usage['usage_reservation_id'], 'res')):
+        if not re.fullmatch(prefix + r'_[a-f0-9]{32}', value):
+            raise RuntimeError('Invalid owned fixture identifier')
+    marker = 'runverge-recovery-provision-v2:' + hashlib.sha256(
+        json.dumps(planned, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()
+    query = ("SELECT (SELECT state='held' FROM runtime_recovery_control WHERE singleton) "
+             "AND EXISTS(SELECT 1 FROM organizations WHERE id='" + late_org + "') "
+             "AND recovery_is_historical('organizations',jsonb_build_array('" + late_org + "'::text)) "
+             "AND EXISTS(SELECT 1 FROM reservations WHERE id='" + usage['usage_reservation_id'] +
+             "' AND status='unknown' AND amount_microusd=37 AND actual_microusd IS NULL) "
+             "AND (SELECT pg_catalog.shobj_description(oid,'pg_database')='" + marker +
+             "' FROM pg_catalog.pg_database WHERE datname=current_database())")
+    result = command(['docker', 'exec', container, 'sh', '-ec',
+                      'export PGPASSWORD="$POSTGRES_PASSWORD"; exec psql -X -w -h 127.0.0.1 '
+                      '-U runverge_recovery_operator -d "$1" -At -v ON_ERROR_STOP=1 -c "$2"',
+                      'handoff-check', planned['database'], query]).strip()
+    if result != 't':
+        raise RuntimeError('Handoff baseline, obligations or physical provenance differs')
+    progress('installed_handoff_new_held_baseline_passed')
 
 
 def verify_installed_accounting(command, env, private, name, identifier, ports, database,

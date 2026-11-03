@@ -302,5 +302,12 @@ proof from PostgreSQL or a provider, and it does not establish external settleme
 complete historical deployment coverage, or permission for new tasks. Keep
 exclusive deployment control. Selecting this later archive for a new restored
 installation still requires a separate recovery admission; an existing target's
-baseline must not be replaced. Installed verification of this new V2 path is
-pending; the earlier installed result above covers the previous capture format.
+baseline must not be replaced.
+
+The V2 path at `05a76516c3408818280a7aca5f261138962ce275` passed installed
+verification on Linux amd64 and arm64 in
+[run 41613837564](https://github.com/ArtAndrew/RunVerge/actions/runs/41613837564).
+The verifier checked the actual archive metadata, retained pre-capture state,
+final source-stop receipt and refusal after source restart. Both environments
+were cleaned up; no model or real provider was called. This accepts the capture
+provenance component, not new-target handoff or productive recovery.
