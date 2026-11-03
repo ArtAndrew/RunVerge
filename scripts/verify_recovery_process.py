@@ -566,6 +566,26 @@ def verify_installed_accounting(command, env, private, name, identifier, ports, 
                              '--target-config', target]), 'installed-accounting-review')
         if not value['execution_held'] or not value['rollback_confirmed'] or value['reconciliation_state'] != 'pending':
             raise RuntimeError('Financial review implied clearance')
+        window = value.get('execution_window', {})
+        families = ['action', 'configuration_verification', 'reservation_without_action',
+                    'tool_execution', 'webhook_attempt']
+        if value.get('version') != 2 or value.get('algorithm') != 'held-accounting-execution-review-v2' or window.get('version') != 1 or window.get('algorithm') != 'source-dispatch-inventory-v1':
+            raise RuntimeError('Installed execution inventory version missing')
+        if any(window.get(key) is not False for key in ('coverage_proven', 'source_stop_rechecked', 'new_work_allowed')):
+            raise RuntimeError('Execution inventory implied authority')
+        if [item['family'] for item in window['families']] != families:
+            raise RuntimeError('Execution inventory omitted empty families')
+        for counts in window['families']:
+            records = [item for item in window['records'] if item['family'] == counts['family']]
+            for view in ('original', 'captured'):
+                positions = [item[view] for item in records if item[view] is not None]
+                if counts[view + '_records'] != len(positions) or counts[view + '_dispatch_records'] != sum(item['dispatch_recorded'] for item in positions):
+                    raise RuntimeError('Execution inventory counts differ from records')
+        model = [item for item in window['records'] if item['family'] == 'action'
+                 and item['organization_id'] == fixture['usage_organization_id']
+                 and item['captured'] is not None and fixture['usage_reservation_id'] in item['captured']['related_ids']]
+        if len(model) != 1 or model[0]['comparison'] != 'dispatch_recorded_in_both' or model[0]['original']['kind'] != 'model':
+            raise RuntimeError('Installed inventory lost the known model obligation')
         return value
 
     original_review = review()
@@ -631,5 +651,8 @@ def verify_installed_accounting(command, env, private, name, identifier, ports, 
         raise RuntimeError('Financial review replaced the historical invoice')
     if len(final_review['receipts']) != 2 or any(item['attribution'] != 'source_fact' for item in final_review['receipts']):
         raise RuntimeError('Financial review omitted receipt attribution')
+    if final_review['execution_window'] != original_review['execution_window']:
+        raise RuntimeError('Target accounting changed the source execution inventory')
+    progress('installed_execution_window_review_passed')
     progress('financial_review_restart_passed')
     progress('financial_apply_restart_correction_passed')
