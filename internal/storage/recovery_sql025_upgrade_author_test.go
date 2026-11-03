@@ -78,15 +78,15 @@ func recoverySQL025SourceIntent(t *testing.T, dir, keys, stage string, selected,
 	t.Helper()
 	a, b := selected.Manifest(), late.Manifest()
 	op := strings.TrimPrefix(domain.NewID("capture"), "capture_")
-	binding := recoveryprocess.SourceBinding{Version: 1, SourceID: a.Metadata.SourceID, SnapshotSHA256: a.PlaintextSHA256, ObservedAt: time.Now().UTC()}
-	observation := recoveryprocess.Observation{OperationID: op, SourceID: a.Metadata.SourceID, ObservedAt: time.Now().UTC()}
+	binding := recoveryprocess.SourceBinding{Version: 1, SourceID: a.Metadata.SourceID, SnapshotSHA256: a.PlaintextSHA256, ObservedAt: time.Now().UTC(), Processes: []recoveryprocess.SourceProcess{}}
+	observation := recoveryprocess.Observation{OperationID: op, SourceID: a.Metadata.SourceID, ObservedAt: time.Now().UTC(), Containers: []recoveryprocess.ContainerState{}}
 	path := filepath.Join(dir, "sql025-source-intent.json")
 	file := struct {
 		Socket  string                         `json:"docker_socket"`
 		Intent  recoveryprocess.Intent         `json:"intent"`
 		Binding *recoveryprocess.SourceBinding `json:"source_binding"`
 		Capture map[string]string              `json:"evidence_capture"`
-	}{Intent: recoveryprocess.Intent{Version: 1, OperationID: op, CreatedAt: time.Now().UTC()}, Binding: &binding, Capture: map[string]string{"directory": filepath.Join(dir, "late"), "keys_file": keys, "staging_parent": stage, "selected_receipt_sha256": recoveryManifestReceipt(selected), "selected_directory": filepath.Join(dir, "selected"), "selected_cut_utc": a.Metadata.CutUTC}}
+	}{Intent: recoveryprocess.Intent{Version: 1, OperationID: op, CreatedAt: time.Now().UTC(), Containers: []recoveryprocess.Container{}}, Binding: &binding, Capture: map[string]string{"directory": filepath.Join(dir, "late"), "keys_file": keys, "staging_parent": stage, "selected_receipt_sha256": recoveryManifestReceipt(selected), "selected_directory": filepath.Join(dir, "selected"), "selected_cut_utc": a.Metadata.CutUTC}}
 	if err := recoveryarchive.WriteHostJSON(path, file); err != nil {
 		t.Fatal(err)
 	}

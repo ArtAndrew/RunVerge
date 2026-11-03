@@ -65,9 +65,23 @@ func recoveryEvidenceLegacyProducer(t *testing.T, binaryEnvironment, sourceSchem
 		var out, privateErr bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &privateErr
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("old-schema fixture command %s failed: %v", args[0], err)
+		stage := args[0]
+		if stage == "recovery" && len(args) > 1 {
+			stage += " " + args[1]
 		}
+		if err := cmd.Run(); err != nil {
+			// Print fixed classifications only, never arbitrary CLI stderr,
+			// private file contents, connection strings or command arguments.
+			classification := "unclassified"
+			for _, known := range []string{"explicit private source and target selectors required", "source evidence link not authenticated for this plan", "capture observation differs from signed link", "target does not select this evidence pair", "recovery authority must remain outside the archives", "financial operation authority must remain outside the archives", "recovery accounting", "recovery evidence", "unsupported recovery", "invalid private", "usage:"} {
+				if strings.Contains(privateErr.String(), known) {
+					classification = known
+					break
+				}
+			}
+			t.Fatalf("old-schema fixture command %s failed: %v (%s)", stage, err, classification)
+		}
+		t.Logf("old-schema fixture completed %s", stage)
 		return out.Bytes()
 	}
 	private := func(name string, v any) string {
