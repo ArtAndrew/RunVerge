@@ -28,14 +28,18 @@ func TestRecoveryEvidenceAuthorActualSQL023ProducerAndHeldUpgrade(t *testing.T) 
 func TestRecoveryEvidenceAuthorActualSQL024ProducerAndHeldUpgrade(t *testing.T) {
 	recoveryEvidenceLegacyProducer(t, "RUNVERGE_RECOVERY_SQL024_BINARY", recoverySQL024Schema, recoverySQL024Catalog)
 }
-func recoveryEvidenceLegacyProducer(t *testing.T, binaryEnvironment, sourceSchema, sourceCatalog string) {
+func recoveryEvidenceLegacyProducer(t *testing.T, binaryEnvironment, sourceSchema, sourceCatalog string, accountingMode ...string) {
 	t.Helper()
 	recoveryInvariantOwned(t)
 	binary := os.Getenv(binaryEnvironment)
 	if binary == "" {
 		t.Skip("exact previously verified old-schema binary required")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	duration := 2 * time.Minute
+	if len(accountingMode) > 0 {
+		duration = 5 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 	d := t.TempDir()
 	if err := os.Chmod(d, 0700); err != nil {
@@ -133,10 +137,18 @@ func recoveryEvidenceLegacyProducer(t *testing.T, binaryEnvironment, sourceSchem
 		return a, receipt
 	}
 	selected, receipt := backup("selected")
+	var financial *recoverySQL025UpgradeFixture
+	if len(accountingMode) > 0 {
+		financial = recoverySQL025LateFacts(t, source, p.OrganizationID, accountingMode[0])
+	}
 	// The new source has a whole late-only organization with results/unknown costs.
 	recoveryAuthorPopulate(t, source)
 	late, _ := backup("late")
 	verified := evidenceAuthorPair(t, selected, late)
+	var sourceIntent string
+	if financial != nil {
+		sourceIntent, verified = recoverySQL025SourceIntent(t, d, keys, stage, selected, late)
+	}
 	legacyTarget, targetDSN := legacyStore()
 	var targetID string
 	if legacyTarget.Pool.QueryRow(ctx, "SELECT installation_id FROM runtime_recovery_control WHERE singleton").Scan(&targetID) != nil {
@@ -158,6 +170,9 @@ func recoveryEvidenceLegacyProducer(t *testing.T, binaryEnvironment, sourceSchem
 	}
 	m := receipt.Manifest.Metadata
 	spec := RecoveryTargetSpec{TargetInstallationID: config.TargetID, RestoreID: config.RestoreID, BackupID: m.BackupID, SourceID: m.SourceID, CutUTC: m.CutUTC, SchemaSHA256: m.SchemaSHA256}
+	if financial != nil {
+		financial.applyOld(t, old, sourceIntent, targetIntent, d, legacyTarget)
+	}
 	var before string
 	if legacyTarget.Pool.QueryRow(ctx, "SELECT row_to_json(r)::text FROM recovery_import_receipts r").Scan(&before) != nil {
 		t.Fatal("old receipt")
@@ -173,14 +188,23 @@ func recoveryEvidenceLegacyProducer(t *testing.T, binaryEnvironment, sourceSchem
 	if err != nil || inspection.Receipt == nil || inspection.Receipt.CatalogSHA256 != sourceCatalog {
 		t.Fatal("old receipt unreadable", err)
 	}
-	if _, err = legacyTarget.IngestRecoveryEvidence(ctx, selected, late, verified, spec, DefaultRecoverySnapshotLimits()); err != nil {
-		t.Fatal("old evidence ingestion", err)
+	if financial == nil {
+		if _, err = legacyTarget.IngestRecoveryEvidence(ctx, selected, late, verified, spec, DefaultRecoverySnapshotLimits()); err != nil {
+			t.Fatal("old evidence ingestion", err)
+		}
 	}
 	if _, err = legacyTarget.InspectRecoveryEvidence(ctx, spec, verified); err != nil {
 		t.Fatal(err)
 	}
+	if financial != nil {
+		financial.checkUpgraded(t, legacyTarget, selected, late, verified, spec)
+	}
 	plan, err := legacyTarget.PlanRecoveryReconciliation(ctx, selected, late, verified, spec, DefaultRecoverySnapshotLimits())
-	if err != nil || plan.SourceSchemaSHA256 != sourceSchema || plan.EvidenceSchemaSHA256 != sourceSchema || !plan.RollbackConfirmed {
+	if financial != nil {
+		if err == nil || !reflect.DeepEqual(plan, RecoveryReconciliationPlan{}) {
+			t.Fatal("original-baseline planner accepted changed financial state")
+		}
+	} else if err != nil || plan.SourceSchemaSHA256 != sourceSchema || plan.EvidenceSchemaSHA256 != sourceSchema || !plan.RollbackConfirmed {
 		t.Fatal("old-schema reconciliation plan", err)
 	}
 	pub, key, err := ed25519.GenerateKey(rand.Reader)

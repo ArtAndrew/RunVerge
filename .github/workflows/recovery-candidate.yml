@@ -95,6 +95,18 @@ jobs:
           go test -mod=readonly -race ./internal/modelgateway -count=1 -v
           go test -mod=readonly -race ./internal/recoveryaccess -count=1 -v
           go test -mod=readonly ./internal/storage -run '^TestRecoveryUsageAuthor' -timeout=10m -count=1 -v
+      - name: Read the exact previously verified SQL025 producer
+        if: ${{ !inputs.schema_reference && !inputs.usage_only }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: a5795b9440504c231adf5747b24de7ee67e097a2
+          path: _legacy_sql025
+          persist-credentials: false
+      - name: Build SQL025 producer and check populated financial upgrade
+        if: ${{ !inputs.schema_reference && !inputs.usage_only }}
+        run: |
+          go -C _legacy_sql025 build -mod=readonly -o "$RUNNER_TEMP/platform-sql025" ./cmd/platform
+          RUNVERGE_RECOVERY_SQL025_BINARY="$RUNNER_TEMP/platform-sql025" go test -mod=readonly ./internal/storage -run '^TestRecoverySQL025AuthorPopulatedUpgrade$' -timeout=12m -count=1 -v
       - name: Check model intent serialization and recovery snapshot validation
         if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only }}
         run: |
