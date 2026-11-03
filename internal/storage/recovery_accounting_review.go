@@ -11,6 +11,7 @@ import (
 )
 
 type RecoveryAccountingReview struct {
+	ExecutionWindow        RecoveryExecutionWindow                `json:"execution_window"`
 	Version                int                                    `json:"version"`
 	Algorithm              string                                 `json:"algorithm"`
 	ReviewSHA256           string                                 `json:"review_sha256"`
@@ -141,6 +142,7 @@ func (s *Store) ReviewRecoveryAccounting(ctx context.Context, selected, late *re
 	in := recoveryAccountingInputs{selected: selected, late: late, verified: verified, original: original, later: later, held: held, catalog: catalog, inventory: inventory, limits: limits}
 	work := &recoveryReviewWork{}
 	var snapshots [3]recoveryReviewSnapshot
+	var windows [2]recoveryWindowSnapshot
 	for i, a := range []*recoveryarchive.VerifiedArchive{selected, late} {
 		snap := original
 		if i == 1 {
@@ -158,6 +160,10 @@ func (s *Store) ReviewRecoveryAccounting(ctx context.Context, selected, late *re
 		if e != nil {
 			return result, e
 		}
+		windows[i], e = readRecoveryExecutionWindow(ctx, tx, staged.schema, work)
+		if e != nil {
+			return result, e
+		}
 		if e = dropRecoveryAccountingStageTx(ctx, tx, staged, snap); e != nil {
 			return result, e
 		}
@@ -167,7 +173,7 @@ func (s *Store) ReviewRecoveryAccounting(ctx context.Context, selected, late *re
 		return result, err
 	}
 	l := verified.Link()
-	result = RecoveryAccountingReview{Version: 1, Algorithm: "held-accounting-review-v1", SourceID: held.SourceID, TargetID: held.InstallationID, RestoreID: held.RestoreID, EvidenceBatchID: l.OperationID, SelectedReceiptSHA256: l.SelectedReceiptSHA256, CapturedReceiptSHA256: l.EvidenceReceiptSHA256, SelectedSnapshotSHA256: original.SHA256, CapturedSnapshotSHA256: later.SHA256, SelectedSchemaSHA256: original.Metadata.SchemaSHA256, CapturedSchemaSHA256: later.Metadata.SchemaSHA256, CaptureLinkSHA256: verified.SHA256(), TargetCatalogSHA256: recoverySemanticCatalogSHA256, HeadID: head.ID, HeadOrdinal: head.Ordinal, Organizations: []RecoveryAccountingReviewOrganization{}, Reservations: []RecoveryAccountingReviewReservation{}, Facts: []RecoveryAccountingReviewFact{}, Receipts: []RecoveryAccountingReviewReceipt{}, Blockers: []RecoveryFinancialBlocker{{Code: "external_window_coverage_unproven"}, {Code: "fresh_authority_and_new_work_not_enabled"}}, ReconciliationState: "pending", ExecutionHeld: true}
+	result = RecoveryAccountingReview{Version: 2, Algorithm: "held-accounting-execution-review-v2", ExecutionWindow: compareRecoveryExecutionWindow(windows[0], windows[1]), SourceID: held.SourceID, TargetID: held.InstallationID, RestoreID: held.RestoreID, EvidenceBatchID: l.OperationID, SelectedReceiptSHA256: l.SelectedReceiptSHA256, CapturedReceiptSHA256: l.EvidenceReceiptSHA256, SelectedSnapshotSHA256: original.SHA256, CapturedSnapshotSHA256: later.SHA256, SelectedSchemaSHA256: original.Metadata.SchemaSHA256, CapturedSchemaSHA256: later.Metadata.SchemaSHA256, CaptureLinkSHA256: verified.SHA256(), TargetCatalogSHA256: recoverySemanticCatalogSHA256, HeadID: head.ID, HeadOrdinal: head.Ordinal, Organizations: []RecoveryAccountingReviewOrganization{}, Reservations: []RecoveryAccountingReviewReservation{}, Facts: []RecoveryAccountingReviewFact{}, Receipts: []RecoveryAccountingReviewReceipt{}, Blockers: []RecoveryFinancialBlocker{{Code: "external_window_coverage_unproven"}, {Code: "fresh_authority_and_new_work_not_enabled"}}, ReconciliationState: "pending", ExecutionHeld: true}
 	if err = s.buildRecoveryAccountingReviewTx(ctx, tx, in, snapshots, work, &result); err != nil {
 		return result, err
 	}

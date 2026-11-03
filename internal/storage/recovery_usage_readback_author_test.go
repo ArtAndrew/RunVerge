@@ -22,6 +22,10 @@ import (
 // Runtime.Execute or external HTTP request is made by this fixture.
 func recoveryUsageAuthorAttempt(t *testing.T, s *Store, p domain.Principal, c domain.ModelConnection, generation string) (domain.Reservation, func() domain.Artifact) {
 	t.Helper()
+	return recoveryUsageAuthorAttemptBeforeDispatch(t, s, p, c, generation, nil)
+}
+func recoveryUsageAuthorAttemptBeforeDispatch(t *testing.T, s *Store, p domain.Principal, c domain.ModelConnection, generation string, beforeDispatch func()) (domain.Reservation, func() domain.Artifact) {
+	t.Helper()
 	ctx := context.Background()
 	budget := int64(10000)
 	raw, err := s.CreateAgent(ctx, p, domain.NewID("key"), domain.CreateAgent{Name: "Synthetic usage source", Instructions: "Return a synthetic draft", Model: c.Model, BudgetMicroUSD: &budget})
@@ -52,6 +56,9 @@ func recoveryUsageAuthorAttempt(t *testing.T, s *Store, p domain.Principal, c do
 	r, err := s.ReserveCost(ctx, l, domain.ReserveCostRequest{ChargeKey: charge, IntentHash: intent, Category: "model", Provider: c.ProviderAccount, PriceVersion: c.PriceVersion, AmountMicroUSD: c.MaxChargeMicroUSD})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if beforeDispatch != nil {
+		beforeDispatch()
 	}
 	if _, err = s.PrepareModelDispatch(ctx, l, r.ID); err != nil {
 		t.Fatal(err)

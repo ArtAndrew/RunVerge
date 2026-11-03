@@ -119,3 +119,54 @@ The installed check covers the invoice/correction path, not every quarantine
 case. These checks use synthetic financial facts and make no real model calls.
 They do not prove final provider billing, post-capture evidence coverage, fresh
 user authority or permission to run new work after recovery.
+
+## Recorded outbound operations — development candidate
+
+The current candidate returns review version `2`, algorithm
+`held-accounting-execution-review-v2`. Its `execution_window` contains a versioned
+inventory of the original and captured snapshots. This additional input changes
+the review digest; do not compare a version 1 digest with a version 2 digest as
+though the report formats were identical.
+
+Five record families are always listed, including zero counts:
+
+| Family | Recorded information | `related_ids`, in order |
+|---|---|---|
+| `action` | Model/tool/other action and its reservations; `kind` shows the category or `mixed_or_unbound` | Reservation IDs, sorted |
+| `tool_execution` | Tool occurrence and its dispatch tuple | Action ID, reservation ID |
+| `configuration_verification` | Model connection check or MCP discovery admission | Plan ID, target resource ID |
+| `webhook_attempt` | One delivery attempt with its envelope/profile binding | Delivery ID |
+| `reservation_without_action` | A financial position without an action, including legacy fixture history | Empty list |
+
+These are record counts, **not numbers of independent charges or HTTP requests**.
+A tool execution is also represented by its action. A model connection check uses
+the ordinary model reservation. An MCP occurrence may involve several protocol
+requests. The financial views above remain the source of reported amounts.
+
+Each record is keyed by family, organization and record ID. `original` and
+`captured` retain their status, reference IDs and row/identity/dispatch digests.
+The comparison distinguishes:
+
+- `captured_only` or `missing_from_capture`: present in only one snapshot,
+  including terminal and zero-cost records.
+- `identity_changed`: the identity projection or bound references differ.
+- `dispatch_record_changed`: a previously recorded dispatch tuple changed or
+  disappeared; it is not treated as a harmless missing marker.
+- `dispatch_recorded_after_backup`: the original record had no dispatch marker,
+  while the captured record has one. Original stored history is not rewritten.
+- `dispatch_recorded_in_both`: both contain the same recorded admission.
+- `no_dispatch_record`: neither contains a marker. This **does not prove that
+  no request escaped**, particularly outside the supported runtime profile.
+
+A dispatch marker records admission, not confirmed network delivery, completed
+effects or a final bill. Identity projections help compare records; they do not
+prove that the listed processes were the only senders throughout the interval.
+OIDC/discovery/JWKS traffic is outside this business-operation inventory. A final
+source-stop receipt is not rechecked by this accounting command.
+
+`coverage_proven`, `source_stop_rechecked` and `new_work_allowed` remain false.
+Global recovery blockers and all existing financial holds remain in place. The
+inventory is computed from the verified archive bytes under the same target and
+accounting-head checks as the review; it is included in `review_sha256`. No source
+record or target obligation is modified. Limits fail the whole report rather
+than return a partial inventory. Runtime validation of this new report is pending.
