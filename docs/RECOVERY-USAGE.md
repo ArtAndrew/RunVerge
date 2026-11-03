@@ -105,8 +105,13 @@ it does not start another usage read.
 ## Verification limits
 
 The storage component has checks using a disposable PostgreSQL database and a
-local HTTPS peer with a synthetic credential. This is not a live OpenRouter
-account or final billing check. Host-command integration must pass its own owned
-environment check before this command sequence is accepted. A full restore,
-safe resumption of new work, and an installed-package walkthrough remain separate
-requirements.
+local HTTPS peer with a synthetic credential. The
+[host command check](https://github.com/ArtAndrew/RunVerge/actions/runs/41594113551)
+passed at `c4363375f19c381d5bcebdd9924fb9d2494686b1`: initial authority creation,
+stale-plan refusal before HTTP, failed response retention without a database write,
+lost stdout after recording, repeated-attempt refusal, and inspection in a fresh
+process after revocation and deletion of the input key. It also refused a changed
+target selector. Child processes dispatch the production handlers from the test
+binary; this is not an installed-package walkthrough. The storage check separately
+performed a normal PostgreSQL restart. A live OpenRouter account, final billing,
+full restore and safe resumption of new work remain separate requirements.

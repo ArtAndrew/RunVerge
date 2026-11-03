@@ -19,7 +19,7 @@ Follow the private-file, key and independently recorded receipt requirements in
 [archive recovery](RECOVERY-ARCHIVES.md). The maintenance JSON contains an explicit
 `database_url`, without `search_path`. Keep it and every generated file outside the
 backup directory and any source repository. The selected backup must use the
-current trusted schema or the explicitly recognized SQL023 archive profile. The
+current trusted schema or an explicitly recognized SQL023, SQL024 or SQL025 archive profile. The
 new target always uses the current embedded schema. This candidate compatibility
 path passed the bounded checks in [evidence recovery](RECOVERY-EVIDENCE.md);
 it does not convert an alpha.6/SQL022 backup.

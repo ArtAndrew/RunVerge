@@ -44,12 +44,25 @@ payload and record counts; it does not rerun the comparison or establish final
 provider billing. `reconciliation_state` remains `pending` and
 `execution_held` remains `true`.
 
-The candidate recognizes current SQL024 archives and an explicit SQL023 archive
-profile, including a held SQL023 import upgraded to SQL024. This is not general
+The candidate recognizes current SQL026 archives and explicit SQL023, SQL024 and
+SQL025 archive profiles, including checks of previously populated held targets
+upgraded to the current schema. This is not general
 schema conversion or alpha.6/SQL022 upgrade support. Full installed recovery,
 financial reconciliation and permission to start new work remain unfinished.
 
 ## Checked scope
+
+At `8b0a152d112e009f54d94b98656393b21babbc98`, the
+[recovery checks](https://github.com/ArtAndrew/RunVerge/actions/runs/41590459655)
+passed the recognized source-profile cases, including actual archives produced
+by pinned older binaries. The SQL025 upgrade used populated financial history,
+preserved old receipts and replay hashes, and admitted new corrections and
+resolution under the SQL026 profile. See [accounting](RECOVERY-ACCOUNTING.md).
+The [Linux checks](https://github.com/ArtAndrew/RunVerge/actions/runs/41590460864)
+also passed the existing installed installation, evidence, accounting and restart
+scope on amd64 and arm64. These checks do not cover the later usage host commands.
+
+Earlier component checks:
 
 [Recovery validation](https://github.com/ArtAndrew/RunVerge/actions/runs/41339253045)
 passed at `5be5a55cdda3105e4cc83d1dd841df0583f7ccd2`: exact baseline checks,

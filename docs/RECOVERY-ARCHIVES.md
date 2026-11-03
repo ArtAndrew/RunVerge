@@ -5,10 +5,10 @@ backup and import it into a new, held target. They are not included in the
 published alpha.6 package. Use synthetic data for evaluation. The target stays
 closed to ordinary logins and workers; completing an import does not resume work.
 
-The candidate imports archives from its current trusted schema (SQL024) or the
-explicitly recognized SQL023 profile. New live exports require the current schema;
-SQL023 compatibility applies to saved archives. Source identity and schema remain
-in the receipt; the target is independently checked against SQL024. Arbitrary
+The candidate imports archives from its current trusted schema (SQL026) or the
+explicitly recognized SQL023, SQL024 and SQL025 profiles. New live exports require
+the current schema; compatibility applies to saved archives. Source identity and
+schema remain in the receipt; the target is independently checked against SQL026. Arbitrary
 older schemas and alpha.6/SQL022 archives are not accepted. This compatibility
 path passed the bounded checks in [evidence recovery](RECOVERY-EVIDENCE.md);
 it is not a supported release upgrade.

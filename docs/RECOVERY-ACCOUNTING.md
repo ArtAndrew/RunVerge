@@ -185,3 +185,13 @@ was checked in the storage and host-process tests above; it was not exercised
 through the installed package across a database restart. No provider was called.
 These checks do not establish full restoration, permission for new work,
 macOS recovery, independent operator usability or release readiness.
+
+The [SQL026 integration check](https://github.com/ArtAndrew/RunVerge/actions/runs/41590459655)
+at `8b0a152d112e009f54d94b98656393b21babbc98` used the actual pinned SQL025 CLI to
+create archives and populate a held target with invoices, quarantine and
+corrections. Both cases—with and without a prior recovery resolution—passed the
+upgrade. Existing receipt bytes and their V1 commitments remained unchanged;
+replay returned the original receipts. New resolution and correction used the
+explicit V2 profile, and review attributed the mixed history while preserving the
+execution hold. This establishes that specific populated development-schema path,
+not an upgrade from the released alpha.6/SQL022 package.
