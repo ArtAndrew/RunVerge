@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"agentplatform.local/platform/internal/domain"
 )
 
 func TestRecoveryOutboundProfilesAuthorImportedReferencesStayInert(t *testing.T) {
-	f := recoveryProfilesSetup(t)
+	f := recoveryProfilesSetupWithConfiguration(t, true)
 	ctx := context.Background()
 	org := f.p.OrganizationID
 	refs := []RecoveryOutboundProfile{
@@ -30,6 +31,12 @@ func TestRecoveryOutboundProfilesAuthorImportedReferencesStayInert(t *testing.T)
 		if err := f.s.CheckRecoveryOutboundProfiles(ctx, ref); err != nil {
 			t.Fatal("ordinary installed profile refused", ref.Kind, err)
 		}
+	}
+	if models, _, err := f.s.Models(ctx, f.p, "", 100); err != nil || len(models) != 2 {
+		t.Fatal("ordinary model catalogue unavailable", err)
+	}
+	if tools, _, err := f.s.Tools(ctx, f.p, "", 100); err != nil || len(tools) != 1 {
+		t.Fatal("ordinary tool catalogue unavailable", err)
 	}
 	var raw bytes.Buffer
 	if _, err := f.s.ExportRecoverySnapshot(ctx, &raw, DefaultRecoverySnapshotLimits()); err != nil {
@@ -111,6 +118,29 @@ func TestRecoveryOutboundProfilesAuthorImportedReferencesStayInert(t *testing.T)
 		RecoveryOutboundProfile{org, "tool", freshTool.Tool.ID, 1},
 		RecoveryOutboundProfile{org, "webhook", freshWebhook.Destination.ID, 1}); err != nil {
 		t.Fatal("fresh profiles incorrectly inherited history denial", err)
+	}
+	// Fresh fixture authority observes only current choices in execution
+	// catalogues. This SQL setup is not a product authority-recovery operation.
+	freshID := domain.NewID("usr")
+	if _, err = target.Pool.Exec(ctx, "INSERT INTO principals(id,name) VALUES($1,'Fresh profile test owner')", freshID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = target.Pool.Exec(ctx, "INSERT INTO memberships(organization_id,principal_id,role) VALUES($1,$2,'owner')", org, freshID); err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := target.IssueMemberToken(ctx, org, freshID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshPrincipal, err := target.Authenticate(ctx, token, org)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if models, _, err := target.Models(ctx, freshPrincipal, "", 100); err != nil || len(models) != 1 || models[0].ID != freshModel.ID {
+		t.Fatal("model catalogue offered restored configuration", err)
+	}
+	if tools, _, err := target.Tools(ctx, freshPrincipal, "", 100); err != nil || len(tools) != 1 || tools[0].ID != freshTool.Tool.ID {
+		t.Fatal("tool catalogue offered restored configuration", err)
 	}
 	// A fresh resource row cannot launder a historical destination/purpose.
 	// New inactive versions preserve the exact destination FK and leave every

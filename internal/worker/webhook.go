@@ -21,7 +21,7 @@ func (w *Worker) executeWebhook(ctx context.Context, l *domain.WebhookLease, pro
 		return
 	}
 	if err := w.Store.CheckRecoveryOutboundProfiles(ctx, storage.RecoveryOutboundProfile{OrganizationID: profile.Destination.OrganizationID, Kind: "webhook", ID: profile.Destination.ID, Version: profile.Destination.Version}); err != nil {
-		stopUnsent("profile_unavailable")
+		stopUnsent("execution_not_admitted")
 		return
 	}
 	encoded, err := w.ResolveWebhookSigningKey(profile.SigningKeyEnvironment)

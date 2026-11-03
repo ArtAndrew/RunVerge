@@ -26,6 +26,10 @@ type recoveryProfilesFixture struct {
 // perform HTTP/model calls. Trusted host methods create real normal history;
 // corruptions are applied only to rollback-only typed TEMP copies.
 func recoveryProfilesSetup(t *testing.T) recoveryProfilesFixture {
+	return recoveryProfilesSetupWithConfiguration(t, false)
+}
+
+func recoveryProfilesSetupWithConfiguration(t *testing.T, appliedHistory bool) recoveryProfilesFixture {
 	t.Helper()
 	s, _ := recoveryAuthorStore(t)
 	p, _ := identity(t, s, 1_000_000)
@@ -74,6 +78,15 @@ func recoveryProfilesSetup(t *testing.T) recoveryProfilesFixture {
 		}
 		if _, err = s.InstallConfigurationDestination(ctx, dest); err != nil {
 			t.Fatal("destination fixture install", err)
+		}
+		if appliedHistory {
+			// Full imports require the real audited configuration lifecycle,
+			// unlike the narrow profile-validator fixtures below.
+			cf := configurationAuthorFixture{s: s, p: p, ConfigurationDestinationProfile: dest, purpose: purpose}
+			plan := cf.plan(t, p, "")
+			validation := cf.validate(t, p, plan)
+			_ = cf.apply(t, p, plan, validation)
+			continue
 		}
 		tx, err := s.beginRuntime(ctx)
 		if err != nil {
