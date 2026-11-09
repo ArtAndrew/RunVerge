@@ -96,6 +96,25 @@ describe("HTTP contract 0.14.0", { concurrency: false }, () => {
     assert.equal(url.searchParams.get("cursor"), cursor);
   });
 
+  test("attention view preserves cursors and requires the server to confirm the scope", async () => {
+    const sdk = client();
+    const task = { id: "task-1", organization_id: "org-1", reserved_microusd: "0", spent_microusd: "0" };
+    const cursor = "attention.scope.abc+/";
+    respond({ task_view: "attention", data: [task], next_cursor: cursor });
+    assert.deepEqual(await sdk.listTasks({ view: "attention", limit: 1 }), { data: [task], next_cursor: cursor });
+    assert.equal(requests.shift().path, "/api/v1/tasks?limit=1&view=attention");
+    respond({ task_view: "attention", data: [] });
+    assert.deepEqual(await sdk.listTasks({ view: "attention", cursor }), { data: [] });
+    assert.equal(new URL(requests.shift().path, baseUrl).searchParams.get("cursor"), cursor);
+
+    for (const response of [{ data: [task] }, { task_view: "attention", data: [{ ...task, organization_id: "other" }] }]) {
+      respond(response);
+      await assert.rejects(sdk.listTasks({ view: "attention" }), ProtocolError);
+      assert.equal(requests.shift().path, "/api/v1/tasks?view=attention");
+    }
+    await assert.rejects(sdk.listTasks({ view: "all" }), TypeError);
+  });
+
   test("agent creation and publication use the inspected version", async () => {
     const sdk = client();
     respond({ data: { id: "agent-1", version: 2 } }, 201);

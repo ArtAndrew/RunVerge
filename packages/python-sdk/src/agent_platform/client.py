@@ -8,7 +8,7 @@ import math
 import re
 from collections.abc import Mapping, Iterator
 from contextlib import contextmanager
-from typing import Any, cast
+from typing import Any, Literal, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -443,12 +443,21 @@ class Client:
             idempotency_key=idempotency_key,
         )))
 
-    def list_tasks(self, *, cursor: str | None = None, limit: int | None = None) -> Page[Task]:
+    def list_tasks(
+        self, *, cursor: str | None = None, limit: int | None = None,
+        view: Literal["attention"] | None = None,
+    ) -> Page[Task]:
+        """List organization tasks, optionally restricted to the current decision queue."""
         if limit is not None:
             _integer(limit, "limit", minimum=1, maximum=100)
-        page = self._page(self._request(
-            "GET", "/tasks", query={"cursor": cursor, "limit": limit},
-        ))
+        if view is not None and view != "attention":
+            raise ValueError("view must be attention")
+        response = self._request("GET", "/tasks", query={"cursor": cursor, "limit": limit, "view": view})
+        if view is not None and response.get("task_view") != view:
+            raise ProtocolError("Server did not confirm the requested task view")
+        page = self._page(response)
+        if view is not None and any(task.get("organization_id") != self.organization_id for task in page.data):
+            raise ProtocolError("Task view does not match the current organization")
         return Page([_task_facts(task) for task in page.data], page.next_cursor)
 
     def get_task(self, task_id: str) -> Task:

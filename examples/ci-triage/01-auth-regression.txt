@@ -1,0 +1,16 @@
+Draft a CI triage comment for a teammate. Use only the supplied evidence.
+Return three sections: Finding, Evidence, Next check. In Evidence, cite the
+supplied run URL with the relevant line range, e.g. #L18-L20. Distinguish facts
+from hypotheses. If the cause is unclear, say what would resolve it.
+Keep the complete draft under 120 words. Do not fetch, run, edit or publish anything.
+
+Run URL: https://ci.example.invalid/runs/4101
+Job: api-integration
+Commit note: This change sets AUTH_ISSUER from the new staging configuration.
+The previous run passed. The supplied log does not include the token issuer.
+
+L18 setup: database migrated; test application listening
+L19 test: test_account_endpoint_accepts_valid_token
+L20 expected status=200; got status=401
+L21 response: {"error":"invalid_token"}
+L22 suite: 1 failed, 31 passed

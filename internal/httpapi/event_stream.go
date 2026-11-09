@@ -18,7 +18,8 @@ import (
 const eventStreamLifetime = 20 * time.Second
 const eventStreamWriteTimeout = 3 * time.Second
 const eventStreamHeartbeat = 2 * time.Second
-const maxEventStreams = 32
+const defaultEventStreamLimit = 32
+const MaxEventStreamLimit = 128
 const maxPrincipalEventStreams = 4
 
 type eventStreamAdmission struct {
@@ -27,10 +28,10 @@ type eventStreamAdmission struct {
 	principals map[string]int
 }
 
-func (a *eventStreamAdmission) acquire(principal string) bool {
+func (a *eventStreamAdmission) acquire(principal string, limit int) bool {
 	a.Lock()
 	defer a.Unlock()
-	if a.total >= maxEventStreams || a.principals[principal] >= maxPrincipalEventStreams {
+	if a.total >= limit || a.principals[principal] >= maxPrincipalEventStreams {
 		return false
 	}
 	if a.principals == nil {
@@ -90,7 +91,13 @@ func (s *Server) mountEventStream(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("GET /api/v1/tasks/{id}/event-snapshot", s.auth(s.taskEventSnapshot))
 	mux.HandleFunc("GET /api/v1/tasks/{id}/event-feed", s.auth(s.taskEventFeed))
-	mux.HandleFunc("GET /api/v1/tasks/{id}/event-stream", s.auth(s.taskEventStream))
+	limit := s.EventStreamLimit
+	if limit < 1 || limit > MaxEventStreamLimit {
+		limit = defaultEventStreamLimit
+	}
+	mux.HandleFunc("GET /api/v1/tasks/{id}/event-stream", s.auth(func(w http.ResponseWriter, r *http.Request, p domain.Principal) {
+		s.taskEventStream(w, r, p, limit)
+	}))
 }
 func (s *Server) taskEventSnapshot(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	if !s.eventQuery(w, r) {
@@ -131,7 +138,7 @@ func (s *Server) taskEventFeed(w http.ResponseWriter, r *http.Request, p domain.
 // This bounded SSE protocol uses fetch/SDK readers, never native EventSource:
 // authentication and wire-version headers remain ordinary API headers. Every
 // connection expires; clients may reconnect reads from the last complete batch.
-func (s *Server) taskEventStream(w http.ResponseWriter, r *http.Request, p domain.Principal) {
+func (s *Server) taskEventStream(w http.ResponseWriter, r *http.Request, p domain.Principal, limit int) {
 	if !s.eventQuery(w, r, "cursor") {
 		return
 	}
@@ -144,7 +151,7 @@ func (s *Server) taskEventStream(w http.ResponseWriter, r *http.Request, p domai
 	if len(ids) == 1 {
 		cursor = ids[0]
 	}
-	if !s.eventStreams.acquire(p.ID) {
+	if !s.eventStreams.acquire(p.ID, limit) {
 		s.fail(w, r, &domain.Error{Code: "unavailable", Message: "Достигнут предел одновременных потоков", Status: 503, Retryable: true})
 		return
 	}

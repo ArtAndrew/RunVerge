@@ -1,6 +1,7 @@
 import {configurationFacts,configurationInput} from '../../packages/typescript-sdk/src/configuration.ts'
 import type * as Config from '../../packages/typescript-sdk/src/configurationTypes'
 import {validateCapabilities,sameCapabilityActor,type ProductCapabilities} from './capabilities.ts'
+import {decisionTab} from './taskAttention.ts'
 export type {ProductCapabilities} from './capabilities.ts'
 export interface Connection {
   baseUrl: string
@@ -87,7 +88,7 @@ export class ApiClient {
     }
   }
 
-  private async request<T>(path: string, init: RequestInit = {}, mutation?: unknown, resultShape: 'identified'|'tool-view'|'automation'|'member'|'policy'|'service'|'service-key' = 'identified', validateResult?: (value:unknown)=>void): Promise<{ data: T; next_cursor?: string }> {
+  private async request<T>(path: string, init: RequestInit = {}, mutation?: unknown, resultShape: 'identified'|'tool-view'|'automation'|'member'|'policy'|'service'|'service-key' = 'identified', validateResult?: (value:unknown)=>void): Promise<{ data: T; next_cursor?: string; task_view?: unknown }> {
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'X-Organization-ID': this.connection.organizationId,
@@ -129,7 +130,7 @@ export class ApiClient {
       )
     }
     try{checkAPIVersion(response.headers)}catch{throw new ApiError('Версия сервера несовместима с этим интерфейсом. Обновите приложение; изменения автоматически не повторяются.','incompatible_client')}
-    let body: { data?: T; next_cursor?: string; error?: { message?: string; code?: string; request_id?: string; retryable?: boolean } }
+    let body: { data?: T; next_cursor?: string; task_view?: unknown; error?: { message?: string; code?: string; request_id?: string; retryable?: boolean } }
     try { body = await response.json() } catch {
       throw new ApiError(`Сервер вернул ответ без JSON (HTTP ${response.status}). Проверьте адрес API.`, 'invalid_response')
     }
@@ -145,7 +146,7 @@ export class ApiClient {
     }
     if(validateResult){try{validateResult(body.data)}catch{throw new ApiError('Ответ конфигурации не прошёл проверку. Обновите состояние перед новым действием.','invalid_response')}}
     if (signature) this.pendingKeys.delete(signature)
-    return body as { data: T; next_cursor?: string }
+    return body as { data: T; next_cursor?: string; task_view?: unknown }
   }
 
   private async list<T>(path: string, signal?: AbortSignal): Promise<Page<T>> {
@@ -231,6 +232,16 @@ export class ApiClient {
   }
   tasks(cursor?: string, signal?: AbortSignal) {
     return this.list<Task>(`/tasks?limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, signal)
+  }
+  async attentionTasks(cursor?: string, signal?: AbortSignal): Promise<Page<Task>> {
+    const page = await this.request<Task[]>(`/tasks?view=attention&limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { signal })
+    if (page.task_view !== 'attention') throw new Error('Сервер не подтвердил, что поддерживает очередь решений. Проверьте версию RunVerge.')
+    if (!Array.isArray(page.data) || !page.data.every(task => task && task.organization_id === this.connection.organizationId &&
+        typeof task.id === 'string' && task.id && typeof task.goal === 'string' && decisionTab(task) !== null) ||
+        (page.next_cursor !== undefined && typeof page.next_cursor !== 'string')) {
+      throw new Error('Ответ сервера для очереди решений не прошёл проверку.')
+    }
+    return page
   }
   async task(id: string, signal?: AbortSignal) { return (await this.request<Task>(`/tasks/${encodeURIComponent(id)}`, { signal })).data }
   async events(id: string, after = '0', signal?: AbortSignal) {

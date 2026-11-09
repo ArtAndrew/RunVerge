@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"agentplatform.local/platform/internal/domain"
+	"agentplatform.local/platform/internal/storage"
 	"agentplatform.local/platform/internal/webhookruntime"
 )
 
@@ -17,6 +18,10 @@ func (w *Worker) executeWebhook(ctx context.Context, l *domain.WebhookLease, pro
 	}
 	if webhookruntime.ValidateProfile(profile) != nil {
 		stopUnsent("invalid_profile")
+		return
+	}
+	if err := w.Store.CheckRecoveryOutboundProfiles(ctx, storage.RecoveryOutboundProfile{OrganizationID: profile.Destination.OrganizationID, Kind: "webhook", ID: profile.Destination.ID, Version: profile.Destination.Version}); err != nil {
+		stopUnsent("execution_not_admitted")
 		return
 	}
 	encoded, err := w.ResolveWebhookSigningKey(profile.SigningKeyEnvironment)

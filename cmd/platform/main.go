@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -39,10 +40,13 @@ func main() {
 }
 func run() error {
 	if len(os.Args) < 2 {
-		return errors.New("usage: platform version|bundle|capabilities|doctor|config|migrate|bootstrap|serve|worker|mcp-stdio|link-identity|issue-token|issue-service-token|recover-login-policy|advance-event-replay|prepare-model|install-model|install-tool")
+		return errors.New("usage: platform version|bundle|capabilities|doctor|config|recovery|migrate|bootstrap|bootstrap-dedicated|serve|worker|mcp-stdio|link-identity|issue-token|issue-service-token|recover-login-policy|advance-event-replay|prepare-model|install-model|install-tool|install-github-ci-comment")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if os.Args[1] == "recovery" {
+		return runRecoveryHost(ctx, os.Args[2:], os.Stdout)
+	}
 	if os.Args[1] == "version" {
 		return runVersion(os.Args[2:], os.Stdout)
 	}
@@ -77,6 +81,13 @@ func run() error {
 		if e = s.CheckRuntimeAdmission(ctx); e != nil {
 			return e
 		}
+	}
+	if os.Args[1] == "serve" || os.Args[1] == "worker" {
+		closeControl, err := startRecoveryControl(ctx, s, os.Args[1])
+		if err != nil {
+			return err
+		}
+		defer closeControl()
 	}
 	switch os.Args[1] {
 	case "install-webhook-destination", "retire-webhook-destination":
@@ -125,6 +136,8 @@ func run() error {
 		}
 		fmt.Println("Migrations applied")
 		return nil
+	case "bootstrap-dedicated":
+		return runDedicatedBootstrap(ctx, s, os.Args[2:], os.Stdout)
 	case "bootstrap":
 		f := flag.NewFlagSet("bootstrap", flag.ContinueOnError)
 		name := f.String("name", "Local organization", "organization name")
@@ -181,6 +194,8 @@ func run() error {
 		}
 		fmt.Println("Identity linked to the existing principal")
 		return nil
+	case "install-github-ci-comment":
+		return runInstallGitHubCIComment(ctx, s, os.Args[2:])
 	case "install-tool":
 		f := flag.NewFlagSet("install-tool", flag.ContinueOnError)
 		path := f.String("file", "", "private tool connection JSON file")
@@ -231,6 +246,7 @@ func run() error {
 		mcpEnabled := f.Bool("mcp", false, "enable the private platform-token MCP adapter; this is not an OAuth resource server")
 		mcpMutations := f.String("mcp-mutations", "", "explicit comma-separated MCP mutation tool names; default read-only")
 		mcpOrigins := f.String("mcp-origins", "", "exact comma-separated allowed MCP browser origins")
+		githubCIFile := f.String("github-ci-config", "", "private GitHub Actions webhook configuration JSON")
 		if e = f.Parse(os.Args[2:]); e != nil {
 			return e
 		}
@@ -244,11 +260,28 @@ func run() error {
 			}
 		}
 		api := httpapi.Server{Store: s, Log: slog.Default(), StaticDir: *static}
+		if raw := os.Getenv("RUNVERGE_EVENT_STREAM_LIMIT"); raw != "" {
+			limit, parseErr := strconv.Atoi(raw)
+			if parseErr != nil || limit < 1 || limit > httpapi.MaxEventStreamLimit {
+				return fmt.Errorf("RUNVERGE_EVENT_STREAM_LIMIT must be an integer from 1 to %d", httpapi.MaxEventStreamLimit)
+			}
+			api.EventStreamLimit = limit
+		}
 		if f.NArg() != 0 || (*tlsCert == "") != (*tlsKey == "") {
 			return errors.New("invalid serve arguments")
 		}
 		if *mcpEnabled && *tlsCert == "" && !*tlsProxy {
 			return errors.New("HTTP MCP requires TLS or an explicitly trusted TLS-terminating proxy")
+		}
+		if *githubCIFile != "" {
+			if *containerPreview || (*tlsCert == "" && !*tlsProxy) {
+				return errors.New("GitHub CI requires TLS or an explicitly trusted TLS-terminating proxy on loopback")
+			}
+			var config httpapi.GitHubCIConfig
+			if readPrivateJSON(*githubCIFile, &config) != nil || config.Validate() != nil {
+				return errors.New("invalid private GitHub CI configuration")
+			}
+			api.GitHubCI = &config
 		}
 		if *oidcFile != "" {
 			if *tlsCert == "" && !*tlsProxy {
@@ -434,15 +467,19 @@ func readPrivateJSON(path string, out any) error {
 	if e != nil {
 		return e
 	}
+	return decodePrivateJSON(data, out)
+}
+
+func decodePrivateJSON(data []byte, out any) error {
 	if !jsonwire.ValidUnicode(data) {
 		return errors.New("invalid Unicode in private configuration")
 	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
-	if e = strictConfigValue(d, reflect.TypeOf(out).Elem(), 0); e != nil {
+	if e := strictConfigValue(d, reflect.TypeOf(out).Elem(), 0); e != nil {
 		return e
 	}
-	if _, e = d.Token(); e != io.EOF {
+	if _, e := d.Token(); e != io.EOF {
 		return errors.New("one JSON object required")
 	}
 	d = json.NewDecoder(bytes.NewReader(data))
@@ -473,20 +510,34 @@ func strictConfigValue(d *json.Decoder, typ reflect.Type, depth int) error {
 	}
 	switch delim {
 	case '{':
-		if typ.Kind() != reflect.Struct {
+		var allowed map[string]reflect.Type
+		var mapValue reflect.Type
+		switch typ.Kind() {
+		case reflect.Struct:
+			allowed = make(map[string]reflect.Type, typ.NumField())
+			for i := 0; i < typ.NumField(); i++ {
+				f := typ.Field(i)
+				allowed[strings.Split(f.Tag.Get("json"), ",")[0]] = f.Type
+			}
+		case reflect.Map:
+			// Persisted credential bundles use an organization-to-token map.
+			// Keep the same duplicate and null checks as for other objects.
+			if typ.Key().Kind() != reflect.String || typ.Elem().Kind() != reflect.String {
+				return invalid
+			}
+			mapValue = typ.Elem()
+		default:
 			return invalid
-		}
-		allowed := map[string]reflect.Type{}
-		for i := 0; i < typ.NumField(); i++ {
-			f := typ.Field(i)
-			allowed[strings.Split(f.Tag.Get("json"), ",")[0]] = f.Type
 		}
 		seen := map[string]bool{}
 		for d.More() {
 			key, e := d.Token()
 			name, ok := key.(string)
 			ft, present := allowed[name]
-			if e != nil || !ok || !present || seen[name] {
+			if mapValue != nil {
+				ft, present = mapValue, true
+			}
+			if e != nil || !ok || !present || seen[name] || strings.ContainsRune(name, '\x00') {
 				return invalid
 			}
 			seen[name] = true

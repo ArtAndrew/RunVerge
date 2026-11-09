@@ -140,10 +140,10 @@ func (s *Store) Models(ctx context.Context, p domain.Principal, raw string, limi
 		return nil, "", e
 	}
 	defer tx.Rollback(ctx)
-	rows, e := tx.Query(ctx, `SELECT m.profile,m.active,m.created_at FROM model_connections m WHERE m.organization_id=$1 AND m.active AND (m.created_at,m.id)<($2,$3)
+	rows, e := tx.Query(ctx, `SELECT m.profile,m.active,m.created_at FROM model_connections m WHERE m.organization_id=$1 AND m.active AND NOT recovery_is_historical('model_connections',jsonb_build_array(m.organization_id,m.id,m.version)) AND (m.created_at,m.id)<($2,$3)
  AND NOT EXISTS(SELECT 1 FROM configuration_resource_bindings b JOIN configuration_destinations d ON d.organization_id=b.organization_id AND d.id=b.destination_id AND d.version=b.destination_version
  JOIN credential_purpose_profiles p ON p.organization_id=b.organization_id AND p.id=b.credential_purpose_id AND p.version=b.credential_purpose_version
- WHERE b.organization_id=m.organization_id AND b.kind='model' AND b.target_id=m.id AND b.resource_version=m.version AND (NOT d.active OR NOT p.active))
+ WHERE b.organization_id=m.organization_id AND b.kind='model' AND b.target_id=m.id AND b.resource_version=m.version AND (NOT d.active OR NOT p.active OR recovery_is_historical('configuration_destinations',jsonb_build_array(d.organization_id,d.id,d.version)) OR recovery_is_historical('credential_purpose_profiles',jsonb_build_array(p.organization_id,p.id,p.version))))
  ORDER BY m.created_at DESC,m.id DESC LIMIT $4`, p.OrganizationID, position.CreatedAt, position.ID, limit+1)
 	if e != nil {
 		return nil, "", e

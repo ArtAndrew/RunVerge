@@ -24,6 +24,7 @@ OPERATOR_GUIDES = {
     'OPENROUTER.md': 'docs/OPENROUTER.md',
     'TEAM-REVIEW.md': 'docs/TEAM-REVIEW.md',
     'TWO-PERSON-PILOT.md': 'docs/TWO-PERSON-PILOT.md',
+    'RECOVERY-OPERATOR.md': 'docs/RECOVERY-OPERATOR.md',
 }
 
 

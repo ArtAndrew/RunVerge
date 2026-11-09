@@ -17,6 +17,38 @@ from urllib.error import HTTPError
 from verify_native_bundle import verify
 
 
+def install_local_probe_model(context, endpoint, model, local_unmetered):
+    record = context['record']
+    # Restart only the test-owned worker so it receives this test-only local
+    # placeholder. Ollama ignores the bearer value; it is not authentication.
+    context['stop_child'](context['worker'])
+    context['env']['PLATFORM_MODEL_KEY_LOCAL_OLLAMA'] = 'local-only-placeholder-not-an-api-secret'
+    profile = {
+        'id': 'local_ollama_qwen_1_5b',
+        'organization_id': context['credentials']['organization_id'],
+        'version': 1, 'model': model, 'provider_account': 'owned-local-ollama',
+        'price_version': 'local-no-paid-api-test-v1', 'endpoint': endpoint,
+        'credential_environment': 'PLATFORM_MODEL_KEY_LOCAL_OLLAMA',
+        'max_charge_microusd': 0 if local_unmetered else 1, 'max_input_tokens': 4096,
+        'input_microusd_per_million': 0, 'output_microusd_per_million': 0,
+        'fixed_microusd': 0, 'max_output_tokens': 256,
+        'max_input_bytes': 16384, 'max_output_bytes': 16384,
+        'timeout_milliseconds': 60000,
+        'bound_assumptions': 'Explicit owned local inference with cloud disabled; no paid API. One micro-USD is a conservative synthetic admission hold, not an invoice or a measurement of local electricity/hardware cost.',
+        'token_limit_field': 'max_tokens', 'allow_insecure_loopback': True,
+        'active': True,
+    }
+    if local_unmetered:
+        profile['accounting_mode'] = 'operator_unmetered_local'
+        profile['bound_assumptions'] = 'Trusted operator declares zero API tariff for owned local inference with cloud disabled. Hardware and electricity costs are not measured. Byte/token/request-time/lifetime attempt limits remain; no CPU/GPU quota or final invoice is inferred.'
+    profile_file = context['private'] / 'local-model-profile.json'
+    fd = os.open(profile_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, 'w') as stream:
+        json.dump(profile, stream)
+    record('install_explicit_local_model_profile', [context['binary'], 'install-model', '--file', profile_file])
+    return profile
+
+
 def local_probe(endpoint, model, response_file, exercise_revision=False, before_accept=None, local_unmetered=False):
     url = urlsplit(endpoint)
     if (url.scheme != 'http' or url.hostname != '127.0.0.1' or not url.port
@@ -31,34 +63,8 @@ def local_probe(endpoint, model, response_file, exercise_revision=False, before_
     snapshots = {}
 
     def exercise(context):
-        request, record = context['request'], context['record']
-        # Restart only the test-owned worker so it receives this test-only local
-        # placeholder. Ollama ignores the bearer value; it is not authentication.
-        context['stop_child'](context['worker'])
-        context['env']['PLATFORM_MODEL_KEY_LOCAL_OLLAMA'] = 'local-only-placeholder-not-an-api-secret'
-        profile = {
-            'id': 'local_ollama_qwen_1_5b',
-            'organization_id': context['credentials']['organization_id'],
-            'version': 1, 'model': model, 'provider_account': 'owned-local-ollama',
-            'price_version': 'local-no-paid-api-test-v1', 'endpoint': endpoint,
-            'credential_environment': 'PLATFORM_MODEL_KEY_LOCAL_OLLAMA',
-            'max_charge_microusd': 0 if local_unmetered else 1, 'max_input_tokens': 4096,
-            'input_microusd_per_million': 0, 'output_microusd_per_million': 0,
-            'fixed_microusd': 0, 'max_output_tokens': 256,
-            'max_input_bytes': 16384, 'max_output_bytes': 16384,
-            'timeout_milliseconds': 60000,
-            'bound_assumptions': 'Explicit owned local inference with cloud disabled; no paid API. One micro-USD is a conservative synthetic admission hold, not an invoice or a measurement of local electricity/hardware cost.',
-            'token_limit_field': 'max_tokens', 'allow_insecure_loopback': True,
-            'active': True,
-        }
-        if local_unmetered:
-            profile['accounting_mode'] = 'operator_unmetered_local'
-            profile['bound_assumptions'] = 'Trusted operator declares zero API tariff for owned local inference with cloud disabled. Hardware and electricity costs are not measured. Byte/token/request-time/lifetime attempt limits remain; no CPU/GPU quota or final invoice is inferred.'
-        profile_file = context['private'] / 'local-model-profile.json'
-        fd = os.open(profile_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, 'w') as stream:
-            json.dump(profile, stream)
-        record('install_explicit_local_model_profile', [context['binary'], 'install-model', '--file', profile_file])
+        request = context['request']
+        profile = install_local_probe_model(context, endpoint, model, local_unmetered)
         if local_unmetered:
             models = request('/api/v1/models')
             selected = [item for item in models if item['id'] == profile['id']]

@@ -42,6 +42,9 @@ type CreateTask struct {
 	MaxRuns                 *int   `json:"max_runs,omitempty"`
 	ExecutionTimeoutSeconds *int   `json:"execution_timeout_seconds,omitempty"`
 }
+
+const TaskViewAttention = "attention"
+
 type Task struct {
 	ID                     string    `json:"id"`
 	OrganizationID         string    `json:"organization_id"`

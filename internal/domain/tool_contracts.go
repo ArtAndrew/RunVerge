@@ -5,3 +5,4 @@ package domain
 // from an MCP peer. They do not change the public ToolInfo/API wire shape.
 const ToolResultContractActionV1 = "agent_platform_action_v1"
 const ToolResultContractMCPReadTextV1 = "mcp_read_text_v1"
+const ToolResultContractGitHubCICommentV1 = "github_ci_comment_v1"

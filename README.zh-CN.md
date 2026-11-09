@@ -1,5 +1,7 @@
 # RunVerge
 
+**alpha.7 预览版** · [发行说明与下载](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.7)
+
 **向智能体布置任务，检查回答，并保留修改历史。**
 
 [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)

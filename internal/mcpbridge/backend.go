@@ -94,6 +94,10 @@ func allowedRequest(r Request) bool {
 		}
 		switch key {
 		case "cursor", "limit", "after", "reservation_cursor", "entry_cursor", "incident_cursor", "quarantine_cursor", "version", "principal_id", "plan_id":
+		case "view":
+			if r.Method != http.MethodGet || r.Path != "/api/v1/tasks" || values[0] != domain.TaskViewAttention {
+				return false
+			}
 		default:
 			return false
 		}

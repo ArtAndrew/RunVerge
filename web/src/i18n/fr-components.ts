@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: Elastic-2.0
 // UI copy only. User/model text and API payloads remain unchanged.
 export const frComponents: Record<string, string> = {
+  "Предложенные исправления ссылок": "Corrections proposées pour les références",
+  "Дополнить ссылки в черновике": "Compléter les références dans le brouillon",
+  "Ссылки на журнал CI": "Références au journal CI",
+  "Не удалось разобрать адрес запуска и строки исходного журнала.": "Impossible de lire l’URL de l’exécution et les lignes du journal source.",
+  "В черновике нет ссылок на строки исходного журнала.": "Le brouillon ne contient aucune référence aux lignes du journal source.",
+  "Некоторые ссылки неполные или не совпадают со строками исходного журнала.": "Certaines références sont incomplètes ou ne correspondent pas aux lignes du journal source.",
+  "Ссылки совпадают со строками исходного журнала.": "Les références correspondent aux lignes du journal source.",
+  "Ссылки и строки журнала": "Références et lignes du journal",
+  "Совпадения нет": "Aucune correspondance",
+  "Сверьте вывод с журналом. Проверка ссылок не подтверждает вывод.": "Comparez le constat au journal. La correspondance des références ne valide pas le constat.",
   "Задача создана": "Tâche créée",
   "Задача в очереди": "Tâche mise en attente",
   "Работа началась": "Travail commencé",

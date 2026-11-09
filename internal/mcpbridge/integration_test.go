@@ -135,6 +135,24 @@ func TestMCPRealPGUsesAPIIdempotencyAuthorityAndTenantBoundaries(t *testing.T) {
 		t.Fatal("lost acknowledgement created a second task")
 	}
 	data(call(100, "platform_tasks_get", map[string]any{"task_id": id}, owner.Token, owner.OrganizationID))
+	queue := call(105, "platform_tasks_list", map[string]any{"view": "attention", "limit": 1}, owner.Token, owner.OrganizationID)
+	queueBody, ok := queue["structuredContent"].(map[string]any)
+	if !ok || queue["isError"] == true || queueBody["task_view"] != "attention" {
+		t.Fatal("attention view did not traverse the ordinary API")
+	}
+	queueData, ok := queueBody["data"].([]any)
+	if !ok || len(queueData) != 0 {
+		t.Fatal("queued work should not require a decision")
+	}
+	_, foreignQueue := rawHTTP(t, endpoint.Client(), endpoint.URL, wire(106, "tools/call", map[string]any{
+		"name": "platform_tasks_list", "arguments": map[string]any{"view": "attention"},
+	}), func(r *http.Request) {
+		r.Header.Set("Authorization", "Bearer "+owner.Token)
+		r.Header.Set("X-Organization-ID", other.OrganizationID)
+	})
+	if foreignQueue["error"] == nil || foreignQueue["result"] != nil {
+		t.Fatal("attention view accepted the wrong tenant for the credential")
+	}
 	if call(101, "platform_tasks_get", map[string]any{"task_id": id}, other.Token, other.OrganizationID)["isError"] != true {
 		t.Fatal("cross organization read succeeded")
 	}

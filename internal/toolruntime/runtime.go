@@ -13,8 +13,9 @@ import (
 )
 
 type Runtime struct {
-	store  Store
-	config Config
+	store        Store
+	config       Config
+	githubCIHTTP githubCIExchange
 }
 
 func (*Runtime) String() string   { return "toolruntime.Runtime{redacted}" }
@@ -74,6 +75,17 @@ func (r *Runtime) Execute(ctx context.Context, l *domain.ToolLease) (Outcome, er
 	if c.ResultContract == domain.ToolResultContractMCPReadTextV1 {
 		payload = []byte(e.ArgumentsJSON)
 	}
+	var ciComment GitHubCIComment
+	var ciDeadline time.Time
+	var ciCurrent bool
+	if c.ResultContract == domain.ToolResultContractGitHubCICommentV1 {
+		ciComment, err = ParseGitHubCIComment(e.ArgumentsJSON)
+		if err != nil || e.OccurrenceID != GitHubCICommentOccurrence || digest([]byte(ciComment.Body)) != e.ContentDigest {
+			return out, failed("github_ci_comment_intent_mismatch")
+		}
+		ciDeadline = time.Now().Add(4 * time.Second)
+		ciCurrent = r.githubCICurrent(ctx, ciComment, ciDeadline)
+	}
 	admissionStarted := time.Now()
 	permit, err := r.store.PrepareToolDispatch(ctx, l)
 	if err != nil {
@@ -89,7 +101,12 @@ func (r *Runtime) Execute(ctx context.Context, l *domain.ToolLease) (Outcome, er
 		return out, failed("dispatch_permit_rejected")
 	}
 	var raw []byte
-	if c.Transport == "http_json" {
+	if c.ResultContract == domain.ToolResultContractGitHubCICommentV1 {
+		if ciDeadline.Before(deadline) {
+			deadline = ciDeadline
+		}
+		raw, err = r.githubCIComment(ctx, e, ciComment, ciCurrent, deadline)
+	} else if c.Transport == "http_json" {
 		raw, err = r.httpExecute(ctx, payload, e.ActionID, deadline)
 	} else {
 		raw, err = r.mcpExecute(ctx, payload, e.ActionID, deadline)

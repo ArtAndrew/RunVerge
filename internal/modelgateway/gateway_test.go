@@ -16,6 +16,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"agentplatform.local/platform/internal/domain"
 )
 
 const testKey = "synthetic-secret-key-never-log"
@@ -25,6 +27,26 @@ func fixtureConfig(endpoint string) Config {
 		Endpoint: endpoint, APIKey: testKey, Model: "profile-fixture",
 		MaxOutputTokens: 16, MaxInputBytes: 4096, Timeout: 2 * time.Second,
 		AllowInsecureLoopback: true, TokenLimitField: "max_tokens",
+	}
+}
+
+func TestOllamaNoThinkingWireRequiresExactLocalEndpoint(t *testing.T) {
+	config := fixtureConfig("http://127.0.0.1:11434/v1/chat/completions")
+	config.WireProfile = domain.ModelWireOllamaNoThinkingV1
+	gateway, err := New(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := gateway.BuildRequest(fixtureRequest())
+	if err != nil || !strings.Contains(string(body), `"reasoning_effort":"none"`) {
+		t.Fatal("local Ollama request did not disable thinking", err)
+	}
+	for _, endpoint := range []string{"https://example.test/v1/chat/completions",
+		"http://127.0.0.2:11434/v1/chat/completions", "http://127.0.0.1:11434/api/chat"} {
+		config.Endpoint = endpoint
+		if _, err := New(config); err == nil {
+			t.Fatal("Ollama profile accepted an unpinned endpoint")
+		}
 	}
 }
 
@@ -273,6 +295,7 @@ func TestInvalidUsageAndCompletionAreUnknown(t *testing.T) {
 		{"multiple choices", `{"choices":[{},{}],"usage":{"prompt_tokens":3,"completion_tokens":1}}`, "invalid_completion"},
 		{"tool call", `{"choices":[{"message":{"content":"text","tool_calls":[{}]}}],"usage":{"prompt_tokens":3,"completion_tokens":1}}`, "unsupported_completion"},
 		{"empty text", `{"choices":[{"message":{"content":""}}],"usage":{"prompt_tokens":3,"completion_tokens":1}}`, "invalid_completion"},
+		{"output limit without text", `{"choices":[{"finish_reason":"length","message":{"content":""}}],"usage":{"prompt_tokens":3,"completion_tokens":1}}`, "output_budget_exhausted"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

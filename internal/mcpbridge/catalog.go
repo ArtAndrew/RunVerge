@@ -21,6 +21,11 @@ type listArgs struct {
 	Cursor string `json:"cursor,omitempty"`
 	Limit  int    `json:"limit,omitempty"`
 }
+type taskListArgs struct {
+	Cursor string `json:"cursor,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	View   string `json:"view,omitempty"`
+}
 type taskArgs struct {
 	TaskID string `json:"task_id"`
 }
@@ -126,7 +131,7 @@ func catalog() ([]toolSpec, error) {
 		{Name: "platform_agents_create", Description: "Create a draft agent through the normal platform API. Explicit durable idempotency key required.", Method: http.MethodPost, Path: "/api/v1/agents", Args: createAgentArgs{}, Mutation: true},
 		{Name: "platform_agents_publish", Description: "Publish the exact expected agent version through the platform API.", Method: http.MethodPost, Path: "/api/v1/agents/{agent_id}/publish", Args: publishAgentArgs{}, Mutation: true},
 		{Name: "platform_models_list", Description: "List safe configured model profiles, without credentials or endpoints.", Method: http.MethodGet, Path: "/api/v1/models", Args: listArgs{}},
-		{Name: "platform_tasks_list", Description: "List tasks in the current organization.", Method: http.MethodGet, Path: "/api/v1/tasks", Args: listArgs{}},
+		{Name: "platform_tasks_list", Description: "List tasks in the current organization. Use view=attention for tasks awaiting review, approval or diagnosis. Continue with a cursor from the same view and organization.", Method: http.MethodGet, Path: "/api/v1/tasks", Args: taskListArgs{}},
 		{Name: "platform_tasks_get", Description: "Read a task and its current budget facts.", Method: http.MethodGet, Path: "/api/v1/tasks/{task_id}", Args: taskArgs{}},
 		{Name: "platform_tasks_create", Description: "Create one durable task with explicit budget; the existing worker may incur model costs. Transport disconnection does not cancel it.", Method: http.MethodPost, Path: "/api/v1/tasks", Args: createTaskArgs{}, Mutation: true},
 		{Name: "platform_tasks_cancel", Description: "Cancel through the platform's existing cascade and accounting guards. Existing liabilities remain.", Method: http.MethodPost, Path: "/api/v1/tasks/{task_id}/cancel", Args: cancelArgs{}, Mutation: true},
@@ -175,6 +180,8 @@ func catalog() ([]toolSpec, error) {
 			case "limit":
 				property.Minimum = ptr(float64(1))
 				property.Maximum = ptr(float64(100))
+			case "view":
+				property.Enum = []any{domain.TaskViewAttention}
 			case "after":
 				property.MinLength = ptr(1)
 				property.MaxLength = ptr(19)

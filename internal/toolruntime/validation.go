@@ -39,11 +39,17 @@ func ValidateConnection(c domain.ToolConnection) error {
 	if t.Effect == "destructive" && !t.RequireDistinctApprover {
 		return failed("distinct_approver_required")
 	}
-	if c.ResultContract != domain.ToolResultContractActionV1 && c.ResultContract != domain.ToolResultContractMCPReadTextV1 || (c.Transport != "http_json" && c.Transport != "mcp_https") || (c.CredentialEnvironment != "" && !credentialReference.MatchString(c.CredentialEnvironment)) {
+	if c.ResultContract != domain.ToolResultContractActionV1 && c.ResultContract != domain.ToolResultContractMCPReadTextV1 && c.ResultContract != domain.ToolResultContractGitHubCICommentV1 || (c.Transport != "http_json" && c.Transport != "mcp_https") || (c.CredentialEnvironment != "" && !credentialReference.MatchString(c.CredentialEnvironment)) {
 		return failed("invalid_profile")
 	}
 	if c.ResultContract == domain.ToolResultContractMCPReadTextV1 && (c.Transport != "mcp_https" || t.Effect != "read" || t.MaxOutputBytes < 4) {
 		return failed("invalid_read_profile")
+	}
+	if c.ResultContract == domain.ToolResultContractGitHubCICommentV1 && !validGitHubCICommentProfile(c) {
+		return failed("invalid_github_ci_comment_profile")
+	}
+	if c.ResultContract != domain.ToolResultContractGitHubCICommentV1 && t.Provider == "github" && t.PriceVersion == GitHubCICommentPriceVersion {
+		return failed("reserved_github_ci_comment_profile")
 	}
 	u, e := url.Parse(c.Endpoint)
 	if e != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.ContainsAny(c.Endpoint, "\x00\r\n") {
@@ -120,6 +126,11 @@ func CanonicalArguments(c domain.ToolConnection, raw string) (string, error) {
 	schema, e := strictJSON([]byte(c.Tool.InputSchemaJSON), 16)
 	if e != nil || !matchesSchema(schema, value) {
 		return "", failed("arguments_schema_mismatch")
+	}
+	if c.ResultContract == domain.ToolResultContractGitHubCICommentV1 {
+		if _, err := ParseGitHubCIComment(raw); err != nil {
+			return "", err
+		}
 	}
 	return raw, nil
 }

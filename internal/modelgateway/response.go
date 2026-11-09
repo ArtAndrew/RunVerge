@@ -125,7 +125,7 @@ func decodeProfileResult(body []byte, outputLimit int, tools []domain.ModelToolD
 	}
 	text, textOK := message["content"].(string)
 	if len(calls) == 0 {
-		if expectedModel != "" && (!textOK || strings.TrimSpace(text) == "") && choice["finish_reason"] == "length" {
+		if (!textOK || strings.TrimSpace(text) == "") && choice["finish_reason"] == "length" {
 			return Result{}, unknown("output_budget_exhausted")
 		}
 		if !textOK || strings.TrimSpace(text) == "" || choice["finish_reason"] == "tool_calls" {

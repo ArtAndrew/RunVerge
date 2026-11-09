@@ -140,7 +140,7 @@ responses expose `{data, next_cursor?}`. Timestamps remain RFC3339 strings.
 | Method | Result |
 | --- | --- |
 | `createTask({goal, agentId, budgetMicrousd, maxRuns?, executionTimeoutSeconds?}, {idempotencyKey, signal?})` | `Promise<Task>` |
-| `listTasks({cursor?, limit?, signal?}?)` | `Promise<Page<Task>>` |
+| `listTasks({cursor?, limit?, view?: "attention", signal?}?)` | `Promise<Page<Task>>` |
 | `getTask(id, {signal?}?)` | `Promise<Task>` |
 | `cancelTask(id, {idempotencyKey, signal?})` | `Promise<Task>` |
 | `listAgents({cursor?, limit?, signal?}?)` | `Promise<Page<Agent>>` |
@@ -212,6 +212,9 @@ for (const event of page.data) {
 List cursors are opaque strings. Event `after` is a canonical decimal string sequence, persisted
 after processing an event. Sequences increase within the organization; gaps are
 allowed. `events` remains a JSON history read. Use the separate snapshot/feed/stream APIs below.
+
+Use `listTasks({view: "attention"})` for the organization's decision queue. Keep the same
+`view` and organization when passing its cursor. The client verifies that the server applied the view.
 
 ### Execution and accounting reads (0.3)
 

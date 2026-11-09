@@ -2,12 +2,24 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {createHash} from 'node:crypto'
 import {mayReviewTask,bindCandidate,freshExecutionMetadata,reviewPayload,retryPayload,retryBlockReason} from '../src/review.ts'
+import {decisionTab} from '../src/taskAttention.ts'
 
 const text='Непроверенный черновик\n  Точные пробелы сохраняются.\n'
 const digest=createHash('sha256').update(text,'utf8').digest('hex')
 const task={id:'task',organization_id:'org',version:8,current_run_id:'run-1',attempt_count:1,max_runs:3,execution_deadline:'2099-01-01T00:00:00Z',candidate_id:'candidate-1',status:'waiting_input',waiting_reason:'model_candidate_pending',reserved_microusd:'150',spent_microusd:'0',budget_microusd:1000,financial_hold:false}
 const candidate={id:'candidate-1',organization_id:'org',task_id:'task',run_id:'run-1',operation_id:'op-1',artifact_id:'artifact-1',artifact_version:2,content_digest:digest}
 const artifact={id:'artifact-1',organization_id:'org',task_id:'task',version:2,content:text}
+
+test('decision queue hides internal team steps while keeping child approvals and unknown outcomes', () => {
+ for (const reason of ['model_candidate_pending', 'material_candidate_pending', 'team_candidate_pending']) {
+  assert.equal(decisionTab({status:'waiting_input', waiting_reason:reason}), 'result')
+  assert.equal(decisionTab({status:'waiting_input', waiting_reason:reason, parent_id:'root'}), null)
+ }
+ assert.equal(decisionTab({status:'waiting_input', waiting_reason:'team_dependency_pending', parent_id:'root'}), null)
+ assert.equal(decisionTab({status:'waiting_approval', waiting_reason:'tool_execution_pending', parent_id:'root'}), null)
+ assert.equal(decisionTab({status:'waiting_approval', waiting_reason:'tool_approval_pending', parent_id:'root'}), 'actions')
+ assert.equal(decisionTab({status:'blocked', waiting_reason:'external_action_unknown', parent_id:'root'}), 'actions')
+})
 
 test('review binds exact UTF-8 bytes and a frozen current task/candidate/artifact snapshot',async()=>{
  const original={...task};const snapshot=await bindCandidate(original,[candidate],[artifact]);assert.ok(snapshot)

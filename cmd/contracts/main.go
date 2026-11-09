@@ -799,6 +799,13 @@ func main() {
 		if ep.path == "/configuration/verifications" {
 			params = append(params, schema{"name": "plan_id", "in": "query", "schema": schema{"type": "string", "minLength": 1, "maxLength": 128}})
 		}
+		properties := schema{"data": data, "next_cursor": schema{"type": "string"}}
+		if ep.path == "/tasks" && ep.method == "get" {
+			params = append(params, schema{"name": "view", "in": "query", "schema": schema{"type": "string", "const": domain.TaskViewAttention},
+				"description": "List tasks that currently need review, approval or diagnosis in the current organization. Use only cursors returned for this view and organization."})
+			properties["task_view"] = schema{"type": "string", "const": domain.TaskViewAttention,
+				"description": "Present in every successful response to view=attention, including an empty page."}
+		}
 		if strings.HasSuffix(ep.path, "/event-feed") || strings.HasSuffix(ep.path, "/event-stream") {
 			params = append(params, schema{"name": "cursor", "in": "query", "schema": schema{"type": "string", "minLength": 1, "maxLength": 1024}})
 			if strings.HasSuffix(ep.path, "/event-feed") {
@@ -813,7 +820,7 @@ func main() {
 				params = append(params, schema{"name": name, "in": "query", "schema": schema{"type": "string"}})
 			}
 		}
-		responses := schema{ep.status: schema{"description": "Success", "content": schema{"application/json": schema{"schema": schema{"type": "object", "required": []string{"data"}, "properties": schema{"data": data, "next_cursor": schema{"type": "string"}}}}}}}
+		responses := schema{ep.status: schema{"description": "Success", "content": schema{"application/json": schema{"schema": schema{"type": "object", "required": []string{"data"}, "properties": properties}}}}}
 		responses[ep.status].(schema)["headers"] = schema{domain.APIContractHeader: schema{"schema": schema{"type": "string", "const": domain.ContractVersion}}}
 		if strings.HasSuffix(ep.path, "/event-stream") {
 			responses[ep.status].(schema)["description"] = "Bounded 20-second SSE connection. Each data frame is one TaskEventStreamFrame; only successful batches carry an id. Heartbeats are comments. No automatic mutation retry."

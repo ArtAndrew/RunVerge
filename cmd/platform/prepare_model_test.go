@@ -74,3 +74,41 @@ func TestPrepareModelRejectsMoneyAmbiguityAndInsufficientReserve(t *testing.T) {
 		t.Fatal("rejected profile created output")
 	}
 }
+
+func TestPrepareModelOllamaRequiresExplicitLocalZeroTariff(t *testing.T) {
+	directory := t.TempDir()
+	if err := os.Chmod(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(directory, "local.json")
+	args := []string{"--provider", "ollama", "--organization-id", "org_test",
+		"--model", "qwen3:4b", "--port", "11534", "--timeout-seconds", "180", "--disable-thinking", "--out", path}
+	for _, invalid := range [][]string{
+		nil,
+		{"--local-zero-tariff", "--model", "example:cloud"},
+		{"--local-zero-tariff", "--input-usd-per-million", "0"},
+		{"--local-zero-tariff", "--port", "0"},
+		{"--local-zero-tariff", "--timeout-seconds", "601"},
+	} {
+		attempt := append(append([]string(nil), args...), invalid...)
+		if err := runPrepareModel(attempt, &bytes.Buffer{}); err == nil {
+			t.Fatal("unsafe Ollama profile was prepared")
+		}
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatal("rejected Ollama profile created output")
+		}
+	}
+	if err := runPrepareModel(append(args, "--local-zero-tariff"), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	var profile domain.ModelConnection
+	if err := readPrivateJSON(path, &profile); err != nil {
+		t.Fatal(err)
+	}
+	if profile.ID != "local_ollama" || profile.AccountingMode != domain.ModelAccountingLocalUnmetered ||
+		profile.WireProfile != domain.ModelWireOllamaNoThinkingV1 ||
+		profile.Endpoint != "http://127.0.0.1:11534/v1/chat/completions" ||
+		!profile.AllowInsecureLoopback || profile.MaxChargeMicroUSD != 0 || profile.TimeoutMilliseconds != 180000 {
+		t.Fatal("prepared Ollama profile changed local accounting or endpoint")
+	}
+}

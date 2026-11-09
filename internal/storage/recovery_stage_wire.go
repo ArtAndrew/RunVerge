@@ -16,10 +16,20 @@ import (
 // The archive's second pass is checked as it is copied, including exact table
 // summaries and the final whole-stream digest. It never decodes archive DDL.
 func recoveryStageCopy(ctx context.Context, tx pgx.Tx, in io.Reader, schema string, inventory RecoverySnapshotInventory, snapshot RecoverySnapshotReport, limits RecoverySnapshotLimits) error {
+	return recoveryStageCopyWithLineage(ctx, tx, in, schema, inventory, snapshot, limits, false)
+}
+func recoveryStageCopyWithLineage(ctx context.Context, tx pgx.Tx, in io.Reader, schema string, inventory RecoverySnapshotInventory, snapshot RecoverySnapshotReport, limits RecoverySnapshotLimits, allowLineage bool) error {
 	r := recoveryStageReader(ctx, in, limits.MaxWireBytes)
 	line, err := r.line()
 	var header recoverySnapshotHeader
-	if err != nil || recoverySnapshotDecode(line, &header) != nil || recoverySnapshotValidateHeader(header) != nil || !reflect.DeepEqual(header.Inventory, inventory) || header.Metadata != snapshot.Metadata {
+	if err != nil || recoverySnapshotDecode(line, &header) != nil {
+		return recoverySnapshotError(ctx, ErrRecoverySnapshotInvalid)
+	}
+	checkedHeader := header
+	if allowLineage && header.Format == recoverySnapshotLineageFormat && snapshot.Lineage != nil {
+		checkedHeader.Format = RecoverySnapshotFormat
+	}
+	if recoverySnapshotValidateHeader(checkedHeader) != nil || header.Format != snapshot.Format || (header.Format == RecoverySnapshotFormat && snapshot.Lineage != nil) || !reflect.DeepEqual(header.Inventory, inventory) || header.Metadata != snapshot.Metadata {
 		return recoverySnapshotError(ctx, ErrRecoverySnapshotInvalid)
 	}
 	r.accept(line)
@@ -65,6 +75,19 @@ func recoveryStageCopy(ctx context.Context, tx pgx.Tx, in io.Reader, schema stri
 		return recoverySnapshotError(ctx, ErrRecoverySnapshotInvalid)
 	}
 	r.accept(line)
+	if header.Format == recoverySnapshotLineageFormat {
+		business := RecoverySnapshotReport{}
+		for _, table := range snapshot.Tables {
+			business.Rows += table.Rows
+			business.Bytes += table.Bytes
+		}
+		if err = readRecoverySnapshotLineage(r, limits, &business); err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(business.Lineage, snapshot.Lineage) || business.Rows != snapshot.Rows || business.Bytes != snapshot.Bytes {
+			return ErrRecoverySnapshotInvalid
+		}
+	}
 	line, err = r.line()
 	var complete recoverySnapshotComplete
 	if err != nil || recoverySnapshotDecode(line, &complete) != nil || complete.Kind != "complete" || complete.Tables != index || complete.Rows != snapshot.Rows || complete.Bytes != snapshot.Bytes || complete.PrecedingSHA256 != recoverySnapshotHash(r.hash) || complete.PrecedingWireBytes != r.bytes {

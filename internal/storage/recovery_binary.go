@@ -52,7 +52,12 @@ func newRecoveryStageTypedReader(ctx context.Context, raw io.Reader, table Recov
 	}
 	for _, column := range r.columns {
 		switch column.TypeOID {
-		case 16, 17, 20, 23, 25, 1009, 1184, 3802:
+		case 16, 17, 19, 20, 23, 25, 1009, 1184, 3802, 5069:
+		case 26:
+			// Only inert historical admission identifiers use oid values.
+			if table.Name != "recovery_work_admissions" || (column.Name != "database_oid" && column.Name != "runtime_role_oid") {
+				r.err = ErrRecoveryBinaryValue
+			}
 		default:
 			r.err = ErrRecoveryBinaryValue
 		}
@@ -253,10 +258,15 @@ func recoveryBinaryField(oid uint32, raw []byte) bool {
 		return len(raw) == 1 && raw[0] <= 1
 	case 17:
 		return true
-	case 20, 1184:
+	case 20, 1184, 5069:
 		return len(raw) == 8
 	case 23:
 		return len(raw) == 4
+	case 26:
+		return len(raw) == 4 && binary.BigEndian.Uint32(raw) != 0
+	case 19:
+		// PostgreSQL name_send emits text; reject values name_recv would truncate.
+		return len(raw) < 64 && recoveryBinaryText(raw)
 	case 25:
 		return recoveryBinaryText(raw)
 	case 1009:

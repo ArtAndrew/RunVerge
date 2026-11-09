@@ -2,33 +2,53 @@
 
 SPDX-License-Identifier: Elastic-2.0
 
-Status: partially implemented, 28 October 2026. **Complete restoration is not
-implemented or accepted.** This document defines the recovery slice under
-ADR-0028 and W14. Internal components now cover a fresh empty target's durable
-execution hold, consistent bounded data-only export, authenticated encryption,
-strict snapshot framing and rollback-only typed data staging. See the
-archive/hold evidence (internal historical reference omitted) and
-typed-stage evidence (internal historical reference omitted).
-These components add no public API, CLI recovery command or release claim.
-API0.14 is unchanged; SQL022 has been applied only to newly created disposable
-clusters and is immutable. The saved main installation remains0.12/SQL020.
-Any next schema change requires023. Full organization/provider deployment
-requirements remain open.
+Status: development candidate, 1 November 2026. **Complete restoration and
+resumption of work are not implemented or accepted.** The published alpha.6
+support profile remains unchanged.
 
-The implemented hold accepts only a fresh empty target and has no clearing
-operation. It does not yet protect imported historical work through subsequent
-enablement. The wire validator checks framing; the new typed stage additionally
-checks binary values, NOT NULL/PK/unique/CHECK, all FK references, generated
-values, exact byte round trips and a bounded financial/identity invariant set.
-It always rolls back and reports full semantic validation as false. Versioned
-cost/profile/intent hashes, complete allocations/quotas and webhook projections
-are still mandatory before a committed import. The fresh PG18/C recovery profile
-requires trusted engine catalogues and refuses non-engine custom types and
-external inbound FKs; extending this profile requires separate review/evidence.
-The committed semantic importer, fresh recovery authority, recovery reader, external
-database isolation, source fencing, factual reconciliation and safe enablement
-of new work remain required below. A successful encrypted snapshot round trip
-does not satisfy those conditions.
+The candidate contains these components:
+
+| Component | Implemented boundary |
+|---|---|
+| Export and encrypted archive | Consistent bounded data-only snapshot; authenticated encryption; independently selected archive identity |
+| Typed staging | Trusted schema, row and reference checks, selected execution and cost-history checks; rollback on every exit |
+| Target provisioning | Explicit operator plan; new restricted database; trusted migrations and empty-target hold; no automatic recreation after an uncertain outcome |
+| Held import | Atomic same-schema import with a durable receipt and historical-row fences; no hold clearance |
+| Recovery reader | Fresh target-bound, organization-scoped host capabilities; no ordinary login or worker admission |
+| Database disconnection | Selected source database connection ban and session termination; does not establish external execution shutdown |
+| Compose shutdown | Explicit one-use plan for a reviewed local container inventory; does not yet prove the installation binding or settle in-flight effects |
+
+The [archive commands](../docs/RECOVERY-ARCHIVES.md),
+[recovery reader](../docs/RECOVERY-READING.md),
+[database disconnection](../docs/RECOVERY-DATABASE-FENCE.md) and
+[Compose shutdown](../docs/RECOVERY-CONTAINER-STOP.md) document their individual
+prerequisites. They are not a complete operator recovery procedure. In particular,
+the database-disconnection and Compose-shutdown profiles have different deployment
+boundaries and cannot simply be concatenated into a verified recovery flow.
+
+The importer requires matching trusted migrations, including SQL023. SQL022 and
+SQL023 are immutable. There is no supported conversion of an alpha.6/SQL022 archive
+into the candidate's SQL023 schema. Populated upgrade and subsequent work enablement still need their own acceptance
+evidence; target provisioning is documented in its [development guide](../docs/RECOVERY-PROVISIONING.md).
+
+Typed staging continues to report `full_semantic_validation: false`. It verifies
+specific history families and records residual coverage separately; a successful
+check does not prove every historical business outcome. The importer preserves
+unverified history behind durable fences instead of authorizing replay. The
+PG18/C profile requires trusted engine catalogues and refuses non-engine custom
+types and external inbound foreign keys.
+
+Team input validation accepts two exact serializations: the earlier input with
+feedback retained in its parent context, and alpha.6's input with the parent's
+feedback also copied to the child. Both retain exact parent context, selected
+sources and input digest. There is no format marker to identify the producing
+release. Recovery must not rewrite stored input or model transcripts to convert
+between those forms.
+
+Verified source/deployment binding, target connection isolation, post-cutoff
+factual reconciliation, fresh authority for ordinary work and safe enablement
+remain required below. A held import or encrypted snapshot round trip does not
+satisfy these conditions.
 
 ## First supported target
 
@@ -207,5 +227,5 @@ clearance and its evidence outside mutable cached responses.
 
 These tests must use disposable databases and an independent reviewer. Record
 first failures, source hashes and exact commands. RPO/RTO are measured for the
-tested profile and volume, not promised from an empty-database timing. The
-source installation0.12/SQL020 remains untouched throughout development.
+tested profile and volume, not promised from an empty-database timing. Do not
+use a working installation for destructive development checks.

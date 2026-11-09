@@ -136,6 +136,14 @@ func prepareToolExecutionTx(ctx context.Context, tx pgx.Tx, p domain.Principal, 
 	if err != nil {
 		return domain.ToolExecution{}, domain.Err("invalid_request", "Аргументы не соответствуют установленному инструменту", 400)
 	}
+	if connection.ResultContract == domain.ToolResultContractGitHubCICommentV1 {
+		if automationGrantID != "" || (candidate.Source != "model" && candidate.Source != "material") {
+			return domain.ToolExecution{}, domain.Forbidden
+		}
+		if err = bindGitHubCIComment(t, connection, in, arguments, artifact.Content); err != nil {
+			return domain.ToolExecution{}, err
+		}
+	}
 	if err = bindPreparedModelProposalTx(ctx, tx, p.OrganizationID, candidate, in, arguments, connection); err != nil {
 		return domain.ToolExecution{}, err
 	}
@@ -239,6 +247,9 @@ func toolCurrentTask(t domain.Task, e domain.ToolExecution) error {
 }
 
 func toolActorsAuthorizedTx(ctx context.Context, tx pgx.Tx, e domain.ToolExecution, c domain.ToolConnection, t domain.Task, a domain.Approval, requireApproval bool) error {
+	if err := checkRecoveryOutboundProfileTx(ctx, tx, c.Tool.OrganizationID, "tool", c.Tool.ID, c.Tool.Version); err != nil {
+		return err
+	}
 	if err := checkToolAuthorityEpochsTx(ctx, tx, e, requireApproval); err != nil {
 		return err
 	}

@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Elastic-2.0
 export const esComponents: Record<string, string> = {
+  "Предложенные исправления ссылок": "Correcciones sugeridas para las referencias",
+  "Дополнить ссылки в черновике": "Completar referencias en el borrador",
+  "Ссылки на журнал CI": "Referencias al registro de CI",
+  "Не удалось разобрать адрес запуска и строки исходного журнала.": "No se pudieron interpretar la URL de la ejecución y las líneas del registro original.",
+  "В черновике нет ссылок на строки исходного журнала.": "El borrador no contiene referencias a las líneas del registro original.",
+  "Некоторые ссылки неполные или не совпадают со строками исходного журнала.": "Algunas referencias están incompletas o no coinciden con las líneas del registro original.",
+  "Ссылки совпадают со строками исходного журнала.": "Las referencias coinciden con las líneas del registro original.",
+  "Ссылки и строки журнала": "Referencias y líneas del registro",
+  "Совпадения нет": "Sin coincidencia",
+  "Сверьте вывод с журналом. Проверка ссылок не подтверждает вывод.": "Contrasta la conclusión con el registro. La coincidencia de las referencias no valida la conclusión.",
   "Задача создана": "Tarea creada",
   "Задача в очереди": "Tarea en cola",
   "Работа началась": "Trabajo iniciado",

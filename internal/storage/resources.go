@@ -135,6 +135,10 @@ func (s *Store) PublishAgent(ctx context.Context, p domain.Principal, id, key st
 	})
 }
 func (s *Store) CreateTask(ctx context.Context, p domain.Principal, key string, in domain.CreateTask) (json.RawMessage, error) {
+	return s.createTask(ctx, p, key, in, nil)
+}
+
+func (s *Store) createTask(ctx context.Context, p domain.Principal, key string, in domain.CreateTask, ci *githubCIAdmission) (json.RawMessage, error) {
 	if !validText(in.Goal, 16384) || !validText(in.AgentID, 128) || in.BudgetMicroUSD < 1 || in.BudgetMicroUSD > 1_000_000_000_000 {
 		return nil, domain.Err("invalid_request", "Нужны цель, опубликованный агент и положительный бюджет", 400)
 	}
@@ -148,10 +152,20 @@ func (s *Store) CreateTask(ctx context.Context, p domain.Principal, key string, 
 	if maxRuns < 1 || maxRuns > 10 || seconds < 1 || seconds > 2592000 {
 		return nil, domain.Err("invalid_request", "Предел попыток должен быть 1…10, срок 1…2592000 секунд", 400)
 	}
-	return s.MutateGuarded(ctx, p, "POST /tasks", key, in, principalPermissionGuard("tasks.create"), func(ctx context.Context, tx pgx.Tx, p domain.Principal) (any, error) {
+	scope, input, guard := "POST /tasks", any(in), principalPermissionGuard("tasks.create")
+	if ci != nil {
+		scope, input, guard = "github workflow_run", ci.taskID, githubCIPermission
+	}
+	return s.MutateGuarded(ctx, p, scope, key, input, guard, func(ctx context.Context, tx pgx.Tx, p domain.Principal) (any, error) {
 		var pendingLimit int
 		if e := tx.QueryRow(ctx, "SELECT pending_task_limit FROM organizations WHERE id=$1 FOR UPDATE", p.OrganizationID).Scan(&pendingLimit); e != nil {
 			return nil, e
+		}
+		if ci != nil {
+			duplicate, err := ci.checkLimit(ctx, tx, p.OrganizationID)
+			if err != nil || duplicate {
+				return struct{}{}, err
+			}
 		}
 		var pending int
 		if e := tx.QueryRow(ctx, "SELECT count(*) FROM tasks WHERE organization_id=$1 AND status NOT IN('succeeded','failed','cancelled')", p.OrganizationID).Scan(&pending); e != nil {
@@ -160,17 +174,27 @@ func (s *Store) CreateTask(ctx context.Context, p domain.Principal, key string, 
 		if pending >= pendingLimit {
 			return nil, &domain.Error{Code: "unavailable", Message: "Достигнут лимит незавершённых задач организации", Status: 503, Retryable: true}
 		}
-		a, e := scanAgent(tx.QueryRow(ctx, "SELECT "+agentColumns+" FROM agents WHERE organization_id=$1 AND id=$2 AND published ORDER BY version DESC LIMIT 1", p.OrganizationID, in.AgentID))
+		agentQuery := "SELECT " + agentColumns + " FROM agents WHERE organization_id=$1 AND id=$2 AND published"
+		agentArgs := []any{p.OrganizationID, in.AgentID}
+		if ci != nil {
+			agentQuery += " AND version=$3"
+			agentArgs = append(agentArgs, ci.agentVersion)
+		}
+		a, e := scanAgent(tx.QueryRow(ctx, agentQuery+" ORDER BY version DESC LIMIT 1", agentArgs...))
 		if e != nil {
 			return nil, e
+		}
+		if ci != nil && (a.Team != nil || len(a.Tools) != 0 || len(a.ModelTools) != 0) {
+			return nil, domain.Err("conflict", "CI требует агента без команды и инструментов", 409)
 		}
 		if in.BudgetMicroUSD > a.BudgetMicroUSD {
 			return nil, domain.Err("budget_exceeded", "Бюджет выше лимита опубликованного агента", 409)
 		}
 		var modelID string
 		var modelVersion int
+		var accountingMode string
 		if a.Model != domain.FixtureModel && a.Model != domain.TeamModel {
-			if e = tx.QueryRow(ctx, "SELECT id,version FROM model_connections WHERE organization_id=$1 AND model=$2 AND active FOR SHARE", p.OrganizationID, a.Model).Scan(&modelID, &modelVersion); e != nil {
+			if e = tx.QueryRow(ctx, "SELECT id,version,COALESCE(profile->>'accounting_mode','') FROM model_connections WHERE organization_id=$1 AND model=$2 AND active FOR SHARE", p.OrganizationID, a.Model).Scan(&modelID, &modelVersion, &accountingMode); e != nil {
 				if errors.Is(e, pgx.ErrNoRows) {
 					return nil, domain.Err("invalid_request", "Подключение модели отключено", 400)
 				}
@@ -180,7 +204,15 @@ func (s *Store) CreateTask(ctx context.Context, p domain.Principal, key string, 
 				return nil, e
 			}
 		}
-		id := domain.NewID("tsk")
+		if ci != nil && ci.requireLocal && accountingMode != domain.ModelAccountingLocalUnmetered {
+			return nil, domain.Err("conflict", "Журналы CI доступны только для локальной модели", 409)
+		}
+		id := ""
+		if ci != nil {
+			id = ci.taskID
+		} else {
+			id = domain.NewID("tsk")
+		}
 		run := domain.NewID("run")
 		op := domain.NewID("op")
 		depthLimit := domain.MaxTaskDepth
@@ -210,7 +242,13 @@ func (s *Store) CreateTask(ctx context.Context, p domain.Principal, key string, 
 				return nil, e
 			}
 		}
-		return t, emit(ctx, tx, p.OrganizationID, id, "task.created", map[string]any{"run_id": run, "agent_version": a.Version})
+		if e = emit(ctx, tx, p.OrganizationID, id, "task.created", map[string]any{"run_id": run, "agent_version": a.Version}); e != nil {
+			return nil, e
+		}
+		if ci != nil {
+			return struct{}{}, nil
+		}
+		return t, nil
 	})
 }
 func (s *Store) CancelTask(ctx context.Context, p domain.Principal, id, key string) (json.RawMessage, error) {
@@ -289,6 +327,23 @@ func decodeCursor(raw string) (cursor, error) {
 	return c, nil
 }
 func (s *Store) ListTasks(ctx context.Context, p domain.Principal, raw string, limit int) ([]domain.Task, string, error) {
+	return s.listTasks(ctx, p, raw, limit, "")
+}
+
+// ListAttentionTasks uses the same current authority as the ordinary task list.
+// A cursor for this view is tied to the organization and cannot be used in
+// the unfiltered list. Like other task lists, each page reads current state.
+func (s *Store) ListAttentionTasks(ctx context.Context, p domain.Principal, raw string, limit int) ([]domain.Task, string, error) {
+	return s.listTasks(ctx, p, raw, limit, domain.TaskViewAttention+"."+Hash([]byte(p.OrganizationID))[:16]+".")
+}
+
+func (s *Store) listTasks(ctx context.Context, p domain.Principal, raw string, limit int, scope string) ([]domain.Task, string, error) {
+	if scope != "" && raw != "" {
+		if !strings.HasPrefix(raw, scope) || len(raw) == len(scope) {
+			return nil, "", domain.Err("invalid_request", "Некорректный cursor для этой очереди", 400)
+		}
+		raw = strings.TrimPrefix(raw, scope)
+	}
 	c, e := decodeCursor(raw)
 	if e != nil {
 		return nil, "", e
@@ -298,7 +353,14 @@ func (s *Store) ListTasks(ctx context.Context, p domain.Principal, raw string, l
 		return nil, "", e
 	}
 	defer tx.Rollback(ctx)
-	rows, e := tx.Query(ctx, "SELECT "+taskColumns+" FROM tasks WHERE organization_id=$1 AND (created_at,id)<($2,$3) ORDER BY created_at DESC,id DESC LIMIT $4", p.OrganizationID, c.CreatedAt, c.ID, limit+1)
+	query := "SELECT " + taskColumns + " FROM tasks WHERE organization_id=$1 AND (created_at,id)<($2,$3)"
+	if scope != "" {
+		query += ` AND status IN ('waiting_input','waiting_approval','blocked')
+			AND waiting_reason NOT IN ('tool_execution_pending','team_dependency_pending')
+			AND NOT (parent_id IS NOT NULL AND status='waiting_input'
+				AND waiting_reason IN ('model_candidate_pending','material_candidate_pending','team_candidate_pending'))`
+	}
+	rows, e := tx.Query(ctx, query+" ORDER BY created_at DESC,id DESC LIMIT $4", p.OrganizationID, c.CreatedAt, c.ID, limit+1)
 	if e != nil {
 		return nil, "", e
 	}
@@ -318,7 +380,7 @@ func (s *Store) ListTasks(ctx context.Context, p domain.Principal, raw string, l
 	if len(out) > limit {
 		out = out[:limit]
 		last := out[limit-1]
-		next = encodeCursor(last.CreatedAt, last.ID)
+		next = scope + encodeCursor(last.CreatedAt, last.ID)
 	}
 	return out, next, tx.Commit(ctx)
 }

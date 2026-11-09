@@ -44,6 +44,10 @@ remove that new directory deliberately before selecting a new destination;
 the installer never deletes or reuses it automatically. Keep credentials,
 database state, backups and logs outside the immutable installation tree.
 
+If your development bundle includes [RECOVERY-OPERATOR.md](RECOVERY-OPERATOR.md),
+it explains how to recover results and recorded costs into a separate database
+that stays closed to the normal API and workers.
+
 ## Explicit local startup
 
 Configure DATABASE_URL privately for your separately managed PostgreSQL 18

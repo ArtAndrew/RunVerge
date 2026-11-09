@@ -95,6 +95,9 @@ func checkConfigurationVerificationAuthorityTx(ctx context.Context, tx pgx.Tx, v
 }
 
 func lockConfigurationVerificationAuthorityTx(ctx context.Context, tx pgx.Tx, v configurationVerificationRecord) error {
+	if err := admitRecoveryRowTx(ctx, tx, "configuration_verifications", v.OrganizationID, v.ID); err != nil {
+		return err
+	}
 	ids := []string{v.ActorID}
 	if v.GrantID != "" {
 		chain, err := configurationGrantChainTx(ctx, tx, v.OrganizationID, v.GrantID, false)

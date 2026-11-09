@@ -22,6 +22,9 @@ type TreeControl struct {
 // existing operations, organization and depth-ordered tasks. Leaf accounting
 // never acquires the gate and never creates another operation or task.
 func lockTaskTreeTx(ctx context.Context, tx pgx.Tx, org, taskID string) (TreeControl, error) {
+	if err := admitRecoveryTaskTx(ctx, tx, org, taskID); err != nil {
+		return TreeControl{}, err
+	}
 	var control TreeControl
 	if e := tx.QueryRow(ctx, "SELECT root_id FROM tasks WHERE organization_id=$1 AND id=$2", org, taskID).Scan(&control.RootID); e != nil {
 		return control, rowExists(e)

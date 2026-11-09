@@ -146,6 +146,25 @@ class ClientHTTPTests(unittest.TestCase):
         self.assertEqual(self.client.list_agents().data[0]["id"], "agent-1")
         self.assertEqual(self.request()["path"], "/api/v1/agents")
 
+    def test_attention_view_checks_scope_and_preserves_cursor(self) -> None:
+        task = {"id": "task-1", "organization_id": "org-1", "reserved_microusd": "0", "spent_microusd": "0"}
+        cursor = "attention.scope.abc+/"
+        self.respond({"task_view": "attention", "data": [task], "next_cursor": cursor})
+        page = self.client.list_tasks(view="attention", limit=1)
+        self.assertEqual(page.data, [task])
+        self.assertEqual(page.next_cursor, cursor)
+        self.assertEqual(self.request()["path"], "/api/v1/tasks?limit=1&view=attention")
+        self.respond({"task_view": "attention", "data": []})
+        self.assertEqual(self.client.list_tasks(view="attention", cursor=cursor).data, [])
+        self.assertEqual(parse_qs(urlsplit(self.request()["path"]).query)["cursor"], [cursor])
+        for payload in ({"data": [task]}, {"task_view": "attention", "data": [dict(task, organization_id="other")]}):
+            self.respond(payload)
+            with self.assertRaises(ProtocolError):
+                self.client.list_tasks(view="attention")
+            self.assertEqual(self.request()["path"], "/api/v1/tasks?view=attention")
+        with self.assertRaises(ValueError):
+            self.client.list_tasks(view="all")
+
     def test_events_accept_reconnect_cursor(self) -> None:
         self.respond({"data": [{"id": "event-9", "organization_id":"org-1", "task_id":"task-1", "sequence": "9", "type": "task.completed", "payload_version":0, "legacy_data_json":"{\"wide\":9007199254740993}", "created_at":"2026-10-24T00:00:00Z"}]})
         events = self.client.events("task-1", after="8", limit=50)

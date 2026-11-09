@@ -101,8 +101,10 @@ and comments, with CR/LF/CRLF lines; it rejects unknown fields, duplicate event
 or id fields, invalid UTF-8 and oversized64KiB frames. A truncated final frame
 cannot advance a cursor. A reset/error frame closes the connection.
 
-The current local server admits at most32 streams and4 per principal. Each
-connection has a20-second lifetime, two-second heartbeats and a three-second
+Each API process admits 32 open streams by default. The operator can set
+`RUNVERGE_EVENT_STREAM_LIMIT` to an integer from 1 to 128 at startup. Each
+principal can open at most four streams on that process. Each connection has a
+20-second lifetime, two-second heartbeats and a three-second
 deadline for each write. Go TLS may synchronously spend up to five additional
 seconds sending `close_notify` after a failed write; physical admission stays
 held until the handler returns. Thus three seconds is the I/O deadline, not an

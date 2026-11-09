@@ -13,12 +13,13 @@ import (
 const BrowserSessionCredential = "browser_session"
 
 const browserAuthSQL = `SELECT p.id,m.organization_id,m.role,p.kind FROM browser_sessions t
-JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND i.principal_id=t.principal_id
+JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND recovery_oidc_principal(i.issuer,i.subject,i.principal_id,i.active)=t.principal_id
 JOIN principals p ON p.id=t.principal_id JOIN memberships m ON m.principal_id=p.id
 JOIN organizations o ON o.id=m.organization_id
 JOIN organization_login_policies q ON q.organization_id=m.organization_id
 WHERE t.token_hash=$1 AND m.organization_id=$2 AND NOT t.revoked AND t.expires_at>clock_timestamp()
-AND i.active AND p.active AND p.kind='human' AND m.active AND o.active AND (q.mode='mixed' OR (q.mode='oidc_required' AND q.oidc_issuer=t.issuer)) AND t.credential_generation>m.credential_cutoff`
+AND p.active AND p.kind='human' AND NOT recovery_historical_principal(p.id) AND m.active AND o.active AND (q.mode='mixed' OR (q.mode='oidc_required' AND q.oidc_issuer=t.issuer)) AND t.credential_generation>m.credential_cutoff
+AND recovery_runtime_organization_available(o.id)`
 
 // authQuery keeps internal reauthorization in the credential's original domain.
 // A browser-session hash must never be looked up in the Bearer credential table.
@@ -77,12 +78,13 @@ func (s *Store) BrowserOrganizations(ctx context.Context, hash, rawCursor string
 	}
 	defer tx.Rollback(ctx)
 	rows, e := tx.Query(ctx, `SELECT o.id,o.name,m.role,o.created_at FROM browser_sessions t
-JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND i.principal_id=t.principal_id
+JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND recovery_oidc_principal(i.issuer,i.subject,i.principal_id,i.active)=t.principal_id
 JOIN principals p ON p.id=t.principal_id JOIN memberships m ON m.principal_id=p.id
 JOIN organizations o ON o.id=m.organization_id
 JOIN organization_login_policies q ON q.organization_id=m.organization_id
-WHERE t.token_hash=$1 AND NOT t.revoked AND t.expires_at>clock_timestamp() AND i.active AND p.active AND p.kind='human' AND m.active AND o.active AND (q.mode='mixed' OR (q.mode='oidc_required' AND q.oidc_issuer=t.issuer))
+WHERE t.token_hash=$1 AND NOT t.revoked AND t.expires_at>clock_timestamp() AND p.active AND p.kind='human' AND NOT recovery_historical_principal(p.id) AND m.active AND o.active AND (q.mode='mixed' OR (q.mode='oidc_required' AND q.oidc_issuer=t.issuer))
 AND t.credential_generation>m.credential_cutoff
+AND recovery_runtime_organization_available(o.id)
 AND (o.created_at,o.id)<($2,$3) ORDER BY o.created_at DESC,o.id DESC LIMIT $4`, hash, c.CreatedAt, c.ID, limit+1)
 	if e != nil {
 		return nil, "", e

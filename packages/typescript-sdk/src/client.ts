@@ -14,7 +14,7 @@ import type {
   ModelToolProposal, ModelToolResultBinding, ContinueModelInput,
   ToolInfo, ToolExecution, ToolExecutionView, PrepareToolExecutionInput, DecideToolExecutionInput, DispatchToolExecutionInput, ReconcileToolExecutionInput,
   CurrentIdentity, Action, Agent, Approval, Artifact, AvailableModel, ClientOptions, CostOptions, CostReport,
-  CreateAgentInput, CreateTaskInput, Event, EventOptions, ListOptions, TaskEventSnapshot, TaskEventBatch, TaskEventStreamFrame, EventFeedOptions, EventStreamOptions,
+  CreateAgentInput, CreateTaskInput, Event, EventOptions, ListOptions, TaskListOptions, TaskEventSnapshot, TaskEventBatch, TaskEventStreamFrame, EventFeedOptions, EventStreamOptions,
   MutationOptions, Operation, Page, PublishOptions, RequestOptions, Run, Task,
   Material, MaterialRevision, MaterialContent, CreateMaterialInput, ReviseMaterialInput, PublishMaterialInput, ArtifactOptions,
   ReviewTaskInput, RetryTaskInput, TaskCandidate, TaskDecision, TeamDefinition,
@@ -540,8 +540,20 @@ export class Client {
     })));
   }
 
-  async listTasks(options: ListOptions = {}): Promise<Page<Task>> {
-    const result = page<Record<string, unknown>>(await this.#request("GET", "/tasks", options, undefined, this.#listQuery(options)));
+  async listTasks(options: TaskListOptions = {}): Promise<Page<Task>> {
+    const query = this.#listQuery(options);
+    if (options.view !== undefined) {
+      if (options.view !== "attention") throw new TypeError("view must be attention");
+      query.view = options.view;
+    }
+    const response = await this.#request("GET", "/tasks", options, undefined, query);
+    if (options.view && response.task_view !== options.view) {
+      throw new ProtocolError("Server did not confirm the requested task view");
+    }
+    const result = page<Record<string, unknown>>(response);
+    if (options.view && result.data.some(task => task.organization_id !== this.organizationId)) {
+      throw new ProtocolError("Task view does not match the current organization");
+    }
     return {...result, data: result.data.map(taskFacts)};
   }
 

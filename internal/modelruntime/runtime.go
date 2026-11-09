@@ -6,8 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -50,6 +48,10 @@ func New(store Store, config Config) (*Runtime, error) {
 			FixedMicroUSD:            config.Price.FixedMicroUSD,
 		}
 	}
+	if config.Gateway.WireProfile == domain.ModelWireOllamaNoThinkingV1 &&
+		config.Price.AccountingMode != domain.ModelAccountingLocalUnmetered {
+		return nil, runtimeError("invalid_ollama_accounting_mode", false)
+	}
 	gw, err := modelgateway.New(config.Gateway)
 	if err != nil {
 		return nil, runtimeError("invalid_gateway_config", false)
@@ -61,13 +63,7 @@ func New(store Store, config Config) (*Runtime, error) {
 		return nil, err
 	}
 	if config.Price.AccountingMode == domain.ModelAccountingLocalUnmetered {
-		u, parseErr := url.Parse(config.Gateway.Endpoint)
-		port := 0
-		if parseErr == nil {
-			port, parseErr = strconv.Atoi(u.Port())
-		}
-		if parseErr != nil || port < 1 || port > 65535 || !config.Gateway.AllowInsecureLoopback ||
-			config.Gateway.Endpoint != "http://127.0.0.1:"+strconv.Itoa(port)+"/v1/chat/completions" {
+		if !config.Gateway.AllowInsecureLoopback || !modelgateway.IsLocalChatEndpoint(config.Gateway.Endpoint) {
 			return nil, runtimeError("invalid_local_unmetered_endpoint", false)
 		}
 	}

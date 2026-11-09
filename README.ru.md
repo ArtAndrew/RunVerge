@@ -1,5 +1,7 @@
 # RunVerge
 
+**Предварительный выпуск alpha.7** · [Описание и загрузка](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.7)
+
 **Поручайте задачи агентам, проверяйте ответы и сохраняйте историю доработок.**
 
 [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)

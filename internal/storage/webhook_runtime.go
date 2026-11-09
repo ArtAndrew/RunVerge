@@ -63,7 +63,7 @@ func (s *Store) ClaimWebhook(ctx context.Context, worker string, duration time.D
 	defer tx.Rollback(ctx)
 	var org, task, id, subID string
 	err = tx.QueryRow(ctx, `SELECT d.organization_id,d.task_id,d.id,d.subscription_id FROM webhook_deliveries d JOIN webhook_attempts a ON a.organization_id=d.organization_id AND a.id=d.current_attempt_id
- WHERE d.status IN('queued','leased') AND a.sent_at IS NULL AND (a.status='queued' OR (a.status='leased' AND a.lease_until<=clock_timestamp())) ORDER BY d.created_at,d.id LIMIT 1`).Scan(&org, &task, &id, &subID)
+ WHERE NOT recovery_historical_task(d.organization_id,d.task_id) AND d.status IN('queued','leased') AND a.sent_at IS NULL AND (a.status='queued' OR (a.status='leased' AND a.lease_until<=clock_timestamp())) ORDER BY d.created_at,d.id LIMIT 1`).Scan(&org, &task, &id, &subID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, empty, nil
 	}
@@ -254,6 +254,9 @@ func (s *Store) RecordWebhookObservation(ctx context.Context, in domain.WebhookO
 		return empty, err
 	}
 	defer tx.Rollback(ctx)
+	if err := admitRecoveryRowTx(ctx, tx, "webhook_deliveries", in.OrganizationID, in.DeliveryID); err != nil {
+		return empty, err
+	}
 	if err = lockWebhookFactOrganizationTx(ctx, tx, in.OrganizationID); err != nil {
 		return empty, err
 	}
@@ -315,7 +318,7 @@ func (s *Store) ReconcileWebhookSent(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	var in domain.WebhookObservation
-	err := s.Pool.QueryRow(ctx, `SELECT d.organization_id,d.task_id,d.id,a.id,d.envelope_digest,a.worker_id,a.fencing_token FROM webhook_attempts a JOIN webhook_deliveries d ON d.organization_id=a.organization_id AND d.id=a.delivery_id WHERE a.status='sent' AND a.lease_until<=clock_timestamp() ORDER BY a.sent_at,a.id LIMIT 1`).Scan(&in.OrganizationID, &in.TaskID, &in.DeliveryID, &in.AttemptID, &in.EnvelopeDigest, &in.WorkerID, &in.Token)
+	err := s.Pool.QueryRow(ctx, `SELECT d.organization_id,d.task_id,d.id,a.id,d.envelope_digest,a.worker_id,a.fencing_token FROM webhook_attempts a JOIN webhook_deliveries d ON d.organization_id=a.organization_id AND d.id=a.delivery_id WHERE NOT recovery_historical_task(d.organization_id,d.task_id) AND a.status='sent' AND a.lease_until<=clock_timestamp() ORDER BY a.sent_at,a.id LIMIT 1`).Scan(&in.OrganizationID, &in.TaskID, &in.DeliveryID, &in.AttemptID, &in.EnvelopeDigest, &in.WorkerID, &in.Token)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}

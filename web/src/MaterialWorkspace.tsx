@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Elastic-2.0
 import {t} from './i18n'
+import CIReferenceCheck from './CIReferenceCheck'
 import {useEffect,useRef,useState} from 'react'
 import {ApiError,type ApiClient,type Material,type MaterialContent,type MaterialRevision,type Task} from './api'
 import {dateTime} from './format'
@@ -78,6 +79,8 @@ export default function MaterialWorkspace({vault,draftScope,api,task,seed,onSeed
         {editor.head&&<p>{editor.head.name}{t(" · прочитана версия ")}{editor.head.head_version}</p>}
         {editor.origin&&<details><summary>{t("Исходный результат — только для справки")}</summary>{editor.origin.candidate.source==='team'?<TeamResult artifact={editor.origin.artifact} contentDigest={editor.origin.candidate.content_digest}/>:<pre className="prose-output material-exact">{editor.origin.artifact.content}</pre>}</details>}
         <label className="field">{t("Ваш текст")}<textarea aria-label={t("Текст материала")} className="material-textarea" rows={12} value={editor.content} disabled={busy} onChange={event=>update({content:event.target.value})}/><small>{t("До 256 КиБ UTF-8. Пустой черновик допустим. HTML, Markdown и команды остаются текстом.")}</small></label>
+        {editor.content && <CIReferenceCheck goal={task.goal} draft={editor.content}
+          onRepair={busy ? undefined : content => update({content})}/>}
         <label className="field">{t("Причина изменения")}{!editor.head&&<span className="optional">{t("необязательно")}</span>}<textarea aria-label={t("Причина изменения материала")} rows={2} value={editor.reason} disabled={busy} onChange={event=>update({reason:event.target.value})}/></label>
         {conflict&&<div className="material-conflict"><p role="alert">{t("Материал изменён другим запросом. Ваш текст сохранён в редакторе. Автоматического объединения нет.")}</p><button className="button button-secondary" disabled={busy} onClick={()=>void compareLatest()}>{t("Загрузить актуальную версию для сравнения")}</button>{latest&&<><p>{t("Серверная версия ")}{latest.head.head_version}{t(". Объедините нужные изменения в поле «Ваш текст».")}</p><pre className="prose-output material-exact" data-material-latest>{latest.body.content}</pre><button className="button button-primary" disabled={busy} onClick={()=>void save(true)}>{t("Сохранить объединённую версию поверх v")}{latest.head.head_version}</button></>}</div>}
         <div className="material-editor-actions"><button className="button button-primary" disabled={busy||conflict} onClick={()=>void save()}>{busy?t("Сохраняем…"):editor.head?t("Сохранить новую версию"):t("Сохранить черновик")}</button>{editor.head&&<button className="button button-secondary" disabled={busy||dirty||conflict||Boolean(publicationBlockReason(task))} onClick={()=>void preparePublication()}>{t("Подготовить публикацию")}</button>}</div>

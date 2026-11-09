@@ -25,7 +25,7 @@ func (s *Store) ClaimFixture(ctx context.Context, worker string, duration time.D
 	e = tx.QueryRow(ctx, `SELECT o.organization_id,o.id,o.task_id,o.run_id,o.fencing_token,o.attempts,o.max_attempts
  FROM operations o JOIN tasks t ON t.organization_id=o.organization_id AND t.id=o.task_id
  JOIN agents a ON a.organization_id=t.organization_id AND a.id=t.agent_id AND a.version=t.agent_version
- WHERE (o.status='queued' OR (o.status='leased' AND o.lease_until<clock_timestamp())) AND t.status IN('queued','running') AND o.run_id=t.current_run_id AND a.model=$1
+ WHERE (o.status='queued' OR (o.status='leased' AND o.lease_until<clock_timestamp())) AND t.status IN('queued','running') AND o.run_id=t.current_run_id AND NOT recovery_historical_task(t.organization_id,t.id) AND a.model=$1
  ORDER BY o.created_at,o.id LIMIT 1`, domain.FixtureModel).Scan(&l.OrganizationID, &l.OperationID, &l.TaskID, &l.RunID, &l.Token, &attempts, &maxAttempts)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return nil, nil
@@ -39,7 +39,7 @@ func (s *Store) ClaimFixture(ctx context.Context, worker string, duration time.D
 	}
 	e = tx.QueryRow(ctx, `SELECT o.run_id,o.fencing_token,o.attempts,o.max_attempts FROM operations o JOIN tasks t ON t.organization_id=o.organization_id AND t.id=o.task_id
  WHERE o.organization_id=$1 AND o.id=$2 AND (o.status='queued' OR (o.status='leased' AND o.lease_until<clock_timestamp()))
- AND t.status IN('queued','running') AND o.run_id=t.current_run_id FOR UPDATE OF o SKIP LOCKED`, l.OrganizationID, l.OperationID).Scan(&l.RunID, &l.Token, &attempts, &maxAttempts)
+ AND t.status IN('queued','running') AND o.run_id=t.current_run_id AND NOT recovery_historical_task(t.organization_id,t.id) FOR UPDATE OF o SKIP LOCKED`, l.OrganizationID, l.OperationID).Scan(&l.RunID, &l.Token, &attempts, &maxAttempts)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -281,7 +281,7 @@ func (s *Store) ReconcileFixtureReservation(ctx context.Context) (bool, error) {
  JOIN tasks t ON t.organization_id=op.organization_id AND t.id=op.task_id
  JOIN agents a ON a.organization_id=t.organization_id AND a.id=t.agent_id AND a.version=t.agent_version
  JOIN reservations r ON r.organization_id=op.organization_id AND r.operation_id=op.id
- WHERE a.model=$1 AND r.category='fixture_legacy' AND r.status='reserved' AND t.status IN('cancelled','blocked')
+ WHERE NOT recovery_historical_task(t.organization_id,t.id) AND a.model=$1 AND r.category='fixture_legacy' AND r.status='reserved' AND t.status IN('cancelled','blocked')
  AND (op.status IN('blocked','cancelled') OR (op.status='leased' AND op.lease_until<clock_timestamp()))
  ORDER BY op.created_at,op.id FOR UPDATE OF op SKIP LOCKED LIMIT 1`, domain.FixtureModel).Scan(&org, &op, &taskID, &reservationID)
 	if errors.Is(e, pgx.ErrNoRows) {

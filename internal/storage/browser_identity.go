@@ -102,11 +102,16 @@ func (s *Store) ConsumeLogin(ctx context.Context, stateHash, bindingHash string)
 	return t, nil
 }
 
+func validOIDCIdentity(issuer, subject string) bool {
+	u, err := url.Parse(issuer)
+	return err == nil && u.Scheme == "https" && u.Host != "" && u.User == nil && u.Fragment == "" && u.RawQuery == "" &&
+		strings.TrimSpace(issuer) == issuer && validText(issuer, 2048) && validText(subject, 1024)
+}
+
 // LinkIdentity is a trusted-host setup operation. No public or email-based
 // linking route exists. An existing mapping cannot silently change principals.
 func (s *Store) LinkIdentity(ctx context.Context, issuer, subject, principalID string) error {
-	u, e := url.Parse(issuer)
-	if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.RawQuery != "" || strings.TrimSpace(issuer) != issuer || !validText(issuer, 2048) || !validText(subject, 1024) || !validText(principalID, 128) {
+	if !validOIDCIdentity(issuer, subject) || !validText(principalID, 128) {
 		return domain.Err("invalid_request", "Некорректная привязка идентичности", 400)
 	}
 	tx, e := s.beginRuntime(ctx)
@@ -122,13 +127,16 @@ func (s *Store) LinkIdentity(ctx context.Context, issuer, subject, principalID s
 	if !active || kind != domain.PrincipalHuman {
 		return domain.Forbidden
 	}
-	var current string
-	e = tx.QueryRow(ctx, "SELECT principal_id FROM identity_mappings WHERE issuer=$1 AND subject=$2 FOR UPDATE", issuer, subject).Scan(&current)
+	var current, original string
+	e = tx.QueryRow(ctx, "SELECT recovery_oidc_principal(issuer,subject,principal_id,true),principal_id FROM identity_mappings WHERE issuer=$1 AND subject=$2 FOR UPDATE", issuer, subject).Scan(&current, &original)
 	if e == nil && current != principalID {
 		return domain.Err("conflict", "Идентичность уже связана с другой учётной записью", 409)
 	}
 	if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 		return e
+	}
+	if e == nil && current != original {
+		return tx.Commit(ctx)
 	}
 	result, e := tx.Exec(ctx, "INSERT INTO identity_mappings(issuer,subject,principal_id) VALUES($1,$2,$3) ON CONFLICT(issuer,subject) DO UPDATE SET active=true WHERE identity_mappings.principal_id=EXCLUDED.principal_id", issuer, subject, principalID)
 	if e != nil {
@@ -146,7 +154,7 @@ func (s *Store) ResolveIdentity(ctx context.Context, issuer, subject string) (st
 		return "", oidcidentity.ErrLoginStoreUnavailable
 	}
 	defer tx.Rollback(ctx)
-	e = tx.QueryRow(ctx, "SELECT p.id FROM identity_mappings i JOIN principals p ON p.id=i.principal_id WHERE i.issuer=$1 AND i.subject=$2 AND i.active AND p.active AND p.kind='human'", issuer, subject).Scan(&id)
+	e = tx.QueryRow(ctx, "SELECT p.id FROM identity_mappings i JOIN principals p ON p.id=recovery_oidc_principal(i.issuer,i.subject,i.principal_id,i.active) WHERE i.issuer=$1 AND i.subject=$2 AND p.active AND p.kind='human' AND NOT recovery_historical_principal(p.id)", issuer, subject).Scan(&id)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return "", oidcidentity.ErrIdentityUnmapped
 	}
@@ -157,7 +165,7 @@ func (s *Store) ResolveIdentity(ctx context.Context, issuer, subject string) (st
 }
 
 const sessionColumns = "t.id,t.token_hash,t.principal_id,t.issuer,t.subject,t.authenticated_at,t.created_at,t.expires_at"
-const currentSessionFrom = " FROM browser_sessions t JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND i.principal_id=t.principal_id JOIN principals p ON p.id=t.principal_id WHERE t.token_hash=$1 AND NOT t.revoked AND t.expires_at>clock_timestamp() AND i.active AND p.active AND p.kind='human'"
+const currentSessionFrom = " FROM browser_sessions t JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND recovery_oidc_principal(i.issuer,i.subject,i.principal_id,i.active)=t.principal_id JOIN principals p ON p.id=t.principal_id WHERE t.token_hash=$1 AND NOT t.revoked AND t.expires_at>clock_timestamp() AND p.active AND p.kind='human' AND NOT recovery_historical_principal(p.id)"
 
 func scanBrowserSession(row scanner) (oidcidentity.BrowserSession, error) {
 	var t oidcidentity.BrowserSession
@@ -188,17 +196,17 @@ func validBrowserSession(t oidcidentity.BrowserSession) bool {
 func lockBrowserAuthority(ctx context.Context, tx pgx.Tx, t oidcidentity.BrowserSession) error {
 	var active bool
 	var kind string
-	if e := tx.QueryRow(ctx, "SELECT active,kind FROM principals WHERE id=$1 FOR SHARE", t.PrincipalID).Scan(&active, &kind); e != nil {
+	if e := tx.QueryRow(ctx, "SELECT active,kind FROM principals WHERE id=$1 AND NOT recovery_historical_principal(id) FOR SHARE", t.PrincipalID).Scan(&active, &kind); e != nil {
 		return e
 	}
 	if !active || kind != domain.PrincipalHuman {
 		return oidcidentity.ErrSessionInvalid
 	}
-	var id string
-	if e := tx.QueryRow(ctx, "SELECT principal_id FROM identity_mappings WHERE issuer=$1 AND subject=$2 AND active FOR SHARE", t.Issuer, t.Subject).Scan(&id); e != nil {
+	var id *string
+	if e := tx.QueryRow(ctx, "SELECT recovery_oidc_principal(issuer,subject,principal_id,active) FROM identity_mappings WHERE issuer=$1 AND subject=$2 FOR SHARE", t.Issuer, t.Subject).Scan(&id); e != nil {
 		return e
 	}
-	if id != t.PrincipalID {
+	if id == nil || *id != t.PrincipalID {
 		return oidcidentity.ErrSessionInvalid
 	}
 	return nil
@@ -235,7 +243,7 @@ func (s *Store) CreateSession(ctx context.Context, t oidcidentity.BrowserSession
 		return loginStoreError(e)
 	}
 	if previousTokenHash != "" {
-		if _, e = tx.Exec(ctx, "UPDATE browser_sessions SET revoked=true WHERE token_hash=$1", previousTokenHash); e != nil {
+		if _, e = tx.Exec(ctx, "UPDATE browser_sessions SET revoked=true WHERE token_hash=$1 AND NOT recovery_is_historical('browser_sessions',jsonb_build_array(token_hash))", previousTokenHash); e != nil {
 			return oidcidentity.ErrLoginStoreUnavailable
 		}
 	}
@@ -279,7 +287,7 @@ func (s *Store) RevokeSession(ctx context.Context, tokenHash string) error {
 	if !validDigest(tokenHash) {
 		return oidcidentity.ErrSessionInvalid
 	}
-	_, e := s.execRuntime(ctx, "UPDATE browser_sessions SET revoked=true WHERE token_hash=$1", tokenHash)
+	_, e := s.execRuntime(ctx, "UPDATE browser_sessions SET revoked=true WHERE token_hash=$1 AND NOT recovery_is_historical('browser_sessions',jsonb_build_array(token_hash))", tokenHash)
 	if e != nil {
 		return oidcidentity.ErrLoginStoreUnavailable
 	}

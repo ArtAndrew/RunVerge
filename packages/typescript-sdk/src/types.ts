@@ -305,6 +305,11 @@ export interface ListOptions extends RequestOptions {
   limit?: number;
 }
 
+export interface TaskListOptions extends ListOptions {
+  /** Use an attention cursor returned for this organization when continuing this view. */
+  view?: "attention";
+}
+
 export interface EventOptions extends RequestOptions {
   /** Last processed organization event sequence; gaps are allowed. */
   after?: string;

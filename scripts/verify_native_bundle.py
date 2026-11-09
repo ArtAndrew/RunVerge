@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Elastic-2.0
 """Install a native bundle and exercise it with an owned disposable PostgreSQL cluster.
 
-This checks package portability/restart, not real-model acceptance or backup/restore.
+This checks package portability/restart and can run an optional held recovery drill.
 Never reads the saved development database or starts/stops its processes.
 """
 import argparse
@@ -95,8 +95,7 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
                              'publisher_signature', 'full_alpha_or_production_readiness']}
     if extra_probe is None or getattr(extra_probe, 'real_model_called', None) is False:
         report['not_proven'].append('real_model_acceptance')
-    pg_started = False
-    pg_start_attempted = False
+    started_clusters = []
     # An unsuccessful PostgreSQL shutdown must retain its files for diagnosis.
     # TemporaryDirectory would remove a still-live cluster on context exit.
     with contextlib.nullcontext(tempfile.mkdtemp(prefix='runverge-native-smoke-')) as tmp:
@@ -109,16 +108,16 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
         pg_env = dict(env)
         pg_ctl, initdb = dev.executable('pg_ctl'), dev.executable('initdb')
 
-        def record(name, args, selected_env=env):
+        def record(name, args, selected_env=env, *, expected_exit=0):
             begin = time.monotonic()
             result = subprocess.run([str(x) for x in args], cwd=cwd, env=selected_env,
                                     capture_output=True, text=True, timeout=90)
             step = {'name': name, 'exit_code': result.returncode,
                     'duration_seconds': round(time.monotonic() - begin, 3)}
             steps.append(step)
-            if result.returncode:
+            if result.returncode != expected_exit:
                 raise RuntimeError('Native smoke step failed: ' + name)
-            return result.stdout
+            return result.stdout if expected_exit == 0 else result.stderr
 
         def process(name, args, selected_env=env):
             log = (private / (name + '.log')).open('x')
@@ -130,6 +129,31 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
 
         def stop_child(child):
             stop_owned_child(child)
+
+        def start_cluster(label, data, log, *, initialize=False):
+            if initialize:
+                password = secrets.token_urlsafe(32)
+                sensitive.append(password)
+                password_path = private / ('pg-password-' + label)
+                with password_path.open('x') as stream:
+                    os.fchmod(stream.fileno(), 0o600)
+                    stream.write(password)
+                record('initialize_' + label, [initdb, '-D', data, '-U', 'runverge',
+                                                '--auth=scram-sha-256', '--pwfile', password_path,
+                                                '--encoding=UTF8', '--locale=C'], pg_env)
+                password_path.unlink()
+                port = unused_port()
+                with (data / 'postgresql.conf').open('a') as stream:
+                    stream.write("\nlisten_addresses='127.0.0.1'\nport=%d\nunix_socket_directories=''\nmax_connections=60\n" % port)
+                dsn = 'postgres://runverge:%s@127.0.0.1:%d/postgres?sslmode=disable' % (quote(password), port)
+                sensitive.append(dsn)
+                started_clusters.append(data)  # Track before pg_ctl can lose an acknowledgment.
+            action = 'start' if initialize else 'restart'
+            record(action + '_' + label, [pg_ctl, '-D', data, '-l', log, '-w', 'start'], pg_env)
+            return dsn if initialize else None
+
+        def stop_cluster(label, data):
+            record('stop_' + label, [pg_ctl, '-D', data, '-m', 'fast', '-w', 'stop'], pg_env)
 
         try:
             # This process and the commands it launches have no developer runtimes
@@ -146,22 +170,7 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
             binary = installed / 'bin/platform'
             record('verify_installed_without_database', [binary, 'bundle', 'verify', '--source', installed,
                                                          '--manifest-sha256', manifest_hash])
-            password = secrets.token_urlsafe(32); sensitive.append(password)
-            password_path = private / 'pg-password'
-            with password_path.open('x') as stream:
-                os.chmod(password_path, 0o600); stream.write(password)
-            record('initialize_owned_postgres', [initdb, '-D', cluster, '-U', 'runverge',
-                                                 '--auth=scram-sha-256', '--pwfile', password_path,
-                                                 '--encoding=UTF8', '--locale=C'], pg_env)
-            password_path.unlink()
-            database_port = unused_port()
-            with (cluster / 'postgresql.conf').open('a') as stream:
-                stream.write("\nlisten_addresses='127.0.0.1'\nport=%d\nunix_socket_directories=''\nmax_connections=60\n" % database_port)
-            pg_start_attempted = True
-            record('start_owned_postgres', [pg_ctl, '-D', cluster, '-l', private / 'postgres.log', '-w', 'start'], pg_env)
-            pg_started = True
-            env['DATABASE_URL'] = 'postgres://runverge:%s@127.0.0.1:%d/postgres?sslmode=disable' % (quote(password), database_port)
-            sensitive.append(env['DATABASE_URL'])
+            env['DATABASE_URL'] = start_cluster('owned_postgres', cluster, private / 'postgres.log', initialize=True)
             record('migrate_owned_database', [binary, 'migrate'])
             record('repeat_migration_noop', [binary, 'migrate'])
             credentials_path = private / 'bootstrap.json'
@@ -232,6 +241,23 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
             if not artifacts or task['spent_microusd'] != '1000':
                 raise RuntimeError('Installed fixture did not persist result and synthetic cost')
             steps.append({'name': 'installed_fixture_task_result_and_synthetic_cost', 'passed': True})
+            source_stopped = False
+
+            def stop_source():
+                nonlocal source_stopped
+                stop_child(worker)
+                stop_child(api)
+                stop_cluster('owned_postgres', cluster)
+                source_stopped = True
+
+            recovery = {}
+            if getattr(extra_probe, 'held_recovery', False):
+                target_cluster = private / 'postgres-restore'
+                target_log = private / 'postgres-restore.log'
+                recovery = {
+                    'maintenance_dsn': start_cluster('owned_restore_postgres', target_cluster, target_log, initialize=True),
+                    'stop_source_after_backup': stop_source,
+                }
             if extra_probe is not None:
                 # A trusted test extension may exercise an explicitly configured
                 # local dependency in this same owned installation. The default
@@ -240,22 +266,31 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
                     'binary': binary, 'private': private, 'env': env,
                     'base_url': base, 'api_version': manifest['identity']['api_version'],
                     'credentials': credentials, 'request': request,
+                    'fixture_task': task, 'fixture_artifacts': artifacts,
                     'record': record, 'process': process,
                     'worker': worker, 'stop_child': stop_child,
                     'register_sensitive': sensitive.append,
+                    **recovery,
                 })
-            stop_child(worker); stop_child(api)
-            record('stop_owned_postgres', [pg_ctl, '-D', cluster, '-m', 'fast', '-w', 'stop'], pg_env)
-            pg_started = False
-            record('restart_owned_postgres', [pg_ctl, '-D', cluster, '-l', private / 'postgres.log', '-w', 'start'], pg_env)
-            pg_started = True
+            if not source_stopped:
+                stop_source()
+            if recovery:
+                stop_cluster('owned_restore_postgres', target_cluster)
+                start_cluster('owned_restore_postgres', target_cluster, target_log)
+                report['additional_probe']['restart_verified'] = extra_probe.verify_restart(None)
+            start_cluster('owned_postgres', cluster, private / 'postgres.log')
             api = process('api-second', [binary, 'serve', '--listen', '127.0.0.1:%d' % api_port]); ready(api)
             worker = process('worker-second', [binary, 'worker', '--concurrency', '2'])
             if request(route) != task or request(route + '/artifacts') != artifacts or request(route + '/costs') != costs:
                 raise RuntimeError('Restart changed completed task, artifact or ledger')
             steps.append({'name': 'owned_postgres_api_worker_restart_preserves_result_and_ledger', 'passed': True})
             if extra_probe is not None and callable(getattr(extra_probe, 'verify_restart', None)):
-                report['additional_probe']['restart_verified'] = extra_probe.verify_restart(request)
+                if not recovery:
+                    report['additional_probe']['restart_verified'] = extra_probe.verify_restart(request)
+                if report['additional_probe']['restart_verified'] and getattr(extra_probe, 'held_recovery', False):
+                    report['scope'] = 'native_package_install_restart_and_held_recovery'
+                    report['not_proven'].remove('backup_restore')
+                    report['not_proven'].extend(['production_backup_restore', 'execution_resumption_after_restore'])
             record('verify_installation_after_runtime', [binary, 'bundle', 'verify', '--source', installed,
                                                         '--manifest-sha256', manifest_hash])
             report['passed'] = True
@@ -264,8 +299,11 @@ def verify(bundle, manifest_hash, evidence, extra_probe=None):
             report['failure'] = str(error) if isinstance(error, RuntimeError) else 'Native verification failed; private raw diagnostics withheld'
             raise
         finally:
-            cleanup_complete, cleanup_errors = cleanup_owned(
-                children, pg_ctl, cluster, pg_env, pg_start_attempted, output_streams)
+            _, cleanup_errors = cleanup_owned(children, pg_ctl, cluster, pg_env, False, output_streams)
+            for data in reversed(started_clusters):
+                _, errors = cleanup_owned([], pg_ctl, data, pg_env, True, [])
+                cleanup_errors.extend(errors)
+            cleanup_complete = not cleanup_errors
             if not cleanup_complete:
                 report['passed'] = False
                 report['cleanup_errors'] = cleanup_errors
@@ -291,12 +329,17 @@ def main():
     parser.add_argument('--bundle', type=Path, required=True)
     parser.add_argument('--manifest-sha256', required=True)
     parser.add_argument('--evidence', type=Path, required=True)
-    parser.add_argument('--team-pilot', action='store_true', help='also verify two human identities with synthetic team executors')
+    probes = parser.add_mutually_exclusive_group()
+    probes.add_argument('--team-pilot', action='store_true', help='verify two human identities with synthetic team executors')
+    probes.add_argument('--held-recovery', action='store_true', help='verify backup, isolated import, held reading and restart')
     args = parser.parse_args()
     probe = None
     if args.team_pilot:
         from verify_team_pilot import TeamPilotProbe
         probe = TeamPilotProbe()
+    elif args.held_recovery:
+        from verify_native_recovery import HeldRecoveryProbe
+        probe = HeldRecoveryProbe()
     try:
         report = verify(args.bundle.absolute(), args.manifest_sha256, args.evidence.absolute(), extra_probe=probe)
     except Exception as error:

@@ -56,7 +56,8 @@ def run(command, report_path):
         password_file.unlink()
         port = unused_port()
         with (cluster / 'postgresql.conf').open('a') as stream:
-            stream.write("\nlisten_addresses='127.0.0.1'\nport=%d\nunix_socket_directories=''\nmax_connections=100\n" % port)
+            stream.write("\nlisten_addresses='127.0.0.1'\nport=%d\nunix_socket_directories=''\n"
+                         "max_connections=100\nmax_prepared_transactions=16\n" % port)
         start_attempted = True
         started_pg = subprocess.run([pg_ctl, '-D', str(cluster), '-l', str(private / 'postgres.log'),
                                      '-w', 'start'], env=pg_env, capture_output=True, timeout=90)

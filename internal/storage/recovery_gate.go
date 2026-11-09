@@ -181,7 +181,7 @@ func (s *Store) PrepareRecoveryTarget(ctx context.Context, spec RecoveryTargetSp
 	if err != nil || cut.UTC().Format(time.RFC3339Nano) != spec.CutUTC || cut.Nanosecond()%1000 != 0 ||
 		!validRecoveryID(spec.TargetInstallationID, "inst") ||
 		!validRecoveryID(spec.RestoreID, "restore") || !validRecoveryID(spec.BackupID, "bak") ||
-		!validRecoveryID(spec.SourceID, "inst") || spec.SchemaSHA256 != EmbeddedSchemaSHA256() {
+		!validRecoveryID(spec.SourceID, "inst") || !SupportedRecoverySourceSchema(spec.SchemaSHA256) {
 		return empty, domain.Err("invalid_request", "Invalid recovery target specification", 400)
 	}
 	tx, err := s.Pool.Begin(ctx)
@@ -201,9 +201,11 @@ func (s *Store) PrepareRecoveryTarget(ctx context.Context, spec RecoveryTargetSp
 	if _, err = validateRecoverySemanticCatalog(ctx, tx, s.runtimeSchema); err != nil {
 		return empty, err
 	}
+	// Target-local evidence has its own immutable INSERT-only guards, verified
+	// by the complete catalog above; only business tables use runtime guards.
 	var guarded bool
 	err = tx.QueryRow(ctx, `SELECT NOT EXISTS(SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
- WHERE n.nspname=$1 AND c.relkind IN('r','p') AND c.relname NOT IN('runtime_recovery_control','schema_migrations')
+ WHERE n.nspname=$1 AND c.relkind IN('r','p') AND c.relname NOT IN('runtime_recovery_control','schema_migrations','recovery_import_receipts','recovery_historical_rows','recovery_evidence_batches','recovery_evidence_chunks','recovery_evidence_changes','recovery_accounting_batches','recovery_accounting_mutations','recovery_accounting_applied','recovery_usage_observations','recovery_lineage_imports','recovery_lineage_chunks','recovery_work_admissions','recovery_finance_statements','recovery_oidc_rebindings')
  AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_trigger t JOIN pg_catalog.pg_proc f ON f.oid=t.tgfoid WHERE t.tgrelid=c.oid
  AND t.tgname='recovery_runtime_write' AND t.tgenabled='O' AND t.tgtype=62 AND NOT t.tgisinternal
  AND f.proname='runtime_recovery_write_guard' AND f.pronamespace=c.relnamespace))`, s.runtimeSchema).Scan(&guarded)

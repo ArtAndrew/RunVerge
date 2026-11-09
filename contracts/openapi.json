@@ -31779,6 +31779,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "List tasks that currently need review, approval or diagnosis in the current organization. Use only cursors returned for this view and organization.",
+            "in": "query",
+            "name": "view",
+            "schema": {
+              "const": "attention",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -31794,6 +31803,11 @@
                       "type": "array"
                     },
                     "next_cursor": {
+                      "type": "string"
+                    },
+                    "task_view": {
+                      "const": "attention",
+                      "description": "Present in every successful response to view=attention, including an empty page.",
                       "type": "string"
                     }
                   },

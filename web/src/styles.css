@@ -60,3 +60,18 @@ main,.panel,.task-list,.list-toolbar,.task-table-wrap{min-width:0}.task-table-wr
 .copy-text-control>span{font-size:11px;color:var(--muted);max-width:34em}
 
 .event-connection{font-size:11px;color:var(--muted);margin-bottom:14px}.modal [inert] .button{opacity:.5;cursor:not-allowed}
+.decision-queue{margin:0;padding:0;list-style:none}
+.decision-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(145px,22%);gap:24px;padding:18px 20px;border-bottom:1px solid var(--border)}
+.decision-card:last-child{border-bottom:0}
+.decision-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;color:#65757d;font-size:10px}
+.decision-copy h2{margin:8px 0 4px;font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.decision-copy p{margin:0;color:#506169;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.decision-controls{display:flex;min-width:0;flex-direction:column;align-items:stretch;justify-content:center;gap:12px}
+.decision-controls .button{align-self:flex-start;min-height:34px}
+@media(max-width:600px){.decision-card{grid-template-columns:minmax(0,1fr);gap:12px;padding:16px}.decision-controls{max-width:260px}}
+.ci-reference-check{margin-top:16px}
+.ci-reference-check>div{min-width:0}
+.ci-reference-check summary{cursor:pointer;margin:5px 0}
+.ci-reference-check code,.ci-reference-check pre{overflow-wrap:anywhere;white-space:pre-wrap}
+.ci-reference-check ul{padding-inline-start:18px}
+.ci-reference-check li+li{margin-top:8px}

@@ -67,8 +67,8 @@ func policyReadinessTx(ctx context.Context, tx pgx.Tx, p domain.Principal, runti
 		v.ReadinessReasons = append(v.ReadinessReasons, "browser_owner_required")
 	} else if runtime.TrustedIssuer != "" {
 		var exact bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM browser_sessions t JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND i.principal_id=t.principal_id
-   WHERE t.token_hash=$1 AND t.principal_id=$2 AND t.issuer=$3 AND NOT t.revoked AND t.expires_at>clock_timestamp() AND i.active)`, p.TokenHash, p.ID, runtime.TrustedIssuer).Scan(&exact); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM browser_sessions t JOIN identity_mappings i ON i.issuer=t.issuer AND i.subject=t.subject AND recovery_oidc_principal(i.issuer,i.subject,i.principal_id,i.active)=t.principal_id
+   WHERE t.token_hash=$1 AND t.principal_id=$2 AND t.issuer=$3 AND NOT t.revoked AND t.expires_at>clock_timestamp())`, p.TokenHash, p.ID, runtime.TrustedIssuer).Scan(&exact); err != nil {
 			return err
 		}
 		if !exact {

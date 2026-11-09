@@ -21,11 +21,15 @@
 !examples/
 !examples/**
 !docs/
+docs/**
 !docs/NATIVE-BUNDLE.md
 !docs/QUICKSTART-ALPHA.md
 !docs/LOCAL-MODELS.md
 !docs/MCP-READ.md
 !docs/OPENROUTER.md
+!docs/TEAM-REVIEW.md
+!docs/TWO-PERSON-PILOT.md
+!docs/RECOVERY-OPERATOR.md
 !docs/LICENSING.md
 **/node_modules
 **/dist

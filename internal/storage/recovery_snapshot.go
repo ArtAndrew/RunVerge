@@ -3,6 +3,7 @@ package storage
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -17,10 +18,19 @@ import (
 
 const RecoverySnapshotFormat = "runverge-pg18-copy-ndjson-v1"
 
+// Recovery metadata is target-local authority/fencing, never source business data.
+func recoveryBusinessTable(name string) bool {
+	switch name {
+	case "schema_migrations", "runtime_recovery_control", "recovery_import_receipts", "recovery_historical_rows", "recovery_evidence_batches", "recovery_evidence_chunks", "recovery_evidence_changes", "recovery_accounting_batches", "recovery_accounting_mutations", "recovery_accounting_applied", "recovery_usage_observations", "recovery_lineage_imports", "recovery_lineage_chunks", "recovery_work_admissions", "recovery_finance_statements":
+		return false
+	}
+	return true
+}
+
 // Filled only from a disposable schema built with trusted embedded migrations.
 // An embedded migration change intentionally fails closed until this typed
 // inventory pin has been reviewed and the compatibility test updated.
-const recoverySnapshotInventorySHA256 = "c67909f47c5becab4888bd6665af7e8f4cc47c85fe5c384af18f7fac1b5e9b74"
+const recoverySnapshotInventorySHA256 = recoverySQL031Inventory
 
 const recoverySnapshotChunkSize = 32 << 10
 const recoverySnapshotMaxRecordBytes = 2 << 20
@@ -30,9 +40,11 @@ var (
 	ErrRecoverySnapshotLimit      = errors.New("recovery snapshot limit exceeded")
 	ErrRecoverySnapshotSchema     = errors.New("unsupported recovery snapshot schema")
 	ErrRecoverySnapshotSource     = errors.New("recovery snapshot source unavailable or held")
+	ErrRecoverySnapshotScope      = errors.New("dedicated export requires exactly the selected organization")
 	ErrRecoverySnapshotIO         = errors.New("recovery snapshot input or output failed")
 	recoverySnapshotName          = regexp.MustCompile(`^[a-z][a-z0-9_]{0,127}$`)
 	recoverySnapshotSourceID      = regexp.MustCompile(`^inst_[a-f0-9]{32}$`)
+	recoverySnapshotOrganization  = regexp.MustCompile(`^org_[a-f0-9]{32}$`)
 	recoverySnapshotBackupID      = regexp.MustCompile(`^bak_[a-f0-9]{32}$`)
 	recoverySnapshotDigest        = regexp.MustCompile(`^[a-f0-9]{64}$`)
 	recoverySnapshotCredentialRef = regexp.MustCompile(`^PLATFORM_(MODEL|TOOL|MCP|WEBHOOK)_KEY_[A-Z0-9_]{1,64}$`)
@@ -146,6 +158,7 @@ type RecoverySnapshotOrganization struct {
 // Report contains no row payloads, credentials or database connection strings.
 // Key names and tenant IDs remain private operational metadata.
 type RecoverySnapshotReport struct {
+	Lineage         *RecoveryLineageFramingReport  `json:"lineage,omitempty"`
 	Metadata        RecoverySnapshotMetadata       `json:"metadata"`
 	Format          string                         `json:"format"`
 	InventorySHA256 string                         `json:"inventory_sha256"`
@@ -218,24 +231,143 @@ func recoverySnapshotError(ctx context.Context, fallback error) error {
 // discard partial staging data. Use the separately authenticated encryption
 // layer before storing or transporting a completed snapshot.
 func (s *Store) ExportRecoverySnapshot(ctx context.Context, out io.Writer, limits RecoverySnapshotLimits) (RecoverySnapshotReport, error) {
+	return s.exportRecoverySnapshot(ctx, out, limits, nil, nil, "")
+}
+
+// ExportDedicatedRecoverySnapshot refuses an empty, shared or mismatched
+// database using the same repeatable-read snapshot that supplies the archive.
+func (s *Store) ExportDedicatedRecoverySnapshot(ctx context.Context, out io.Writer, limits RecoverySnapshotLimits, organization string) (RecoverySnapshotReport, error) {
+	if !recoverySnapshotOrganization.MatchString(organization) {
+		return RecoverySnapshotReport{}, ErrRecoverySnapshotScope
+	}
+	return s.exportRecoverySnapshot(ctx, out, limits, nil, nil, organization)
+}
+
+// RecoverySourceIdentity selects a physical source, not restored authorization.
+// The identity is checked in the very transaction which exports the evidence.
+type RecoverySourceIdentity struct {
+	SourceID    string
+	SystemID    string
+	DatabaseOID uint32
+	AfterCutUTC string
+	// Observe must independently find this nonce on the exact source backend.
+	Observe func(context.Context, string) error
+}
+
+func (s *Store) ExportRecoverySourceEvidence(ctx context.Context, out io.Writer, limits RecoverySnapshotLimits, expected RecoverySourceIdentity) (RecoverySnapshotReport, error) {
+	if !recoverySnapshotSourceID.MatchString(expected.SourceID) || expected.SystemID == "" || expected.DatabaseOID == 0 || expected.Observe == nil {
+		return RecoverySnapshotReport{}, ErrRecoverySnapshotSource
+	}
+	cut, err := time.Parse(time.RFC3339Nano, expected.AfterCutUTC)
+	if err != nil || cut.IsZero() || cut.UTC().Format(time.RFC3339Nano) != expected.AfterCutUTC {
+		return RecoverySnapshotReport{}, ErrRecoverySnapshotSource
+	}
+	return s.exportRecoverySnapshot(ctx, out, limits, &expected, nil, "")
+}
+
+type recoveryHeldBackup struct {
+	spec          RecoveryTargetSpec
+	snapshotSHA   string
+	stagingParent string
+}
+
+// ExportHeldRecoveryLineageSnapshot is for trusted host commands. It binds the
+// source to an exact held import and does not change its execution state.
+func (s *Store) ExportHeldRecoveryLineageSnapshot(ctx context.Context, out io.Writer, limits RecoverySnapshotLimits, spec RecoveryTargetSpec, snapshotSHA, stagingParent string) (RecoverySnapshotReport, error) {
+	if stagingParent == "" || !validDigest(snapshotSHA) {
+		return RecoverySnapshotReport{}, ErrRecoverySnapshotSource
+	}
+	return s.exportRecoverySnapshot(ctx, out, limits, nil, &recoveryHeldBackup{spec: spec, snapshotSHA: snapshotSHA, stagingParent: stagingParent}, "")
+}
+
+func (s *Store) exportRecoverySnapshot(ctx context.Context, out io.Writer, limits RecoverySnapshotLimits, expected *RecoverySourceIdentity, held *recoveryHeldBackup, dedicatedOrganization string) (RecoverySnapshotReport, error) {
 	var report RecoverySnapshotReport
 	if !limits.valid() || out == nil {
 		return report, ErrRecoverySnapshotLimit
 	}
 	ctx, cancel := context.WithTimeout(ctx, limits.MaxDuration)
 	defer cancel()
-	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	connection, err := s.Pool.Acquire(ctx)
 	if err != nil {
 		return report, recoverySnapshotError(ctx, ErrRecoverySnapshotSource)
 	}
-	defer tx.Rollback(context.Background())
+	defer connection.Release()
+	if expected != nil {
+		// Docker stopped does not prove its PostgreSQL backends have finished.
+		// Drain before creating the RR snapshot, using separate fresh statements.
+		// The operator must hold exclusive deployment control throughout capture.
+		drain, stop := context.WithTimeout(ctx, 20*time.Second)
+		defer stop()
+		for {
+			var quiet bool
+			err = connection.QueryRow(drain, `SELECT NOT EXISTS(SELECT 1 FROM pg_catalog.pg_stat_activity WHERE datid=(SELECT oid FROM pg_catalog.pg_database WHERE datname=current_database()) AND backend_type='client backend' AND pid<>pg_backend_pid()) AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_prepared_xacts WHERE database=current_database())`).Scan(&quiet)
+			if err != nil {
+				return report, ErrRecoverySnapshotSource
+			}
+			if quiet {
+				break
+			}
+			select {
+			case <-drain.Done():
+				return report, ErrRecoverySnapshotSource
+			case <-time.After(50 * time.Millisecond):
+			}
+		}
+	}
+	tx, err := connection.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return report, recoverySnapshotError(ctx, ErrRecoverySnapshotSource)
+	}
+	defer func() {
+		cleanup, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = tx.Rollback(cleanup)
+	}()
+	if expected != nil {
+		var nonce [16]byte
+		if _, err = rand.Read(nonce[:]); err != nil {
+			return report, ErrRecoverySnapshotSource
+		}
+		challenge := hex.EncodeToString(nonce[:])
+		if _, err = tx.Exec(ctx, "SELECT pg_catalog.set_config('application_name',$1,true)", "rvg_evidence_"+challenge); err != nil {
+			return report, ErrRecoverySnapshotSource
+		}
+		if err = expected.Observe(ctx, challenge); err != nil {
+			return report, ErrRecoverySnapshotSource
+		}
+		var system string
+		var oid uint32
+		var primary bool
+		if err = tx.QueryRow(ctx, `SELECT s.system_identifier::text,d.oid,NOT pg_catalog.pg_is_in_recovery()
+		 FROM pg_catalog.pg_control_system() s,pg_catalog.pg_database d WHERE d.datname=current_database()`).Scan(&system, &oid, &primary); err != nil || !primary || system != expected.SystemID || oid != expected.DatabaseOID {
+			return report, ErrRecoverySnapshotSource
+		}
+	}
 
-	header, schema, err := recoverySnapshotInspect(ctx, tx, s.runtimeSchema)
+	header, schema, err := recoverySnapshotInspect(ctx, tx, s.runtimeSchema, held)
 	if err != nil {
 		return report, err
 	}
+	if dedicatedOrganization != "" {
+		organizations := pgx.Identifier{schema, "organizations"}.Sanitize()
+		var selected bool
+		err = tx.QueryRow(ctx, "SELECT count(*)=1 AND min(id)=$1 FROM (SELECT id FROM "+organizations+" LIMIT 2) AS present", dedicatedOrganization).Scan(&selected)
+		if err != nil || !selected {
+			return report, recoverySnapshotError(ctx, ErrRecoverySnapshotScope)
+		}
+	}
 	if err = recoverySnapshotValidateHeader(header); err != nil {
 		return report, err
+	}
+	if held != nil {
+		header.Format = recoverySnapshotLineageFormat
+	}
+	if expected != nil {
+		previous, _ := time.Parse(time.RFC3339Nano, expected.AfterCutUTC)
+		current, _ := time.Parse(time.RFC3339Nano, header.Metadata.CutUTC)
+		if header.Metadata.SourceID != expected.SourceID || !current.After(previous) {
+			return report, ErrRecoverySnapshotSource
+		}
 	}
 
 	// Check every row's binary size before any payload is sent to the client.
@@ -249,31 +381,8 @@ func (s *Store) ExportRecoverySnapshot(ctx context.Context, out io.Writer, limit
 		return report, err
 	}
 	report = RecoverySnapshotReport{Metadata: header.Metadata, Format: header.Format, InventorySHA256: header.InventorySHA256, Tables: []RecoverySnapshotTableSummary{}}
-	for _, table := range header.Inventory.Tables {
-		if !table.Exported {
-			continue
-		}
-		if err = w.record(recoverySnapshotTableStart{Kind: "table", Name: table.Name}); err != nil {
-			return RecoverySnapshotReport{}, err
-		}
-		cw := newRecoverySnapshotCopyWriter(w, table, limits, limits.MaxTotalBytes-report.Bytes, limits.MaxRows-report.Rows)
-		tag, copyErr := tx.Conn().PgConn().CopyTo(ctx, cw, recoverySnapshotCopySQL(schema, table))
-		if copyErr != nil {
-			return RecoverySnapshotReport{}, recoverySnapshotError(ctx, cw.failureOr(ErrRecoverySnapshotSource))
-		}
-		if err = cw.finish(); err != nil {
-			return RecoverySnapshotReport{}, err
-		}
-		if tag.RowsAffected() != cw.parser.rows || cw.parser.rows != counts[table.Name] {
-			return RecoverySnapshotReport{}, ErrRecoverySnapshotInvalid
-		}
-		summary := RecoverySnapshotTableSummary{Name: table.Name, Rows: cw.parser.rows, Bytes: cw.bytes, SHA256: recoverySnapshotHash(cw.hash)}
-		if err = w.record(recoverySnapshotTableEnd{Kind: "table_end", Summary: summary}); err != nil {
-			return RecoverySnapshotReport{}, err
-		}
-		report.Tables = append(report.Tables, summary)
-		report.Rows += summary.Rows
-		report.Bytes += summary.Bytes
+	if err = writeRecoverySnapshotTables(ctx, tx, schema, header.Inventory, counts, w, limits, &report); err != nil {
+		return RecoverySnapshotReport{}, err
 	}
 	state, err := recoverySnapshotReadState(ctx, tx, schema, limits)
 	if err != nil {
@@ -284,6 +393,11 @@ func (s *Store) ExportRecoverySnapshot(ctx context.Context, out io.Writer, limit
 	}
 	if err = w.record(state); err != nil {
 		return RecoverySnapshotReport{}, err
+	}
+	if held != nil {
+		if err = writeHeldRecoverySnapshotLineage(ctx, tx, schema, header, w, limits, &report, *held); err != nil {
+			return RecoverySnapshotReport{}, err
+		}
 	}
 
 	// A lost read-only COMMIT still withholds the final marker. No data mutation
@@ -298,4 +412,40 @@ func (s *Store) ExportRecoverySnapshot(ctx context.Context, out io.Writer, limit
 	report.Sequences, report.KeyReferences, report.Organizations = state.Sequences, state.KeyReferences, state.Organizations
 	report.WireBytes, report.SHA256 = w.bytes, recoverySnapshotHash(w.hash)
 	return report, nil
+}
+
+// writeRecoverySnapshotTables shares the caller's transaction, wire writer and
+// cumulative report. Additional archive sections must consume the same byte and
+// row budgets; this helper neither opens a snapshot nor writes a final marker.
+func writeRecoverySnapshotTables(ctx context.Context, tx pgx.Tx, schema string, inventory RecoverySnapshotInventory, counts map[string]int64, w *recoverySnapshotWriter, limits RecoverySnapshotLimits, report *RecoverySnapshotReport) error {
+	if report == nil || report.Bytes < 0 || report.Rows < 0 || report.Bytes > limits.MaxTotalBytes || report.Rows > limits.MaxRows {
+		return ErrRecoverySnapshotLimit
+	}
+	for _, table := range inventory.Tables {
+		if !table.Exported {
+			continue
+		}
+		if err := w.record(recoverySnapshotTableStart{Kind: "table", Name: table.Name}); err != nil {
+			return err
+		}
+		cw := newRecoverySnapshotCopyWriter(w, table, limits, limits.MaxTotalBytes-report.Bytes, limits.MaxRows-report.Rows)
+		tag, copyErr := tx.Conn().PgConn().CopyTo(ctx, cw, recoverySnapshotCopySQL(schema, table))
+		if copyErr != nil {
+			return recoverySnapshotError(ctx, cw.failureOr(ErrRecoverySnapshotSource))
+		}
+		if err := cw.finish(); err != nil {
+			return err
+		}
+		if tag.RowsAffected() != cw.parser.rows || cw.parser.rows != counts[table.Name] {
+			return ErrRecoverySnapshotInvalid
+		}
+		summary := RecoverySnapshotTableSummary{Name: table.Name, Rows: cw.parser.rows, Bytes: cw.bytes, SHA256: recoverySnapshotHash(cw.hash)}
+		if err := w.record(recoverySnapshotTableEnd{Kind: "table_end", Summary: summary}); err != nil {
+			return err
+		}
+		report.Tables = append(report.Tables, summary)
+		report.Rows += summary.Rows
+		report.Bytes += summary.Bytes
+	}
+	return nil
 }

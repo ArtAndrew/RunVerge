@@ -86,6 +86,70 @@ func (w *Worker) Run(ctx context.Context) error {
 	slots := make(chan struct{}, w.Concurrency)
 	var running sync.WaitGroup
 	defer running.Wait()
+	wake := make(chan struct{}, 1)
+	wakeDispatcher := func() {
+		select {
+		case wake <- struct{}{}:
+		default:
+		}
+	}
+	launch := func(execute func()) {
+		slots <- struct{}{}
+		running.Add(1)
+		go func() {
+			defer running.Done()
+			defer func() {
+				<-slots
+				wakeDispatcher()
+			}()
+			execute()
+		}()
+	}
+	startWebhook := func() bool {
+		if !w.EnableWebhooks {
+			return false
+		}
+		lease, profile, err := w.Store.ClaimWebhook(ctx, w.ID, 45*time.Second)
+		if err != nil {
+			if ctx.Err() == nil {
+				w.Log.Error("webhook claim failed")
+			}
+			return false
+		}
+		if lease == nil {
+			return false
+		}
+		launch(func() { w.executeWebhook(ctx, lease, profile) })
+		return true
+	}
+	startConfiguration := func() bool {
+		lease, config, err := w.Store.ClaimConfigurationVerification(ctx, w.ID, time.Minute)
+		if err != nil {
+			if ctx.Err() == nil {
+				w.Log.Error("configuration verification claim failed")
+			}
+			return false
+		}
+		if lease == nil {
+			return false
+		}
+		launch(func() { w.executeConfigurationVerification(ctx, lease, config) })
+		return true
+	}
+	startTool := func() bool {
+		lease, connection, err := w.Store.ClaimToolExecution(ctx, w.ID, 30*time.Second)
+		if err != nil {
+			if ctx.Err() == nil {
+				w.Log.Error("tool claim failed")
+			}
+			return false
+		}
+		if lease == nil {
+			return false
+		}
+		launch(func() { w.executeTool(ctx, lease, connection) })
+		return true
+	}
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	toolTurn := false
@@ -119,83 +183,29 @@ func (w *Worker) Run(ctx context.Context) error {
 			if _, e := w.Store.ReconcileConfigurationVerifications(ctx); e != nil && ctx.Err() == nil {
 				w.Log.Error("configuration verification reconciliation failed")
 			}
-			if len(slots) >= cap(slots) {
-				continue
-			}
+		case <-wake:
+		}
+		// Bound each pass by the slots available at entry. Completion wakes
+		// dispatch again, while periodic reconciliation stays on the ticker.
+		for available := cap(slots) - len(slots); available > 0 && ctx.Err() == nil; available-- {
 			toolTurn = !toolTurn
 			configurationTurn = (configurationTurn + 1) % 3
 			webhookTurn = (webhookTurn + 1) % 4
-			startWebhook := func() bool {
-				if !w.EnableWebhooks {
-					return false
-				}
-				lease, profile, err := w.Store.ClaimWebhook(ctx, w.ID, 45*time.Second)
-				if err != nil {
-					if ctx.Err() == nil {
-						w.Log.Error("webhook claim failed")
-					}
-					return false
-				}
-				if lease == nil {
-					return false
-				}
-				slots <- struct{}{}
-				running.Add(1)
-				go func() { defer running.Done(); defer func() { <-slots }(); w.executeWebhook(ctx, lease, profile) }()
-				return true
-			}
 			if webhookTurn == 0 && startWebhook() {
 				continue
 			}
-			startConfiguration := func() bool {
-				lease, config, err := w.Store.ClaimConfigurationVerification(ctx, w.ID, time.Minute)
-				if err != nil {
-					if ctx.Err() == nil {
-						w.Log.Error("configuration verification claim failed")
-					}
-					return false
-				}
-				if lease == nil {
-					return false
-				}
-				slots <- struct{}{}
-				running.Add(1)
-				go func() {
-					defer running.Done()
-					defer func() { <-slots }()
-					w.executeConfigurationVerification(ctx, lease, config)
-				}()
-				return true
-			}
 			if configurationTurn == 0 && startConfiguration() {
 				continue
-			}
-			startTool := func() bool {
-				lease, connection, err := w.Store.ClaimToolExecution(ctx, w.ID, 30*time.Second)
-				if err != nil {
-					if ctx.Err() == nil {
-						w.Log.Error("tool claim failed")
-					}
-					return false
-				}
-				if lease == nil {
-					return false
-				}
-				slots <- struct{}{}
-				running.Add(1)
-				go func() { defer running.Done(); defer func() { <-slots }(); w.executeTool(ctx, lease, connection) }()
-				return true
 			}
 			if toolTurn && startTool() {
 				continue
 			}
 			l, e := w.Store.ClaimFixture(ctx, w.ID, 30*time.Second)
 			if e != nil {
-				if ctx.Err() != nil {
-					return nil
+				if ctx.Err() == nil {
+					w.Log.Error("fixture claim failed")
 				}
-				w.Log.Error("fixture claim failed")
-				continue
+				break
 			}
 			if l == nil {
 				modelLease, connection, claimErr := w.Store.ClaimModel(ctx, w.ID, 30*time.Second)
@@ -203,37 +213,39 @@ func (w *Worker) Run(ctx context.Context) error {
 					if ctx.Err() == nil {
 						w.Log.Error("model claim failed")
 					}
-					continue
+					break
 				}
 				if modelLease == nil {
-					if !toolTurn {
-						if startTool() {
-							continue
-						}
+					if (!toolTurn && startTool()) || startConfiguration() || startWebhook() {
+						continue
 					}
-					if !startConfiguration() {
-						startWebhook()
-					}
-					continue
+					break
 				}
-				slots <- struct{}{}
-				running.Add(1)
-				go func() { defer running.Done(); defer func() { <-slots }(); w.executeModel(ctx, modelLease, connection) }()
+				launch(func() { w.executeModel(ctx, modelLease, connection) })
 				continue
 			}
 			if e = w.Store.CheckLease(ctx, l); e != nil {
-				continue
+				break
 			}
 			// A deterministic in-process fixture, explicitly not a model or code sandbox.
 			output := "Тестовый результат\n" + domain.ExecutionInput(*l)
 			if e = w.Store.CompleteFixture(ctx, l, output); e != nil {
 				w.Log.Error("fixture completion failed", "operation_id", l.OperationID)
+				break
 			}
+			wakeDispatcher()
 		}
 	}
 }
 
 func (w *Worker) executeConfigurationVerification(ctx context.Context, lease *domain.ConfigurationVerificationLease, config domain.ConfigurationProbeConfig) {
+	if err := w.Store.CheckRecoveryOutboundProfiles(ctx,
+		storage.RecoveryOutboundProfile{OrganizationID: lease.OrganizationID, Kind: "mcp", ID: lease.Scope.TargetID, Version: lease.ResourceVersion},
+		storage.RecoveryOutboundProfile{OrganizationID: lease.OrganizationID, Kind: "destination", ID: config.Destination.Destination.ID, Version: config.Destination.Destination.Version},
+		storage.RecoveryOutboundProfile{OrganizationID: lease.OrganizationID, Kind: "credential_purpose", ID: config.Purpose.ID, Version: config.Purpose.Version}); err != nil {
+		_ = w.Store.PauseConfigurationVerification(ctx, lease, "mcp_profile_unavailable")
+		return
+	}
 	credential, err := w.ResolveMCPCredential(config.Purpose.CredentialEnvironment)
 	if err != nil || credential == "" {
 		_ = w.Store.PauseConfigurationVerification(ctx, lease, "mcp_credentials_unavailable")
@@ -252,6 +264,10 @@ func (w *Worker) executeConfigurationVerification(ctx context.Context, lease *do
 }
 
 func (w *Worker) executeTool(ctx context.Context, l *domain.ToolLease, c domain.ToolConnection) {
+	if err := w.Store.CheckRecoveryOutboundProfiles(ctx, storage.RecoveryOutboundProfile{OrganizationID: c.Tool.OrganizationID, Kind: "tool", ID: c.Tool.ID, Version: c.Tool.Version}); err != nil {
+		_ = w.Store.PauseToolExecution(ctx, l, "tool_profile_unavailable")
+		return
+	}
 	credential, err := w.ResolveToolCredential(c.CredentialEnvironment)
 	if err != nil {
 		_ = w.Store.PauseToolExecution(ctx, l, "tool_credentials_unavailable")
@@ -301,6 +317,10 @@ func (w *Worker) executeTool(ctx context.Context, l *domain.ToolLease, c domain.
 }
 
 func (w *Worker) executeModel(ctx context.Context, l *domain.Lease, connection domain.ModelConnection) {
+	if err := w.Store.CheckRecoveryOutboundProfiles(ctx, storage.RecoveryOutboundProfile{OrganizationID: connection.OrganizationID, Kind: "model", ID: connection.ID, Version: connection.Version}); err != nil {
+		_ = w.Store.PauseModelAfterRuntimeError(ctx, l, "model_profile_unavailable")
+		return
+	}
 	key, e := w.ResolveModelCredential(connection.CredentialEnvironment)
 	if e != nil || key == "" {
 		_ = w.Store.PauseModelAfterRuntimeError(ctx, l, "model_credentials_unavailable")

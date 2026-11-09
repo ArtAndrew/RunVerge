@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -21,11 +22,16 @@ import (
 )
 
 type Server struct {
-	Store        *storage.Store
-	Log          *slog.Logger
-	StaticDir    string
-	Login        *identity.LoginService
-	eventStreams eventStreamAdmission
+	Store     *storage.Store
+	Log       *slog.Logger
+	StaticDir string
+	Login     *identity.LoginService
+	GitHubCI  *GitHubCIConfig
+	// EventStreamLimit bounds the number of open task streams in this process.
+	// The zero value uses the default.
+	EventStreamLimit  int
+	githubCITransport http.RoundTripper
+	eventStreams      eventStreamAdmission
 }
 type requestKey struct{}
 
@@ -43,6 +49,7 @@ func (s *Server) Handler() http.Handler {
 	s.mountOrganizationSecurity(mux)
 	s.mountConfiguration(mux)
 	s.mountEventStream(mux)
+	s.mountGitHubCI(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		s.ok(w, 200, map[string]any{"status": "ok", "contract_version": domain.ContractVersion, "development_fixture": true}, "")
 	})
@@ -338,12 +345,41 @@ func limit(r *http.Request) (int, error) {
 	return v, nil
 }
 func (s *Server) listTasks(w http.ResponseWriter, r *http.Request, p domain.Principal) {
+	query, e := url.ParseQuery(r.URL.RawQuery)
+	if e != nil {
+		s.fail(w, r, domain.Err("invalid_request", "Некорректные параметры списка задач", 400))
+		return
+	}
 	n, e := limit(r)
 	if e != nil {
 		s.fail(w, r, e)
 		return
 	}
-	out, next, e := s.Store.ListTasks(r.Context(), p, r.URL.Query().Get("cursor"), n)
+	if view, present := query["view"]; present {
+		if len(view) != 1 || view[0] != domain.TaskViewAttention {
+			s.fail(w, r, domain.Err("invalid_request", "Некорректный режим списка задач", 400))
+			return
+		}
+		for name, values := range query {
+			if (name != "view" && name != "cursor" && name != "limit") || len(values) != 1 {
+				s.fail(w, r, domain.Err("invalid_request", "Некорректные параметры списка задач", 400))
+				return
+			}
+		}
+		out, next, err := s.Store.ListAttentionTasks(r.Context(), p, query.Get("cursor"), n)
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(struct {
+			Data       []domain.Task `json:"data"`
+			NextCursor string        `json:"next_cursor,omitempty"`
+			TaskView   string        `json:"task_view"`
+		}{Data: out, NextCursor: next, TaskView: domain.TaskViewAttention})
+		return
+	}
+	out, next, e := s.Store.ListTasks(r.Context(), p, query.Get("cursor"), n)
 	if e != nil {
 		s.fail(w, r, e)
 		return

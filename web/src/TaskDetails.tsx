@@ -1,4 +1,5 @@
 import {t} from './i18n'
+import {waitingDescription, type DecisionTab} from './taskAttention'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, type Agent, type CurrentIdentity,type ApiClient, type Artifact, type CostReport, type Task, type TaskEvent, type TaskCandidate, type TaskDecision } from './api'
 import {unknownOperationCount} from './modelAccounting'
@@ -33,31 +34,6 @@ const eventLabels: Record<string, string> = {
   'artifact.created': 'Добавлен результат', 'operation.completed': 'Операция выполнена',
 }
 
-const waitingLabels: Record<string, string> = {
-  model_candidate_pending: 'Подготовлен черновик. Проверьте его во вкладке «Результат» и сохраните решение.',
-  material_candidate_pending: 'Предложен отредактированный материал. Проверьте точный текст и исходную основу перед решением.',
-  team_candidate_pending: 'Команда подготовила общий черновик. Проверьте материалы участников и сохраните решение.',
-  candidate_changes_requested: 'Запрошена доработка. Чтобы запустить её, создайте новую попытку с указаниями исполнителю и подтверждением расходов.',
-  candidate_rejected: 'Результат отклонён. Решение сохранено; повторный запуск этой задачи недоступен.',
-  model_outcome_unknown: 'Исход обращения к модели неизвестен. Резерв сохранён; повторная отправка остановлена до сверки.',
-  model_accounting_pending: 'Ожидается подтверждение расходов. Резерв сохранён.',
-  model_output_rejected: 'Ответ модели не прошёл проверку допустимого формата или размера. Расход требует сверки.',
-  model_tools_pending: 'Модель предложила действия с инструментами. Откройте «Действия»: проверьте каждое предложение, затем отдельно продолжите модель с результатами всего пакета.',
-  model_turn_limit: 'Достигнут предел шагов модели. Выполнение остановлено для проверки.',
-  model_repeated_intent: 'Модель повторила одинаковое действие. Выполнение остановлено для проверки.',
-  model_input_rejected: 'Задание превышает ограничения выбранной модели. Создайте новую задачу с меньшим объёмом входных данных.',
-  model_credentials_unavailable: 'Не удалось получить доступ к модели. Администратору нужно проверить её подключение.',
-  model_profile_unavailable: 'Закреплённая версия подключения модели недоступна. Администратору нужно проверить настройки.',
-  model_attempt_requires_attention: 'Шаг модели не был отправлен и требует проверки. Новую попытку можно запустить отдельно с подтверждением расходов.',
-  automation_authorization_revoked: 'Автоматическая работа остановлена из-за изменения прав. Проверьте доступ; новая попытка требует отдельного разрешения и подтверждения расходов.',
-  authorization_revoked: 'Доступ к выполнению отозван. Обратитесь к администратору организации.',
-  tool_approval_pending: 'Подготовлено внешнее действие. Откройте «Действия» и проверьте точные аргументы перед решением.',
-  tool_dispatch_pending: 'Действие разрешено, но ещё не отправлено. Для запуска откройте «Действия» и подтвердите внешний эффект и расходы.',
-  tool_execution_pending: 'Действие передано исполнителю. Его исход появится во вкладке «Действия».',
-  external_action_unknown: 'Исход внешнего действия неизвестен. Откройте «Действия» для сверки. Повторная отправка остановлена.',
-  budget_exceeded: 'Доступного бюджета недостаточно для продолжения.',
-  attempt_limit: 'Достигнут предел попыток. Выполнение остановлено для проверки.',
-}
 
 function downloadArtifact(artifact: Artifact) {
   const blob = new Blob([artifact.content], { type: 'text/plain;charset=utf-8' })
@@ -69,7 +45,7 @@ function downloadArtifact(artifact: Artifact) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export default function TaskDetails({ identity,vault,draftScope,api, taskId, agents, onBack, onChanged, onOpenTask }: { identity:CurrentIdentity|null;vault:DraftVault;draftScope:DraftScope;api: ApiClient; taskId: string; agents: Agent[]; onBack: () => void; onChanged: () => void; onOpenTask: (id: string) => void }) {
+export default function TaskDetails({ identity,vault,draftScope,api, taskId, agents, initialTab = 'result', backLabel = 'Все задачи', onBack, onChanged, onOpenTask }: { identity:CurrentIdentity|null;vault:DraftVault;draftScope:DraftScope;api: ApiClient; taskId: string; agents: Agent[]; initialTab?: DecisionTab; backLabel?: string; onBack: () => void; onChanged: () => void; onOpenTask: (id: string) => void }) {
   const [task, setTask] = useState<Task | null>(null)
   const [events, setEvents] = useState<TaskEvent[]>([])
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
@@ -86,7 +62,7 @@ export default function TaskDetails({ identity,vault,draftScope,api, taskId, age
   const [error, setError] = useState<unknown>(null)
   const [loading, setLoading] = useState(true)
   const [refresh, setRefresh] = useState(0)
-  const [tab, setTab] = useState<'result' | 'events' | 'artifacts' | 'actions' | 'automation' | 'compare'>('result')
+  const [tab, setTab] = useState<DecisionTab | 'artifacts' | 'automation' | 'compare'>(initialTab)
   const [reuseSource, setReuseSource] = useState<Task | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelBusy, setCancelBusy] = useState(false)
@@ -220,7 +196,7 @@ export default function TaskDetails({ identity,vault,draftScope,api, taskId, age
     available = (!task.financial_hold && remaining > 0n ? remaining : 0n).toString()
   }
   return <EventReadinessContext.Provider value={{paused:commandsPaused,refresh:resetEventHistory}}><>
-    <button className="back-button" onClick={onBack}><Icon name="arrow" />{t("Все задачи")}</button>
+    <button className="back-button" onClick={onBack}><Icon name="arrow" />{t(backLabel)}</button>
     <ErrorNotice error={streamError} />
     <ErrorNotice error={error} onRetry={() => setRefresh(value => value + 1)} />
     {error && task && <p className="muted">{t("Показаны последние полученные данные. Они могут быть неактуальны.")}</p>}
@@ -234,7 +210,7 @@ export default function TaskDetails({ identity,vault,draftScope,api, taskId, age
       {historyGap&&!historyReset&&<p className="muted">{t("История была восстановлена по новому снимку. Журнал может содержать не все прежние события.")}</p>}
       {isFixture && <div className="notice notice-info"><Icon name="agents" /><p>{t("Тестовый запуск: ")}<code>{agent?.model ?? 'fixture'}</code>{t(". Его результат не является ответом языковой модели. Расходы синтетические: деньги не списываются.")}</p></div>}
       {localUnmeteredOutput&&<div className="notice notice-info"><Icon name="agents"/><p>{t("Для этой версии модельного результата администратор задал локальный тариф API 0. Стоимость оборудования и энергии не измерена. Платные инструменты и подзадачи по-прежнему ограничены общим бюджетом.")}</p></div>}
-      {task.waiting_reason && <div className="notice notice-warning"><Icon name="clock" /><div><strong>{t("Нужно внимание")}</strong><p>{t(waitingLabels[task.waiting_reason] ?? t("Выполнение приостановлено. Требуется проверить причину на сервере."))}</p><details><summary>{t("Код причины")}</summary><code>{task.waiting_reason}</code></details></div></div>}
+      {task.waiting_reason && <div className="notice notice-warning"><Icon name="clock" /><div><strong>{t("Нужно внимание")}</strong><p>{t(waitingDescription(task.waiting_reason))}</p><details><summary>{t("Код причины")}</summary><code>{task.waiting_reason}</code></details></div></div>}
       {task.financial_hold && <div className="notice notice-warning"><Icon name="shield" /><div><strong>{t("Расходы приостановлены до сверки")}</strong><p>{t("Финансовые итоги требуют проверки. Учтённые суммы могут ещё не включать все полученные счета. Новые расходы заблокированы.")}</p></div></div>}
       <div className="detail-grid">
         <section className="panel detail-main">

@@ -1,7 +1,7 @@
 import {t, useLocale, setLocale, supportedLocales, useLocaleLoading} from './i18n'
 import {API_VERSION} from '../../packages/typescript-sdk/src/events.ts'
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
-import { ApiClient, ApiError, browserAuth, normalizeBaseUrl, type BrowserSession, type Organization, type Agent, type Connection, type Task, type CurrentIdentity } from './api'
+import { ApiClient, ApiError, browserAuth, normalizeBaseUrl, type BrowserSession, type Organization, type Agent, type Connection, type Task, type CurrentIdentity, type Page } from './api'
 import AuthPanel from './AuthPanel'
 import FirstTaskGuide from './FirstTaskGuide'
 import OrganizationMembers from './OrganizationMembers'
@@ -14,6 +14,8 @@ import {DraftVault,sameIdentity,type DraftScope} from './draftVault'
 import { AgentForm, ConnectionForm, TaskForm } from './forms'
 import { dateTime, money, number, terminalStatuses } from './format'
 import TaskDetails from './TaskDetails'
+import DecisionQueue from './DecisionQueue'
+import {decisionTab, type DecisionTab} from './taskAttention'
 import { BudgetBar, EmptyState, ErrorNotice, Icon, Loading, Status } from './ui'
 
 type View = 'tasks' | 'agents' | 'connection' | 'members' | 'security' | 'configuration' | 'capabilities'
@@ -43,12 +45,14 @@ export default function App() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [taskCursor, setTaskCursor] = useState<string | undefined>()
+  const [attentionPage, setAttentionPage] = useState<Page<Task> | null>(null)
+  const [attentionError, setAttentionError] = useState<unknown>(null)
   const [agentCursor, setAgentCursor] = useState<string | undefined>()
   const [loadingMore, setLoadingMore] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<unknown>(null)
   const [refresh, setRefresh] = useState(0)
-  const [selectedTask, setSelectedTask] = useState<string | null>(null)
+  const [selectedTask, setSelectedTask] = useState<{ id: string; tab: DecisionTab } | null>(null)
   const [modal, setModal] = useState<'task' | 'agent' | null>(null)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
@@ -56,7 +60,9 @@ export default function App() {
   const activeClient = useRef<ApiClient | null>(null)
   const connectAttempt = useRef(0)
   const taskPages = useRef(1)
+  const attentionPages = useRef(1)
   const agentPages = useRef(1)
+  const showingAttention = view === 'tasks' && filter === 'attention'
 
   useEffect(()=>{const handler=(event:BeforeUnloadEvent)=>{if(vault.size){event.preventDefault();event.returnValue=''}};window.addEventListener('beforeunload',handler);return()=>window.removeEventListener('beforeunload',handler)},[vault])
 
@@ -95,11 +101,12 @@ export default function App() {
       try {
         const identity=await api!.currentIdentity(controller.signal)
         if(!draftScope||!sameIdentity(draftScope,identity))throw new ApiError(t('Учётная запись изменилась. Подключите пространство заново.'),'unauthenticated')
-        const readTasks = async () => {
-          let page = await api!.tasks(undefined, controller.signal)
+        const readTasks = async (attention = false) => {
+          const readPage = (cursor?: string) => attention ? api!.attentionTasks(cursor, controller.signal) : api!.tasks(cursor, controller.signal)
+          let page = await readPage()
           const items = [...page.data]
-          for (let index = 1; index < taskPages.current && page.next_cursor; index++) {
-            page = await api!.tasks(page.next_cursor, controller.signal)
+          for (let index = 1; index < (attention ? attentionPages.current : taskPages.current) && page.next_cursor; index++) {
+            page = await readPage(page.next_cursor)
             items.push(...page.data)
           }
           return { data: uniqueById(items), next_cursor: page.next_cursor }
@@ -113,32 +120,48 @@ export default function App() {
           }
           return { data: uniqueById(items), next_cursor: page.next_cursor }
         }
-        const [taskPage, agentPage] = await Promise.all([readTasks(), readAgents()])
-        if (stopped) return
+        const [taskPage, agentPage, inbox] = await Promise.all([
+          readTasks(),
+          readAgents(),
+          showingAttention
+            ? readTasks(true).then(page => ({page, error: null})).catch((error: unknown) => ({page: null, error}))
+            : null,
+        ])
+        if (stopped || activeClient.current !== api) return
+        if (inbox?.error instanceof ApiError && ['unauthenticated', 'forbidden'].includes(inbox.error.code)) throw inbox.error
         setIdentity(identity);setView(current=>(current==='members'&&!canAdminMembers(identity))||(current==='security'&&!canAdminSecurity(identity))?'tasks':current)
         // Re-read every loaded page, including its current authorization decisions.
         setTasks(taskPage.data); setTaskCursor(taskPage.next_cursor)
         setAgents(agentPage.data); setAgentCursor(agentPage.next_cursor)
+        if (inbox) {
+          setAttentionPage(inbox.page)
+          setAttentionError(inbox.error)
+        }
         setError(null)
       } catch (cause) {
-        if (stopped || controller.signal.aborted) return
+        if (stopped || controller.signal.aborted || activeClient.current !== api) return
         setError(cause)
+        if (showingAttention) setAttentionPage(null)
         if (cause instanceof ApiError && ['unauthenticated', 'forbidden'].includes(cause.code)) {
           setTasks([]); setAgents([]); setTaskCursor(undefined); setAgentCursor(undefined); disconnect();setView('connection')
         }
       } finally {
-        if (!stopped) { setLoading(false); timer = setTimeout(load, 15000) }
+        if (!stopped && activeClient.current === api) {
+          setLoading(false)
+          timer = setTimeout(load, 15000)
+        }
       }
     }
     void load()
     return () => { stopped = true; controller.abort(); clearTimeout(timer) }
-  }, [api, refresh])
+  }, [api, draftScope, refresh, showingAttention])
 
   async function connect(next: Connection) {
     const attempt = ++connectAttempt.current
     setConnecting(true); setConnectError(null); setApi(null); setConnection(null); setIdentity(null)
     activeClient.current = null; taskPages.current = 1; agentPages.current = 1
-    setTasks([]); setAgents([]); setSelectedTask(null); setError(null)
+    resetAttention()
+    setTasks([]); setAgents([]); setSelectedTask(null); setError(null); setLoading(false)
     try {
       const client = new ApiClient(next)
       const identity=await client.currentIdentity()
@@ -159,8 +182,9 @@ export default function App() {
     setDraftScope(null);setIdentity(null)
     connectAttempt.current += 1
     activeClient.current = null; taskPages.current = 1; agentPages.current = 1
+    resetAttention()
     setApi(null); setConnection(null); setTasks([]); setAgents([]); setSelectedTask(null)
-    setTaskCursor(undefined); setAgentCursor(undefined); setError(null); setConnectError(null)
+    setTaskCursor(undefined); setAgentCursor(undefined); setError(null); setConnectError(null); setLoading(false)
     setView('tasks'); setAnnouncement('Подключение закрыто. Токен удалён из состояния приложения.')
   }
 
@@ -188,7 +212,17 @@ export default function App() {
   }
 
   function navigate(next: View) { setView(next); setSelectedTask(null); setMobileNav(false) }
+  function openTask(id: string, tab: DecisionTab = 'result') { setSelectedTask({id, tab}) }
   function reload() { setLoading(true); setRefresh(value => value + 1) }
+  function resetAttention() {
+    attentionPages.current = 1
+    setAttentionPage(null)
+    setAttentionError(null)
+  }
+  function selectTaskFilter(next: string) {
+    if (filter === 'attention' && next !== filter) resetAttention()
+    setFilter(next)
+  }
 
   async function loadMore(kind: 'tasks' | 'agents') {
     if (!api) return
@@ -210,13 +244,16 @@ export default function App() {
     } catch (cause) { if (activeClient.current === activeApi) setError(cause) } finally { setLoadingMore(false) }
   }
 
-  const attention = tasks.filter(task => ['waiting_input', 'waiting_approval', 'blocked'].includes(task.status)).length
+  const attention = attentionPage?.data.length ?? tasks.filter(task => decisionTab(task) !== null).length
+  const attentionCount = number(attention) + (attentionPage?.next_cursor ? '+' : '')
   const active = tasks.filter(task => ['queued', 'running'].includes(task.status)).length
   const completed = tasks.filter(task => task.status === 'succeeded').length
   const showFirstTaskGuide = !loading && !error && tasks.length === 0 && !taskCursor && Boolean(identity?.permissions.includes('tasks.create'))
   const publishedAgents = agents.filter(agent => agent.published)
-  const filteredTasks = tasks.filter(task => {
-    const matchesFilter = filter === 'all' || (filter === 'active' && !terminalStatuses.has(task.status)) || (filter === 'attention' && ['waiting_input', 'waiting_approval', 'blocked'].includes(task.status)) || (filter === 'completed' && terminalStatuses.has(task.status))
+  const visibleTasks = showingAttention ? attentionPage?.data ?? [] : tasks
+  const visibleCursor = showingAttention ? attentionPage?.next_cursor : taskCursor
+  const filteredTasks = visibleTasks.filter(task => {
+    const matchesFilter = showingAttention || filter === 'all' || (filter === 'active' && !terminalStatuses.has(task.status)) || (filter === 'completed' && terminalStatuses.has(task.status))
     return matchesFilter && `${task.goal} ${task.id}`.toLocaleLowerCase(locale).includes(search.toLocaleLowerCase(locale))
   })
   const title = view === 'tasks' ? t("Задачи") : view === 'agents' ? t("Агенты") : view === 'members' ? t("Участники") : view === 'security' ? t("Безопасность") : view === 'configuration' ? t("Настройки подключений") : view === 'capabilities' ? t("Возможности") : t("Подключение")
@@ -228,7 +265,7 @@ export default function App() {
       <a className="brand" href="#" onClick={event => { event.preventDefault(); navigate('tasks') }}><span className="brand-mark"><span /><span /><span /></span><div>RunVerge<small>Workspace</small></div></a>
       <div className="workspace-switch"><span className="workspace-avatar">W</span><div><strong>{t("Рабочее пространство")}</strong><small>{organizations.find(org => org.id === connection?.organizationId)?.name ?? (connection ? t("Организация подключена") : t("Выберите организацию"))}</small></div></div>
       <div className="nav-caption">{t("РАБОТА")}</div>
-      <nav><button className={`nav-item ${view === 'tasks' ? 'active' : ''}`} onClick={() => navigate('tasks')} aria-current={view === 'tasks' ? 'page' : undefined}><Icon name="tasks" />{t("Задачи")}{attention > 0 && <span className="nav-count">{attention}</span>}</button><button className={`nav-item ${view === 'agents' ? 'active' : ''}`} onClick={() => navigate('agents')} aria-current={view === 'agents' ? 'page' : undefined}><Icon name="agents" />{t("Агенты")}</button></nav>
+      <nav><button className={`nav-item ${view === 'tasks' ? 'active' : ''}`} onClick={() => navigate('tasks')} aria-current={view === 'tasks' ? 'page' : undefined}><Icon name="tasks" />{t("Задачи")}{attention > 0 && <span className="nav-count">{attentionCount}</span>}</button><button className={`nav-item ${view === 'agents' ? 'active' : ''}`} onClick={() => navigate('agents')} aria-current={view === 'agents' ? 'page' : undefined}><Icon name="agents" />{t("Агенты")}</button></nav>
       <div className="sidebar-bottom">{api&&identity&&<button className={`nav-item ${view==='capabilities'?'active':''}`} onClick={()=>navigate('capabilities')} aria-current={view==='capabilities'?'page':undefined}><Icon name="file"/>{t("Возможности")}</button>}{api&&identity&&<button className={`nav-item ${view==='configuration'?'active':''}`} onClick={()=>navigate('configuration')} aria-current={view==='configuration'?'page':undefined}><Icon name="settings"/>{t("Настройки подключений")}</button>}{canAdminSecurity(identity)&&<button className={`nav-item ${view === 'security' ? 'active' : ''}`} onClick={()=>navigate('security')} aria-current={view === 'security' ? 'page' : undefined}><Icon name="shield"/>{t("Безопасность")}</button>}{canAdminMembers(identity)&&<button className={`nav-item ${view === 'members' ? 'active' : ''}`} onClick={() => navigate('members')} aria-current={view === 'members' ? 'page' : undefined}><Icon name="shield"/>{t("Участники")}</button>}<div className="sidebar-note"><Icon name="shield" /><p>{t("Права, расходы и ход работы — под контролем сервера.")}</p></div><button className={`nav-item ${view === 'connection' ? 'active' : ''}`} onClick={() => navigate('connection')} aria-current={view === 'connection' ? 'page' : undefined}><Icon name="settings" />{t("Подключение")}</button><div className="org-footer"><span className={`connection-dot ${api ? 'connected' : ''}`} /><div><strong>{api ? t("Подключено") : t("Нет подключения")}</strong><small title={connection?.organizationId}>{connection?.organizationId ?? t("Добавьте организацию")}</small></div></div></div>
     </aside>
     <div className="main-shell">
@@ -242,22 +279,36 @@ export default function App() {
           {oidcEnabled === null ? <section className="panel connection-panel"><p>{t("Проверяем способ входа…")}</p><ErrorNotice error={authError} onRetry={() => setAuthRefresh(value => value + 1)} /></section> : oidcEnabled ? <AuthPanel session={session} organizations={organizations} selected={connection?.organizationId} busy={authBusy || connecting} error={authError || connectError} more={Boolean(organizationCursor)} onRefresh={() => setAuthRefresh(value => value + 1)} onSelect={id => { if (session) void connect({ baseUrl: '/api/v1', organizationId: id, token: '', mode: 'session', csrfToken: session.csrf_token }) }} onMore={() => void moreOrganizations()} onRotate={() => void rotateSession()} onLogout={() => void endSession()} /> : <>
           <div className="settings-grid"><section className="panel connection-panel"><div className="panel-title"><h2>{t("Доступ к платформе")}</h2><Icon name="link" /></div><ConnectionForm initial={connection ?? { baseUrl: '/api/v1', organizationId: savedOrganization(), token: '' }} busy={connecting} error={connectError} onConnect={next => void connect(next)} /></section><aside className="connection-guide"><span className="guide-icon"><Icon name="shield" /></span><h2>{t("Ваше рабочее пространство")}</h2><p>{t("Используйте идентификатор организации и токен, выданные при настройке сервера.")}</p><ul><li>{t("Доступ к задачам определяет сервер.")}</li><li>{t("Токен не записывается в локальное хранилище.")}</li><li>{t("Организация запоминается на этом устройстве.")}</li></ul><p className="muted">{t("В этой версии вход выполняется по токену. Экран не предоставляет дополнительных полномочий.")}</p></aside></div></>}
 
-        </> : view === 'capabilities' && api && identity ? <Suspense fallback={<Loading/>}><ProductCapabilities key={`${identity.organization_id}:${identity.principal_id}`} api={api} identity={identity} onIdentity={next=>{if(activeClient.current===api)setIdentity(next)}} onUnauthenticated={()=>{if(activeClient.current!==api)return;disconnect();setView('connection')}}/></Suspense> : view === 'configuration' && api && identity ? <Suspense fallback={<Loading/>}><OrganizationConfiguration key={`${identity.organization_id}:${identity.principal_id}`} api={api} identity={identity} onIdentity={next=>{if(activeClient.current===api)setIdentity(next)}} onUnauthenticated={()=>{if(activeClient.current!==api)return;disconnect();setView('connection')}} onOpenTask={id=>{setSelectedTask(id);setView('tasks')}}/></Suspense> : view === 'security' && api && identity ? <OrganizationSecurity key={`${identity.organization_id}:${identity.principal_id}`} api={api} identity={identity} onIdentity={next=>{if(activeClient.current!==api)return;setIdentity(next);if(!canAdminSecurity(next))setView('tasks')}} onUnauthenticated={()=>{if(activeClient.current!==api)return;disconnect();setView('connection')}}/> : view === 'members' && api && identity ? <OrganizationMembers key={`${identity.organization_id}:${identity.principal_id}`} api={api} identity={identity} onIdentity={next=>{if(activeClient.current!==api)return;setIdentity(next);if(!canAdminMembers(next))setView('tasks')}} onUnauthenticated={()=>{if(activeClient.current!==api)return;disconnect();setView('connection')}}/> : selectedTask && api && draftScope && view === 'tasks' ? <TaskDetails identity={identity} vault={vault} draftScope={draftScope} onOpenTask={setSelectedTask} key={`${connection?.organizationId}:${selectedTask}`} api={api} taskId={selectedTask} agents={agents} onBack={() => setSelectedTask(null)} onChanged={reload} /> : <>
+        </> : view === 'capabilities' && api && identity ? <Suspense fallback={<Loading/>}><ProductCapabilities key={`${identity.organization_id}:${identity.principal_id}`} api={api} identity={identity} onIdentity={next=>{if(activeClient.current===api)setIdentity(next)}} onUnauthenticated={()=>{if(activeClient.current!==api)return;disconnect();setView('connection')}}/></Suspense> : view === 'configuration' && api && identity ? <Suspense fallback={<Loading/>}><OrganizationConfiguration key={`${identity.organization_id}:${identity.principal_id}`} api={api} identity={identity} onIdentity={next=>{if(activeClient.current===api)setIdentity(next)}} onUnauthenticated={()=>{if(activeClient.current!==api)return;disconnect();setView('connection')}} onOpenTask={id=>{openTask(id);setView('tasks')}}/></Suspense> : view === 'security' && api && identity ? <OrganizationSecurity key={`${identity.organization_id}:${identity.principal_id}`} api={api} identity={identity} onIdentity={next=>{if(activeClient.current!==api)return;setIdentity(next);if(!canAdminSecurity(next))setView('tasks')}} onUnauthenticated={()=>{if(activeClient.current!==api)return;disconnect();setView('connection')}}/> : view === 'members' && api && identity ? <OrganizationMembers key={`${identity.organization_id}:${identity.principal_id}`} api={api} identity={identity} onIdentity={next=>{if(activeClient.current!==api)return;setIdentity(next);if(!canAdminMembers(next))setView('tasks')}} onUnauthenticated={()=>{if(activeClient.current!==api)return;disconnect();setView('connection')}}/> : selectedTask && api && draftScope && view === 'tasks' ? <TaskDetails identity={identity} vault={vault} draftScope={draftScope} onOpenTask={openTask} key={`${connection?.organizationId}:${selectedTask.id}`} api={api} taskId={selectedTask.id} initialTab={selectedTask.tab} backLabel={filter === 'attention' ? 'Нужно внимание' : undefined} agents={agents} onBack={() => setSelectedTask(null)} onChanged={reload} /> : <>
           <div className="page-heading"><div><div className="eyebrow">{t("РАБОЧЕЕ ПРОСТРАНСТВО")}</div><h1>{title}</h1><p>{view === 'tasks' ? t("Поручайте работу и следите за проверяемым результатом.") : t("Определяйте исполнителей и публикуйте готовые версии.")}</p></div><div className="heading-actions">{api && <button className="icon-button bordered" onClick={reload} disabled={loading} aria-label={t("Обновить список")}><Icon name="refresh" className={loading ? 'spinning' : ''} /></button>}<button className="button button-primary" disabled={!api || (view === 'tasks' && !publishedAgents.length)} onClick={() => setModal(view === 'tasks' ? 'task' : 'agent')}><Icon name="plus" />{view === 'tasks' ? t("Новая задача") : t("Создать агента")}</button></div></div>
           <ErrorNotice error={error} onRetry={reload} />
           {!api ? <section className="panel welcome-panel"><div className="welcome-illustration"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><span className="welcome-node node-one"><Icon name="agents" /></span><span className="welcome-node node-two"><Icon name="file" /></span><span className="welcome-node node-three"><Icon name="check" /></span><span className="welcome-center"><Icon name="tasks" /></span></div><EmptyState icon="link" title={t("Начните с подключения")} description={t("Задачи, агенты и расходы появятся после подключения к API вашей организации.")} action={<button className="button button-primary" onClick={() => navigate('connection')}>{t("Подключить пространство")}<Icon name="arrow" /></button>} /></section> : view === 'tasks' ? <>
             {showFirstTaskGuide && <FirstTaskGuide agents={agents} moreAgents={Boolean(agentCursor)} identity={identity} onCreateAgent={() => setModal('agent')} onAgents={() => navigate('agents')} onTask={() => setModal('task')} />}
-            <div className="stats-grid"><div className="stat-card"><span className="stat-icon"><Icon name="activity" /></span><div><span>{t("В работе и очереди")}</span><strong>{number(active)}</strong></div></div><div className="stat-card"><span className="stat-icon warm"><Icon name="clock" /></span><div><span>{t("Нужно внимание")}</span><strong>{number(attention)}</strong></div></div><div className="stat-card"><span className="stat-icon green"><Icon name="check" /></span><div><span>{t("Завершено")}</span><strong>{number(completed)}</strong></div></div></div><div className="stats-note">{t("По загруженным задачам · обновление каждые 15 секунд")}</div>
+            <div className="stats-grid"><div className="stat-card"><span className="stat-icon"><Icon name="activity" /></span><div><span>{t("В работе и очереди")}</span><strong>{number(active)}</strong></div></div><div className="stat-card"><span className="stat-icon warm"><Icon name="clock" /></span><div><span>{t("Нужно внимание")}</span><strong>{attentionCount}</strong></div></div><div className="stat-card"><span className="stat-icon green"><Icon name="check" /></span><div><span>{t("Завершено")}</span><strong>{number(completed)}</strong></div></div></div><div className="stats-note">{t("По загруженным задачам · обновление каждые 15 секунд")}</div>
             {!publishedAgents.length && !showFirstTaskGuide && <div className="notice notice-info"><Icon name="agents" /><div><strong>{t("Нужен опубликованный агент")}</strong><p>{t("Создайте исполнителя и опубликуйте его версию, чтобы начать работу.")}</p></div><button className="button button-small button-secondary" onClick={() => navigate('agents')}>{t("К агентам")}<Icon name="arrow" /></button></div>}
-            <section className="panel task-list"><div className="list-toolbar"><div className="filter-buttons" aria-label={t("Фильтр задач")}>{[['all', t("Все")], ['active', t("Активные")], ['attention', t("Нужно внимание")], ['completed', t("Завершённые")]].map(([value, label]) => <button key={value} className={filter === value ? 'selected' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div><input className="search-input" aria-label={t("Поиск по загруженным задачам")} placeholder={t("Найти задачу…")} value={search} onChange={event => setSearch(event.target.value)} /></div>
-              {filteredTasks.length ? <div className="task-table-wrap"><table className="task-table"><thead><tr><th scope="col">{t("Задача")}</th><th scope="col">{t("Статус")}</th><th scope="col">{t("Расходы")}</th><th scope="col">{t("Создана")}</th><th scope="col"><span className="sr-only">{t("Открыть")}</span></th></tr></thead><tbody>{filteredTasks.map(task => <tr key={task.id}><td><button className="task-name" onClick={() => setSelectedTask(task.id)}>{task.goal}</button><div className="task-agent"><Icon name="agents" />{agents.find(agent => agent.id === task.agent_id)?.name ?? task.agent_id.slice(0, 12)}<span>v{task.agent_version}</span></div></td><td><Status status={task.status} /></td><td><BudgetBar budget={task.budget_microusd} spent={task.spent_microusd} reserved={task.reserved_microusd} /></td><td><time dateTime={task.created_at}>{dateTime(task.created_at)}</time></td><td><button className="icon-button" onClick={() => setSelectedTask(task.id)} aria-label={t("Открыть задачу: {value0}", {value0: task.goal})}><Icon name="arrow" /></button></td></tr>)}</tbody></table></div> : loading ? <Loading /> : <EmptyState title={tasks.length ? t("Ничего не найдено") : t("Первая задача — впереди")} description={tasks.length ? t("Измените поиск или фильтр. Поиск выполняется по загруженным задачам.") : t("Опишите ожидаемый результат и выберите опубликованного агента.")} />}
-              <div className="list-footer"><span>{t("Загружено задач:")} {number(tasks.length)}</span>{taskCursor && <button className="button button-small button-secondary" onClick={() => void loadMore('tasks')} disabled={loadingMore}>{loadingMore ? t("Загружаем…") : t("Загрузить ещё")}</button>}</div></section>
+            <section className="panel task-list"><div className="list-toolbar"><div className="filter-buttons" aria-label={t("Фильтр задач")}>{[['all', t("Все")], ['active', t("Активные")], ['attention', t("Нужно внимание")], ['completed', t("Завершённые")]].map(([value, label]) => <button key={value} className={filter === value ? 'selected' : ''} aria-pressed={filter === value} onClick={() => selectTaskFilter(value)}>{label}</button>)}</div><input className="search-input" aria-label={t("Поиск по загруженным задачам")} placeholder={t("Найти задачу…")} value={search} onChange={event => setSearch(event.target.value)} /></div>
+              {showingAttention ? (
+                error ? null
+                : attentionError ? <ErrorNotice error={attentionError} onRetry={loading ? undefined : reload} />
+                : !attentionPage ? <Loading />
+                : filteredTasks.length ? <DecisionQueue tasks={filteredTasks} onOpen={openTask} />
+                : search ? <EmptyState title={t("Ничего не найдено")} description={t("Измените поиск или фильтр. Поиск выполняется по загруженным задачам.")} />
+                : <EmptyState title={t("Очередь решений пуста")} description={t("Здесь появятся задачи, которым нужна проверка, подтверждение или помощь.")} />
+              ) : filteredTasks.length ? <div className="task-table-wrap"><table className="task-table"><thead><tr><th scope="col">{t("Задача")}</th><th scope="col">{t("Статус")}</th><th scope="col">{t("Расходы")}</th><th scope="col">{t("Создана")}</th><th scope="col"><span className="sr-only">{t("Открыть")}</span></th></tr></thead><tbody>{filteredTasks.map(task => <tr key={task.id}><td><button className="task-name" onClick={() => openTask(task.id)}>{task.goal}</button><div className="task-agent"><Icon name="agents" />{agents.find(agent => agent.id === task.agent_id)?.name ?? task.agent_id.slice(0, 12)}<span>v{task.agent_version}</span></div></td><td><Status status={task.status} /></td><td><BudgetBar budget={task.budget_microusd} spent={task.spent_microusd} reserved={task.reserved_microusd} /></td><td><time dateTime={task.created_at}>{dateTime(task.created_at)}</time></td><td><button className="icon-button" onClick={() => openTask(task.id)} aria-label={t("Открыть задачу: {value0}", {value0: task.goal})}><Icon name="arrow" /></button></td></tr>)}</tbody></table></div> : loading ? <Loading /> : <EmptyState title={tasks.length ? t("Ничего не найдено") : t("Первая задача — впереди")} description={tasks.length ? t("Измените поиск или фильтр. Поиск выполняется по загруженным задачам.") : t("Опишите ожидаемый результат и выберите опубликованного агента.")} />}
+              {(!showingAttention || attentionPage) && <div className="list-footer">
+                <span>{t("Загружено задач:")} {number(visibleTasks.length)}</span>
+                {visibleCursor && <button className="button button-small button-secondary" onClick={() => {
+                  if (showingAttention) { attentionPages.current += 1; reload() }
+                  else void loadMore('tasks')
+                }} disabled={loading || loadingMore}>{loading || loadingMore ? t("Загружаем…") : t("Загрузить ещё")}</button>}
+              </div>}
+            </section>
           </> : <><AgentCatalog agents={agents} api={api} onUpdated={() => { reload(); setAnnouncement('Версия агента опубликована.') }} />{agentCursor && <div className="load-more"><button className="button button-secondary" onClick={() => void loadMore('agents')} disabled={loadingMore}>{loadingMore ? t("Загружаем…") : t("Загрузить ещё агентов")}</button></div>}</>}
         </>}
         <footer className="page-footer"><span>RunVerge Workspace</span><span>{t("Данные из API · без демонстрационных результатов")}</span></footer>
       </main>
     </div>
-    {modal === 'task' && api && <TaskForm api={api} agents={agents} onClose={() => setModal(null)} onCreated={id => { setModal(null); setSelectedTask(id); reload(); setAnnouncement('Задача создана.') }} />}
+    {modal === 'task' && api && <TaskForm api={api} agents={agents} onClose={() => setModal(null)} onCreated={id => { setModal(null); openTask(id); reload(); setAnnouncement('Задача создана.') }} />}
     {modal === 'agent' && api && <AgentForm api={api} onClose={() => setModal(null)} onCreated={() => { setModal(null); navigate('agents'); reload(); setAnnouncement('Черновик агента сохранён.') }} />}
   </div>
 }

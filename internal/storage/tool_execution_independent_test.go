@@ -33,6 +33,11 @@ func independentToolSetup(t *testing.T, distinct bool) *independentToolFixture {
 }
 func independentToolSetupWithPeer(t *testing.T, distinct bool, handler http.HandlerFunc) *independentToolFixture {
 	t.Helper()
+	return independentToolSetupWithPeerSchema(t, distinct, handler, `{"type":"object","properties":{},"additionalProperties":false}`)
+}
+
+func independentToolSetupWithPeerSchema(t *testing.T, distinct bool, handler http.HandlerFunc, schema string) *independentToolFixture {
+	t.Helper()
 	f := &independentToolFixture{independentCollaborationFixture: independentCollaborationSetup(t)}
 	if handler == nil {
 		handler = func(w http.ResponseWriter, _ *http.Request) {
@@ -43,7 +48,6 @@ func independentToolSetupWithPeer(t *testing.T, distinct bool, handler http.Hand
 	peer := httptest.NewTLSServer(handler)
 	f.peer = peer
 	t.Cleanup(peer.Close)
-	schema := `{"type":"object","properties":{},"additionalProperties":false}`
 	c := domain.ToolConnection{Tool: domain.ToolInfo{
 		ID: "independent-tool", OrganizationID: f.p.OrganizationID, Version: 1,
 		Name: "Independent action fixture", Description: "State tests; no real external effect",

@@ -1,5 +1,7 @@
 # RunVerge
 
+**Versión preliminar alpha.7** · [Notas y descargas](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.7)
+
 **Asigna tareas a agentes, revisa sus respuestas y conserva el historial de cambios.**
 
 [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)

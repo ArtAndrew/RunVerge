@@ -119,7 +119,7 @@ the organization header is not authorization by itself.
 | Method | Result |
 | --- | --- |
 | `create_task(goal, agent_id, budget_microusd, *, idempotency_key, max_runs=None, execution_timeout_seconds=None)` | `Task` dictionary |
-| `list_tasks(*, cursor=None, limit=None)` | `Page[Task]` |
+| `list_tasks(*, cursor=None, limit=None, view=None)` | `Page[Task]` |
 | `get_task(task_id)` | `Task` dictionary |
 | `cancel_task(task_id, *, idempotency_key)` | `Task` dictionary |
 | `list_agents(*, cursor=None, limit=None)` | `Page[Agent]` |
@@ -194,6 +194,9 @@ for event in page.data:
 Task and agent list cursors are opaque strings. Event `after` is a canonical decimal string
 sequence, not a list cursor. Persist it **after processing** an event; sequences
 are increasing within an organization and may have gaps. This method reads JSON history; separate streaming APIs are described below. Limits are between 1 and 100.
+
+Use `list_tasks(view="attention")` for the organization's decision queue. Keep the same
+`view` and organization when passing its cursor. The client verifies that the server applied the view.
 
 ### Execution and accounting reads (0.3)
 

@@ -29,6 +29,13 @@ func validateWireProfile(config Config) error {
 			return rejected("unexpected_provider_prices")
 		}
 		return nil
+	case domain.ModelWireOllamaNoThinkingV1:
+		if !config.AllowInsecureLoopback || !IsLocalChatEndpoint(config.Endpoint) ||
+			config.TokenLimitField != "max_tokens" || config.OpenRouterPrice != (OpenRouterPrice{}) ||
+			config.OpenRouterDataCollection != "" {
+			return rejected("invalid_ollama_profile")
+		}
+		return nil
 	case domain.ModelWireOpenRouterTextV1:
 		if config.OpenRouterDataCollection != "" && config.OpenRouterDataCollection != "deny" && config.OpenRouterDataCollection != "allow" {
 			return rejected("invalid_openrouter_data_policy")
@@ -58,7 +65,11 @@ func exactUSD(microUSD int64) json.Number {
 }
 
 func (g *Gateway) applyWireProfile(payload map[string]any, input Request) error {
-	if g.config.WireProfile == "" {
+	switch g.config.WireProfile {
+	case "":
+		return nil
+	case domain.ModelWireOllamaNoThinkingV1:
+		payload["reasoning_effort"] = "none"
 		return nil
 	}
 	if len(input.Tools) != 0 || len(input.Messages) != 0 {

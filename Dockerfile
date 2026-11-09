@@ -4,16 +4,20 @@ WORKDIR /deps/web
 COPY web/package.json web/pnpm-lock.yaml ./
 RUN npm install --global pnpm@10.34.9 && pnpm install --frozen-lockfile --ignore-scripts
 
-FROM golang:1.27.3-bookworm@sha256:df4bb0305771186a85d0fd3a40f5c5da9af97ac8053d391ffce2c070817a20c6 AS build
+FROM golang:1.27.3-bookworm@sha256:df4bb0305771186a85d0fd3a40f5c5da9af97ac8053d391ffce2c070817a20c6 AS go-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends python3 ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=web-dependencies /usr/local/bin/node /usr/local/bin/node
 WORKDIR /src/runverge
-COPY . .
-COPY --from=web-dependencies /deps/web/node_modules ./web/node_modules
+COPY go.mod go.sum ./
 ENV GOMODCACHE=/work/go-mod GOCACHE=/work/go-cache GOTOOLCHAIN=local GOENV=off GOWORK=off
 RUN go mod download
+
+FROM go-dependencies AS build
+COPY --from=web-dependencies /usr/local/bin/node /usr/local/bin/node
+COPY . .
+COPY --from=web-dependencies /deps/web/node_modules ./web/node_modules
 RUN go test -mod=readonly ./cmd/healthcheck
-RUN go test -mod=readonly ./cmd/platform -run '^Test(ContainerPreviewDoesNotRelaxDefaultOrIdentityListeners|PrepareModel)' -count=1
+RUN go test -mod=readonly ./cmd/platform -run '^Test(ContainerPreviewDoesNotRelaxDefaultOrIdentityListeners|PrepareModel|RecoveryProcessHost)' -count=1
+RUN go test -mod=readonly -race ./internal/recoveryprocess ./internal/recoverycontrol -count=1
 RUN go test -mod=readonly ./internal/modelgateway ./internal/modelruntime -count=1
 ARG RUNVERGE_VERSION=0.14.0-alpha.3
 RUN mkdir -m 0755 /out && python3 scripts/build_native_bundle.py --output /out/bundle --version "$RUNVERGE_VERSION" > /out/build-report.json
@@ -56,6 +60,24 @@ RUN node /usr/local/lib/node_modules/npm/bin/npm-cli.js ci --prefix /opt/browser
     PLAYWRIGHT_BROWSERS_PATH=/opt/browser-tools/browsers node /opt/browser-tools/node_modules/playwright/cli.js install --with-deps chromium && \
     chmod -R a+rX /opt/browser-tools
 USER postgres
+
+# Opt-in fixture tool; the runtime image has no seed or test executable.
+FROM go-dependencies AS recovery-fixture-tools
+COPY internal ./internal
+COPY tests/fixtures/recovery-accounting-source ./tests/fixtures/recovery-accounting-source
+COPY tests/fixtures/recovery-usage-peer ./tests/fixtures/recovery-usage-peer
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/recovery-accounting-source ./tests/fixtures/recovery-accounting-source
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/recovery-usage-peer ./tests/fixtures/recovery-usage-peer
+
+FROM scratch AS recovery-usage-peer
+COPY --from=recovery-fixture-tools /out/recovery-usage-peer /recovery-usage-peer
+USER 10001:10001
+ENTRYPOINT ["/recovery-usage-peer"]
+
+FROM scratch AS recovery-fixture-runtime
+COPY --from=recovery-fixture-tools /out/recovery-accounting-source /recovery-accounting-source
+USER 10001:10001
+ENTRYPOINT ["/recovery-accounting-source"]
 
 FROM scratch AS runtime
 COPY --from=native-check --chown=10001:10001 /opt/installed /app

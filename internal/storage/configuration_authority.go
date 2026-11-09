@@ -238,10 +238,16 @@ func configurationPreAuthorization(ctx context.Context, tx pgx.Tx, p domain.Prin
 
 // Bound resources keep their exact purpose/destination trust after they have
 // been copied into an ordinary runtime profile. Legacy host installations have
-// no binding and retain their established trusted-host admission semantics.
+// no binding and retain their established trusted-host admission semantics,
+// except that imported profiles never inherit restored-host authority.
 func checkConfigurationResourceAdmissionTx(ctx context.Context, tx pgx.Tx, org, kind, targetID string, version int) error {
+	if err := checkRecoveryOutboundProfileTx(ctx, tx, org, kind, targetID, version); err != nil {
+		return err
+	}
 	var valid bool
 	err := tx.QueryRow(ctx, `SELECT d.active AND p.active AND d.kind=p.kind
+ AND NOT recovery_is_historical('configuration_destinations',jsonb_build_array(d.organization_id,d.id,d.version))
+ AND NOT recovery_is_historical('credential_purpose_profiles',jsonb_build_array(p.organization_id,p.id,p.version))
  FROM configuration_resource_bindings b JOIN configuration_destinations d
  ON d.organization_id=b.organization_id AND d.id=b.destination_id AND d.version=b.destination_version
  JOIN credential_purpose_profiles p ON p.organization_id=b.organization_id AND p.id=b.credential_purpose_id AND p.version=b.credential_purpose_version

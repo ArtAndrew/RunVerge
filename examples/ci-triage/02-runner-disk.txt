@@ -1,0 +1,15 @@
+Draft a CI triage comment for a teammate. Use only the supplied evidence.
+Return three sections: Finding, Evidence, Next check. In Evidence, cite the
+supplied run URL with the relevant line range, e.g. #L18-L20. Distinguish facts
+from hypotheses. If the cause is unclear, say what would resolve it.
+Keep the complete draft under 120 words. Do not fetch, run, edit or publish anything.
+
+Run URL: https://ci.example.invalid/runs/4102
+Job: integration
+Commit note: Update the text on the sign-in page.
+
+L18 runner: restore dependency cache
+L19 tar: cannot write /runner/work/cache/lib.dat: No space left on device
+L20 runner: /runner/work available=0 bytes
+L21 workflow: skipping test step because cache restore failed
+L22 workflow: job exit code 1

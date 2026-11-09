@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: Elastic-2.0
 export const enComponents: Record<string, string> = {
+  "Предложенные исправления ссылок": "Suggested reference corrections",
+  "Дополнить ссылки в черновике": "Complete references in the draft",
+  "Ссылки на журнал CI": "CI log references",
+  "Не удалось разобрать адрес запуска и строки исходного журнала.": "The run URL and source log lines could not be read.",
+  "В черновике нет ссылок на строки исходного журнала.": "The draft has no references to the source log lines.",
+  "Некоторые ссылки неполные или не совпадают со строками исходного журнала.": "Some references are incomplete or do not match the source log lines.",
+  "Ссылки совпадают со строками исходного журнала.": "References match the source log lines.",
+  "Ссылки и строки журнала": "References and log lines",
+  "Совпадения нет": "No match",
+  "Сверьте вывод с журналом. Проверка ссылок не подтверждает вывод.": "Compare the finding with the log. Matching references do not verify the finding.",
   "Задача создана": "Task created",
   "Задача в очереди": "Task queued",
   "Работа началась": "Work started",

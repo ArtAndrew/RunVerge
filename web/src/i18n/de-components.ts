@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: Elastic-2.0
 // UI copy only. User/model text and API payloads remain unchanged.
 export const deComponents: Record<string, string> = {
+  "Предложенные исправления ссылок": "Vorgeschlagene Korrekturen für Verweise",
+  "Дополнить ссылки в черновике": "Verweise im Entwurf vervollständigen",
+  "Ссылки на журнал CI": "Verweise auf das CI-Protokoll",
+  "Не удалось разобрать адрес запуска и строки исходного журнала.": "Die URL des Laufs und die Zeilen des Quellprotokolls konnten nicht gelesen werden.",
+  "В черновике нет ссылок на строки исходного журнала.": "Der Entwurf enthält keine Verweise auf Zeilen im Quellprotokoll.",
+  "Некоторые ссылки неполные или не совпадают со строками исходного журнала.": "Einige Verweise sind unvollständig oder passen nicht zu den Zeilen im Quellprotokoll.",
+  "Ссылки совпадают со строками исходного журнала.": "Die Verweise passen zu den Zeilen im Quellprotokoll.",
+  "Ссылки и строки журнала": "Verweise und Protokollzeilen",
+  "Совпадения нет": "Keine Übereinstimmung",
+  "Сверьте вывод с журналом. Проверка ссылок не подтверждает вывод.": "Gleichen Sie den Befund mit dem Protokoll ab. Übereinstimmende Verweise bestätigen den Befund nicht.",
   "Задача создана": "Aufgabe erstellt",
   "Задача в очереди": "Aufgabe eingereiht",
   "Работа началась": "Arbeit begonnen",

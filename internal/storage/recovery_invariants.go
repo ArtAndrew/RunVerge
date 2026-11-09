@@ -24,7 +24,11 @@ func validateRecoveryInvariants(ctx context.Context, tx pgx.Tx, schema string) e
 	if ctx == nil || tx == nil || !recoverySnapshotName.MatchString(schema) {
 		return ErrRecoveryInvariant
 	}
-	for _, check := range recoveryInvariantQueries(schema) {
+	var rebindings bool
+	if err := tx.QueryRow(ctx, "SELECT pg_catalog.to_regclass($1) IS NOT NULL", pgx.Identifier{schema, "recovery_oidc_rebindings"}.Sanitize()).Scan(&rebindings); err != nil {
+		return ErrRecoveryInvariant
+	}
+	for _, check := range recoveryInvariantQueriesWithOIDC(schema, rebindings) {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -44,6 +48,15 @@ type recoveryInvariantQuery struct{ name, sql string }
 // Every replacement key/table is a source-code constant. Archive names never
 // enter SQL. Explicit pg_catalog functions avoid dependence on search_path.
 func recoveryInvariantQueries(schema string) []recoveryInvariantQuery {
+	return recoveryInvariantQueriesWithOIDC(schema, false)
+}
+
+func recoveryInvariantQueriesWithOIDC(schema string, rebindings bool) []recoveryInvariantQuery {
+	bindingMismatch := "m.principal_id IS DISTINCT FROM s.principal_id"
+	if rebindings {
+		bindingMismatch += ` AND NOT EXISTS(SELECT 1 FROM {recovery_oidc_rebindings} r
+ WHERE r.issuer=s.issuer AND r.subject=s.subject AND r.principal_id=s.principal_id)`
+	}
 	queries := []recoveryInvariantQuery{
 		{"task_lineage", `SELECT NOT EXISTS (
  SELECT 1 FROM {tasks} t LEFT JOIN {tasks} p ON p.organization_id=t.organization_id AND p.id=t.parent_id
@@ -118,7 +131,7 @@ func recoveryInvariantQueries(schema string) []recoveryInvariantQuery {
  AND NOT EXISTS(SELECT 1 FROM (SELECT principal_id FROM {access_tokens} UNION ALL SELECT principal_id FROM {browser_sessions} UNION ALL SELECT principal_id FROM {identity_mappings}) h
  LEFT JOIN {principals} p ON p.id=h.principal_id WHERE p.id IS NULL OR p.kind<>'human')
  AND NOT EXISTS(SELECT 1 FROM {browser_sessions} s LEFT JOIN {identity_mappings} m ON m.issuer=s.issuer AND m.subject=s.subject
- WHERE m.principal_id IS DISTINCT FROM s.principal_id)`},
+ WHERE ` + bindingMismatch + ")"},
 		{"credential_origins", `WITH origins AS (
  SELECT credential_generation AS generation,'access' AS kind FROM {access_tokens}
  UNION ALL SELECT credential_generation,'service' FROM {service_credentials}
@@ -145,6 +158,11 @@ func recoveryInvariantQueries(schema string) []recoveryInvariantQuery {
  UNION ALL SELECT organization_id,created_by,creator_authority_epoch,creator_policy_epoch FROM {tool_executions}
  UNION ALL SELECT organization_id,dispatch_requested_by,dispatcher_authority_epoch,dispatcher_policy_epoch FROM {tool_executions} WHERE dispatch_requested_by IS NOT NULL
  UNION ALL SELECT organization_id,decided_by,decider_authority_epoch,decider_policy_epoch FROM {approvals} WHERE execution_id IS NOT NULL AND decided_by IS NOT NULL
+ UNION ALL SELECT organization_id,issuer_id,issuer_authority_epoch,issuer_policy_epoch FROM {configuration_grants}
+ UNION ALL SELECT organization_id,subject_id,subject_authority_epoch,subject_policy_epoch FROM {configuration_grants}
+ UNION ALL SELECT organization_id,actor_id,actor_authority_epoch,actor_policy_epoch FROM {configuration_plans}
+ UNION ALL SELECT organization_id,principal_id,authority_epoch,policy_epoch FROM {configuration_approvals}
+ UNION ALL SELECT organization_id,actor_id,actor_authority_epoch,actor_policy_epoch FROM {configuration_verifications}
 ) SELECT NOT EXISTS(SELECT 1 FROM snapshots s LEFT JOIN {memberships} m ON m.organization_id=s.organization_id AND m.principal_id=s.principal
  LEFT JOIN {principals} p ON p.id=s.principal LEFT JOIN {organization_login_policies} q ON q.organization_id=s.organization_id
  WHERE m.principal_id IS NULL OR p.id IS NULL OR q.organization_id IS NULL OR s.authority_epoch IS NULL OR s.policy_epoch IS NULL
@@ -170,7 +188,20 @@ func recoveryInvariantQueries(schema string) []recoveryInvariantQuery {
  WHERE e.id IS NULL OR a.id IS NULL OR a.task_id<>e.task_id OR r.content_digest<>pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(a.content,'UTF8')),'hex'))`},
 		{"outbox_scope", `SELECT NOT EXISTS(SELECT 1 FROM {outbox} o LEFT JOIN {events} e ON e.sequence=o.sequence WHERE e.sequence IS NULL OR o.organization_id<>e.organization_id)`},
 	}
-	tables := []string{"tasks", "reservations", "ledger_entries", "organizations", "financial_incidents", "cost_quarantines", "cost_evidence", "cost_quarantine_resolutions", "memberships", "principals", "service_credentials", "access_tokens", "browser_sessions", "identity_mappings", "organization_login_policies", "tool_executions", "approvals", "runs", "operations", "task_automation_grants", "task_tree_controls", "task_candidates", "artifacts", "material_revisions", "tool_outcome_receipts", "tool_outcome_conflicts", "outbox", "events"}
+	if rebindings {
+		queries = append(queries, recoveryInvariantQuery{"oidc_rebinding_lineage", `WITH ordered AS (
+ SELECT r.*,lag(r.principal_id) OVER(PARTITION BY r.issuer,r.subject ORDER BY r.generation) AS prior,
+ row_number() OVER(PARTITION BY r.issuer,r.subject ORDER BY r.generation) AS position
+ FROM {recovery_oidc_rebindings} r)
+ SELECT NOT EXISTS(SELECT 1 FROM ordered r
+ LEFT JOIN {identity_mappings} i ON i.issuer=r.issuer AND i.subject=r.subject
+ LEFT JOIN {principals} p ON p.id=r.principal_id
+ LEFT JOIN {memberships} m ON m.organization_id=r.organization_id AND m.principal_id=r.principal_id
+ WHERE i.principal_id IS NULL OR p.kind IS DISTINCT FROM 'human' OR m.principal_id IS NULL OR r.principal_id=i.principal_id
+ OR r.generation<>r.position OR r.previous_principal_id IS DISTINCT FROM COALESCE(r.prior,i.principal_id))`})
+	}
+	tables := []string{"tasks", "reservations", "ledger_entries", "organizations", "financial_incidents", "cost_quarantines", "cost_evidence", "cost_quarantine_resolutions", "memberships", "principals", "service_credentials", "access_tokens", "browser_sessions", "identity_mappings", "organization_login_policies", "tool_executions", "approvals", "runs", "operations", "task_automation_grants", "task_tree_controls", "task_candidates", "artifacts", "material_revisions", "tool_outcome_receipts", "tool_outcome_conflicts", "outbox", "events", "configuration_grants", "configuration_plans", "configuration_approvals", "configuration_verifications"}
+	tables = append(tables, "recovery_oidc_rebindings")
 	pairs := make([]string, 0, len(tables)*2)
 	for _, table := range tables {
 		pairs = append(pairs, "{"+table+"}", pgx.Identifier{schema, table}.Sanitize())

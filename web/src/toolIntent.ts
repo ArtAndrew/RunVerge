@@ -68,6 +68,28 @@ export function prepareToolPayload(snapshot:ReviewSnapshot,tool:ToolInfo,args:st
   return {occurrence_id:occurrence,expected_task_version:snapshot.task.version,candidate_id:snapshot.candidate.id,artifact_id:snapshot.artifact.id,artifact_version:snapshot.artifact.version,content_digest:snapshot.candidate.content_digest,tool_id:tool.id,tool_version:tool.version,arguments_json:exactArguments(args,tool.max_input_bytes),expires_in_seconds:seconds}
 }
 
+export function isGitHubCICommentTool(tool:ToolInfo):boolean {
+  return tool.provider === 'github' && tool.price_version === 'github-ci-comment-v1' &&
+    tool.effect === 'write' && tool.require_distinct_approver
+}
+
+// IDs stay as decimal lexemes so the prepared arguments preserve int64 values.
+export function githubCICommentArguments(goal:string,tool:ToolInfo,body:string):string|null {
+  if (!isGitHubCICommentTool(tool)) return null
+  const [,runLine,workflowLine,branchLine,commitLine,conclusionLine,repositoryLine] = goal.split('\n',7)
+  const run = /^Run URL: (https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+)\/actions\/runs\/([1-9][0-9]{0,18})\/attempts\/([1-9][0-9]{0,18})$/.exec(runLine ?? '')
+  const workflow = /^Workflow ID: ([1-9][0-9]{0,18})$/.exec(workflowLine ?? '')
+  const branch = /^Branch: ([A-Za-z0-9][A-Za-z0-9_./-]{0,127})$/.exec(branchLine ?? '')
+  const commit = /^Commit: ([a-f0-9]{40})$/.exec(commitLine ?? '')
+  const conclusion = /^Conclusion: (failure|timed_out)$/.exec(conclusionLine ?? '')
+  const repository = /^Repository ID: ([1-9][0-9]{0,18})$/.exec(repositoryLine ?? '')
+  if (!run || !workflow || !branch || !commit || !conclusion || !repository ||
+      run[1].toLowerCase() !== tool.destination.toLowerCase()) return null
+  return `{"repository_id":${repository[1]},"workflow_id":${workflow[1]},"run_id":${run[2]},"run_attempt":${run[3]},` +
+    `"branch":${JSON.stringify(branch[1])},"commit_sha":${JSON.stringify(commit[1])},` +
+    `"conclusion":${JSON.stringify(conclusion[1])},"body":${JSON.stringify(body)}}`
+}
+
 export function commandAllowed(view:ToolExecutionView,command:string,now=Date.now()):boolean{
   if(!view.available_commands.includes(command))return false
   const status=view.execution.status

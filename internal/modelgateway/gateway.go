@@ -14,6 +14,7 @@ import (
 	"net/http/httptrace"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -270,6 +271,17 @@ func safeASCII(value string, maxBytes int) bool {
 func validText(value string, maxBytes int) bool {
 	return len(value) <= maxBytes && strings.TrimSpace(value) != "" &&
 		utf8.ValidString(value) && !strings.ContainsRune(value, '\x00')
+}
+
+// IsLocalChatEndpoint checks the exact address allowed for local zero-tariff inference.
+func IsLocalChatEndpoint(endpoint string) bool {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return false
+	}
+	port, err := strconv.Atoi(parsed.Port())
+	return err == nil && port >= 1 && port <= 65535 &&
+		endpoint == "http://127.0.0.1:"+strconv.Itoa(port)+"/v1/chat/completions"
 }
 
 func validEndpoint(endpoint string, allowHTTP bool) bool {

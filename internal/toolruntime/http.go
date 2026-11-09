@@ -12,9 +12,22 @@ import (
 	"net/netip"
 	"net/url"
 	"time"
+
+	"agentplatform.local/platform/internal/domain"
 )
 
 func (r *Runtime) httpExecute(ctx context.Context, payload []byte, key string, deadline time.Time) ([]byte, error) {
+	status, raw, err := r.httpExchange(ctx, http.MethodPost, r.config.Connection.Endpoint, payload, key, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if status < 200 || status > 299 {
+		return nil, failed("response_unknown")
+	}
+	return raw, nil
+}
+
+func (r *Runtime) httpExchange(ctx context.Context, method, endpoint string, payload []byte, key string, deadline time.Time) (int, []byte, error) {
 	c := r.config.Connection
 	u, _ := url.Parse(c.Endpoint)
 	port := u.Port()
@@ -61,39 +74,54 @@ func (r *Runtime) httpExecute(ctx context.Context, payload []byte, key string, d
 	}
 	defer tr.CloseIdleConnections()
 	client := &http.Client{Transport: tr, Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	request, e := http.NewRequestWithContext(ctx, http.MethodPost, c.Endpoint, io.NopCloser(bytes.NewReader(payload)))
+	var body io.Reader
+	if payload != nil {
+		body = io.NopCloser(bytes.NewReader(payload))
+	}
+	request, e := http.NewRequestWithContext(ctx, method, endpoint, body)
 	if e != nil {
-		return nil, failed("invalid_request")
+		return 0, nil, failed("invalid_request")
 	}
 	request.ContentLength = int64(len(payload))
 	request.GetBody = nil
 	request.Close = true
-	request.Header.Set("Content-Type", "application/json")
+	if payload != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Accept-Encoding", "identity")
-	request.Header.Set("Idempotency-Key", key)
+	if key != "" {
+		request.Header.Set("Idempotency-Key", key)
+	}
+	if c.ResultContract == domain.ToolResultContractGitHubCICommentV1 {
+		request.Header.Set("Accept", "application/vnd.github+json")
+		request.Header.Set("X-GitHub-Api-Version", "2026-03-10")
+	}
 	if r.config.Credential != "" {
 		request.Header.Set("Authorization", "Bearer "+r.config.Credential)
 	}
 	response, e := client.Do(request)
 	if e != nil {
-		return nil, failed("transport_outcome_unknown")
+		return 0, nil, failed("transport_outcome_unknown")
 	}
 	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode > 299 {
+		return response.StatusCode, nil, nil
+	}
 	media, _, e := mime.ParseMediaType(response.Header.Get("Content-Type"))
-	if e != nil || media != "application/json" || response.StatusCode < 200 || response.StatusCode > 299 || (response.Header.Get("Content-Encoding") != "" && response.Header.Get("Content-Encoding") != "identity") {
-		return nil, failed("response_unknown")
+	if e != nil || media != "application/json" || (response.Header.Get("Content-Encoding") != "" && response.Header.Get("Content-Encoding") != "identity") {
+		return 0, nil, failed("response_unknown")
 	}
 	// JSON may escape one decoded byte as six wire bytes (for example \u003c).
 	limit := int64(6*c.Tool.MaxOutputBytes + 8192)
 	if response.ContentLength > limit {
-		return nil, failed("response_limit")
+		return 0, nil, failed("response_limit")
 	}
 	raw, e := io.ReadAll(io.LimitReader(response.Body, limit+1))
 	if e != nil || int64(len(raw)) > limit {
-		return nil, failed("response_limit")
+		return 0, nil, failed("response_limit")
 	}
-	return raw, nil
+	return response.StatusCode, raw, nil
 }
 func allowedAddress(ip netip.Addr, private bool) bool {
 	ip = ip.Unmap()

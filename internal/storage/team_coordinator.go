@@ -33,7 +33,7 @@ func (s *Store) ReconcileTeam(ctx context.Context) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	var selected teamExecution
-	err := s.Pool.QueryRow(ctx, `SELECT organization_id,task_id,run_id,root_id,root_run_id FROM team_executions WHERE status='running' AND next_check_at<=clock_timestamp() ORDER BY next_check_at,created_at,run_id LIMIT 1`).Scan(&selected.OrganizationID, &selected.TaskID, &selected.RunID, &selected.RootID, &selected.RootRunID)
+	err := s.Pool.QueryRow(ctx, `SELECT organization_id,task_id,run_id,root_id,root_run_id FROM team_executions WHERE NOT recovery_is_historical('team_executions',jsonb_build_array(organization_id,run_id)) AND status='running' AND next_check_at<=clock_timestamp() ORDER BY next_check_at,created_at,run_id LIMIT 1`).Scan(&selected.OrganizationID, &selected.TaskID, &selected.RunID, &selected.RootID, &selected.RootRunID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
 	}

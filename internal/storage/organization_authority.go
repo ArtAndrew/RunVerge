@@ -45,6 +45,9 @@ func lockAuthorityPrincipalsTx(ctx context.Context, tx pgx.Tx, org string, ids [
 }
 
 func lockOperationAuthorityRowsTx(ctx context.Context, tx pgx.Tx, org, taskID, operationID string) error {
+	if err := admitRecoveryTaskTx(ctx, tx, org, taskID); err != nil {
+		return err
+	}
 	var ids []string
 	err := tx.QueryRow(ctx, `SELECT ARRAY(SELECT DISTINCT x FROM unnest(ARRAY[t.owner_id,o.authority_principal_id]) x ORDER BY x)
  FROM tasks t JOIN operations o ON o.organization_id=t.organization_id AND o.task_id=t.id
@@ -71,6 +74,9 @@ func lockOperationAuthorityTx(ctx context.Context, tx pgx.Tx, org, taskID, opera
 }
 
 func checkOperationAuthorityTx(ctx context.Context, tx pgx.Tx, org, taskID, operationID string) error {
+	if err := admitRecoveryTaskTx(ctx, tx, org, taskID); err != nil {
+		return err
+	}
 	var valid bool
 	err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM operations o
  JOIN tasks t ON t.organization_id=o.organization_id AND t.id=o.task_id
@@ -95,6 +101,9 @@ func checkOperationAuthorityTx(ctx context.Context, tx pgx.Tx, org, taskID, oper
 }
 
 func lockRunAuthorityTx(ctx context.Context, tx pgx.Tx, org, taskID, runID string) error {
+	if err := admitRecoveryTaskTx(ctx, tx, org, taskID); err != nil {
+		return err
+	}
 	var ids []string
 	err := tx.QueryRow(ctx, `SELECT ARRAY(SELECT DISTINCT x FROM unnest(ARRAY[t.owner_id,r.principal_id]) x ORDER BY x)
  FROM tasks t JOIN runs r ON r.organization_id=t.organization_id AND r.task_id=t.id WHERE t.organization_id=$1 AND t.id=$2 AND r.id=$3`, org, taskID, runID).Scan(&ids)
@@ -113,6 +122,9 @@ func lockRunAuthorityTx(ctx context.Context, tx pgx.Tx, org, taskID, runID strin
 }
 
 func checkRunAuthorityTx(ctx context.Context, tx pgx.Tx, org, taskID, runID string) error {
+	if err := admitRecoveryTaskTx(ctx, tx, org, taskID); err != nil {
+		return err
+	}
 	var valid bool
 	err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM runs r
  JOIN tasks t ON t.organization_id=r.organization_id AND t.id=r.task_id

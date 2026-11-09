@@ -334,17 +334,20 @@ func recoverySnapshotRequiredShape(raw []byte, t reflect.Type, depth int) error 
 		if json.Unmarshal(raw, &fields) != nil || fields == nil {
 			return ErrRecoverySnapshotInvalid
 		}
-		if len(fields) != t.NumField() {
-			return ErrRecoverySnapshotInvalid
-		}
+		matched := 0
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			name := strings.Split(f.Tag.Get("json"), ",")[0]
+			tag := f.Tag.Get("json")
+			name, _, _ := strings.Cut(tag, ",")
 			value, ok := fields[name]
 			if !ok {
+				if strings.HasSuffix(tag, ",omitempty") {
+					continue
+				}
 				return ErrRecoverySnapshotInvalid
 			}
-			if strings.HasSuffix(f.Tag.Get("json"), ",string") {
+			matched++
+			if strings.HasSuffix(tag, ",string") {
 				var decimal string
 				if json.Unmarshal(value, &decimal) != nil {
 					return ErrRecoverySnapshotInvalid
@@ -357,6 +360,9 @@ func recoverySnapshotRequiredShape(raw []byte, t reflect.Type, depth int) error 
 			if recoverySnapshotRequiredShape(value, f.Type, depth+1) != nil {
 				return ErrRecoverySnapshotInvalid
 			}
+		}
+		if len(fields) != matched {
+			return ErrRecoverySnapshotInvalid
 		}
 	case reflect.Slice:
 		var values []json.RawMessage
@@ -392,6 +398,17 @@ func recoverySnapshotKind(line []byte) (string, error) {
 // cross-table references, accounting projections, generated columns and sequence values
 // against actual imported data; a valid stream is not permission to resume.
 func ValidateRecoverySnapshot(ctx context.Context, in io.Reader, limits RecoverySnapshotLimits) (RecoverySnapshotReport, error) {
+	return validateRecoverySnapshotEnvelope(ctx, in, limits, false)
+}
+
+// The v2 reader remains internal until semantic lineage import is implemented.
+func validateRecoverySnapshotEnvelope(ctx context.Context, in io.Reader, limits RecoverySnapshotLimits, allowLineage bool) (RecoverySnapshotReport, error) {
+	return validateRecoverySnapshotEnvelopeTo(ctx, in, limits, allowLineage, nil)
+}
+
+// Extracted bytes are usable only after the entire envelope succeeds and the
+// caller verifies its authenticated manifest. This does not confer import authority.
+func validateRecoverySnapshotEnvelopeTo(ctx context.Context, in io.Reader, limits RecoverySnapshotLimits, allowLineage bool, lineageSink io.Writer) (RecoverySnapshotReport, error) {
 	var report RecoverySnapshotReport
 	if in == nil || !limits.valid() {
 		return report, ErrRecoverySnapshotLimit
@@ -407,70 +424,17 @@ func ValidateRecoverySnapshot(ctx context.Context, in io.Reader, limits Recovery
 	if recoverySnapshotDecode(line, &h) != nil {
 		return report, ErrRecoverySnapshotInvalid
 	}
-	if err = recoverySnapshotValidateHeader(h); err != nil {
+	headerForValidation := h
+	if allowLineage && h.Format == recoverySnapshotLineageFormat {
+		headerForValidation.Format = RecoverySnapshotFormat
+	}
+	if err = recoverySnapshotValidateHeader(headerForValidation); err != nil {
 		return report, err
 	}
 	r.accept(line)
 	report = RecoverySnapshotReport{Metadata: h.Metadata, Format: h.Format, InventorySHA256: h.InventorySHA256, Tables: []RecoverySnapshotTableSummary{}}
-	for _, table := range h.Inventory.Tables {
-		if !table.Exported {
-			continue
-		}
-		line, err = r.line()
-		if err != nil {
-			return RecoverySnapshotReport{}, err
-		}
-		var start recoverySnapshotTableStart
-		if recoverySnapshotDecode(line, &start) != nil || start.Kind != "table" || start.Name != table.Name {
-			return RecoverySnapshotReport{}, ErrRecoverySnapshotInvalid
-		}
-		r.accept(line)
-		parser := newRecoverySnapshotCopyParser(len(table.Columns), min(limits.MaxRowsPerTable, limits.MaxRows-report.Rows), limits.MaxRowBytes)
-		digest := sha256.New()
-		var size int64
-		short := false
-		for {
-			line, err = r.line()
-			if err != nil {
-				return RecoverySnapshotReport{}, err
-			}
-			kind, kindErr := recoverySnapshotKind(line)
-			if kindErr != nil {
-				return RecoverySnapshotReport{}, kindErr
-			}
-			if kind == "table_end" {
-				var end recoverySnapshotTableEnd
-				if recoverySnapshotDecode(line, &end) != nil || parser.finish() != nil || end.Summary.Name != table.Name || end.Summary.Rows != parser.rows || end.Summary.Bytes != size || end.Summary.SHA256 != recoverySnapshotHash(digest) {
-					return RecoverySnapshotReport{}, ErrRecoverySnapshotInvalid
-				}
-				r.accept(line)
-				report.Tables = append(report.Tables, end.Summary)
-				report.Rows += parser.rows
-				report.Bytes += size
-				break
-			}
-			if kind != "chunk" || short {
-				return RecoverySnapshotReport{}, ErrRecoverySnapshotInvalid
-			}
-			var chunk recoverySnapshotChunk
-			if recoverySnapshotDecode(line, &chunk) != nil || chunk.Data == "" || len(chunk.Data) > base64.StdEncoding.EncodedLen(recoverySnapshotChunkSize) {
-				return RecoverySnapshotReport{}, ErrRecoverySnapshotInvalid
-			}
-			raw, decodeErr := base64.StdEncoding.Strict().DecodeString(chunk.Data)
-			if decodeErr != nil || len(raw) == 0 || len(raw) > recoverySnapshotChunkSize || base64.StdEncoding.EncodeToString(raw) != chunk.Data {
-				return RecoverySnapshotReport{}, ErrRecoverySnapshotInvalid
-			}
-			if int64(len(raw)) > limits.MaxTableBytes-size || int64(len(raw)) > limits.MaxTotalBytes-report.Bytes-size {
-				return RecoverySnapshotReport{}, ErrRecoverySnapshotLimit
-			}
-			if err = parser.feed(raw); err != nil {
-				return RecoverySnapshotReport{}, err
-			}
-			size += int64(len(raw))
-			_, _ = digest.Write(raw)
-			short = len(raw) < recoverySnapshotChunkSize
-			r.accept(line)
-		}
+	if err = readRecoverySnapshotTables(r, h.Inventory, limits, &report); err != nil {
+		return RecoverySnapshotReport{}, err
 	}
 	line, err = r.line()
 	if err != nil {
@@ -484,6 +448,11 @@ func ValidateRecoverySnapshot(ctx context.Context, in io.Reader, limits Recovery
 		return RecoverySnapshotReport{}, err
 	}
 	r.accept(line)
+	if h.Format == recoverySnapshotLineageFormat {
+		if err = readRecoverySnapshotLineageTo(r, limits, &report, lineageSink); err != nil {
+			return RecoverySnapshotReport{}, err
+		}
+	}
 	line, err = r.line()
 	if err != nil {
 		return RecoverySnapshotReport{}, err
@@ -505,4 +474,74 @@ func ValidateRecoverySnapshot(ctx context.Context, in io.Reader, limits Recovery
 	report.Sequences, report.KeyReferences, report.Organizations = state.Sequences, state.KeyReferences, state.Organizations
 	report.WireBytes, report.SHA256 = r.bytes, recoverySnapshotHash(r.hash)
 	return report, nil
+}
+
+// readRecoverySnapshotTables consumes table sections using the caller's wire
+// hash and cumulative budgets. It does not accept the archive's final marker or
+// EOF: those belong to the enclosing snapshot, including future lineage data.
+func readRecoverySnapshotTables(r *recoverySnapshotReader, inventory RecoverySnapshotInventory, limits RecoverySnapshotLimits, report *RecoverySnapshotReport) error {
+	if report == nil || report.Bytes < 0 || report.Rows < 0 || report.Bytes > limits.MaxTotalBytes || report.Rows > limits.MaxRows {
+		return ErrRecoverySnapshotLimit
+	}
+	for _, table := range inventory.Tables {
+		if !table.Exported {
+			continue
+		}
+		line, err := r.line()
+		if err != nil {
+			return err
+		}
+		var start recoverySnapshotTableStart
+		if recoverySnapshotDecode(line, &start) != nil || start.Kind != "table" || start.Name != table.Name {
+			return ErrRecoverySnapshotInvalid
+		}
+		r.accept(line)
+		parser := newRecoverySnapshotCopyParser(len(table.Columns), min(limits.MaxRowsPerTable, limits.MaxRows-report.Rows), limits.MaxRowBytes)
+		digest := sha256.New()
+		var size int64
+		short := false
+		for {
+			line, err = r.line()
+			if err != nil {
+				return err
+			}
+			kind, kindErr := recoverySnapshotKind(line)
+			if kindErr != nil {
+				return kindErr
+			}
+			if kind == "table_end" {
+				var end recoverySnapshotTableEnd
+				if recoverySnapshotDecode(line, &end) != nil || parser.finish() != nil || end.Summary.Name != table.Name || end.Summary.Rows != parser.rows || end.Summary.Bytes != size || end.Summary.SHA256 != recoverySnapshotHash(digest) {
+					return ErrRecoverySnapshotInvalid
+				}
+				r.accept(line)
+				report.Tables = append(report.Tables, end.Summary)
+				report.Rows += parser.rows
+				report.Bytes += size
+				break
+			}
+			if kind != "chunk" || short {
+				return ErrRecoverySnapshotInvalid
+			}
+			var chunk recoverySnapshotChunk
+			if recoverySnapshotDecode(line, &chunk) != nil || chunk.Data == "" || len(chunk.Data) > base64.StdEncoding.EncodedLen(recoverySnapshotChunkSize) {
+				return ErrRecoverySnapshotInvalid
+			}
+			raw, decodeErr := base64.StdEncoding.Strict().DecodeString(chunk.Data)
+			if decodeErr != nil || len(raw) == 0 || len(raw) > recoverySnapshotChunkSize || base64.StdEncoding.EncodeToString(raw) != chunk.Data {
+				return ErrRecoverySnapshotInvalid
+			}
+			if int64(len(raw)) > limits.MaxTableBytes-size || int64(len(raw)) > limits.MaxTotalBytes-report.Bytes-size {
+				return ErrRecoverySnapshotLimit
+			}
+			if err = parser.feed(raw); err != nil {
+				return err
+			}
+			size += int64(len(raw))
+			_, _ = digest.Write(raw)
+			short = len(raw) < recoverySnapshotChunkSize
+			r.accept(line)
+		}
+	}
+	return nil
 }

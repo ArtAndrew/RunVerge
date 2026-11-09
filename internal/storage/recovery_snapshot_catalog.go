@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func recoverySnapshotInspect(ctx context.Context, tx pgx.Tx, schema string) (recoverySnapshotHeader, string, error) {
+func recoverySnapshotInspect(ctx context.Context, tx pgx.Tx, schema string, heldBackup *recoveryHeldBackup) (recoverySnapshotHeader, string, error) {
 	var h recoverySnapshotHeader
 	// Cooperates with the existing migration runner. ACCESS SHARE below keeps
 	// every validated relation stable for COPY. No source DDL is executed.
@@ -72,7 +72,21 @@ func recoverySnapshotInspect(ctx context.Context, tx pgx.Tx, schema string) (rec
 	var source, state string
 	var normalFields bool
 	control := pgx.Identifier{schema, "runtime_recovery_control"}.Sanitize()
-	if err = tx.QueryRow(ctx, "SELECT count(*),COALESCE(min(installation_id),''),COALESCE(min(state),''),COALESCE(bool_and(singleton AND restore_id IS NULL AND backup_id IS NULL AND source_id IS NULL AND cut_at IS NULL AND schema_sha256 IS NULL AND held_at IS NULL),false) FROM "+control).Scan(&count, &source, &state, &normalFields); err != nil || count != 1 || state != "normal" || !normalFields || !recoverySnapshotSourceID.MatchString(source) {
+	if heldBackup != nil {
+		if _, err = validateRecoverySemanticCatalog(ctx, tx, schema); err != nil {
+			return h, "", err
+		}
+		held, err := readRecoveryState(ctx, schema, tx)
+		spec := heldBackup.spec
+		if err != nil || held.State != "held" || held.InstallationID != spec.TargetInstallationID || held.RestoreID != spec.RestoreID || held.BackupID != spec.BackupID || held.SourceID != spec.SourceID || held.CutUTC != spec.CutUTC || held.SchemaSHA256 != spec.SchemaSHA256 {
+			return h, "", recoverySnapshotError(ctx, ErrRecoverySnapshotSource)
+		}
+		receipt, err := readRecoveryImportReceipt(ctx, tx, schema)
+		if err != nil || receipt.SnapshotSHA256 != heldBackup.snapshotSHA {
+			return h, "", recoverySnapshotError(ctx, ErrRecoverySnapshotSource)
+		}
+		source = held.InstallationID
+	} else if err = tx.QueryRow(ctx, "SELECT count(*),COALESCE(min(installation_id),''),COALESCE(min(state),''),COALESCE(bool_and(singleton AND restore_id IS NULL AND backup_id IS NULL AND source_id IS NULL AND cut_at IS NULL AND schema_sha256 IS NULL AND held_at IS NULL),false) FROM "+control).Scan(&count, &source, &state, &normalFields); err != nil || count != 1 || state != "normal" || !normalFields || !recoverySnapshotSourceID.MatchString(source) {
 		return h, "", recoverySnapshotError(ctx, ErrRecoverySnapshotSource)
 	}
 	h.Kind, h.Format, h.APIVersion = "header", RecoverySnapshotFormat, domain.ContractVersion
@@ -99,7 +113,7 @@ func recoverySnapshotInventory(ctx context.Context, tx pgx.Tx, schema string, lo
 			rows.Close()
 			return result, ErrRecoverySnapshotSchema
 		}
-		result.Tables = append(result.Tables, RecoverySnapshotTable{Name: name, Exported: name != "schema_migrations" && name != "runtime_recovery_control", Columns: []RecoverySnapshotColumn{}, PrimaryKey: []string{}})
+		result.Tables = append(result.Tables, RecoverySnapshotTable{Name: name, Exported: recoveryBusinessTable(name), Columns: []RecoverySnapshotColumn{}, PrimaryKey: []string{}})
 	}
 	err = rows.Err()
 	rows.Close()
@@ -316,12 +330,10 @@ func recoverySnapshotReadState(ctx context.Context, tx pgx.Tx, schema string, l 
 }
 
 func recoverySnapshotValidateHeader(h recoverySnapshotHeader) error {
-	raw, _ := json.Marshal(h.Inventory)
 	if h.Kind != "header" || h.Format != RecoverySnapshotFormat || h.APIVersion != domain.ContractVersion ||
 		!recoverySnapshotSourceID.MatchString(h.Metadata.SourceID) || !recoverySnapshotBackupID.MatchString(h.Metadata.BackupID) ||
-		h.Metadata.SchemaSHA256 != recoverySchemaSHA256() || !reflect.DeepEqual(h.Migrations, EmbeddedSchemaIdentity()) ||
+		!recoverySourceHeaderProfile(h) ||
 		h.PostgreSQLVersion < 180000 || h.PostgreSQLVersion >= 190000 || h.Encoding != "UTF8" ||
-		h.InventorySHA256 != recoverySnapshotInventorySHA256 || Hash(raw) != recoverySnapshotInventorySHA256 ||
 		len(h.MVCCSnapshot) == 0 || len(h.MVCCSnapshot) > 65536 {
 		return ErrRecoverySnapshotSchema
 	}

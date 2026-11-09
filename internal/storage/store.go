@@ -24,12 +24,13 @@ import (
 var migrations embed.FS
 
 type Store struct {
-	Pool          *pgxpool.Pool
-	loginCipher   cipher.AEAD
-	runtimeSchema string
-	eventMu       sync.Mutex
-	eventHub      *taskEventHub
-	closed        bool
+	Pool              *pgxpool.Pool
+	loginCipher       cipher.AEAD
+	runtimeSchema     string
+	recoveryProvision *recoveryProvisionImportBinding
+	eventMu           sync.Mutex
+	eventHub          *taskEventHub
+	closed            bool
 }
 
 func Open(ctx context.Context, dsn string) (*Store, error) {
@@ -136,35 +137,42 @@ func (s *Store) Bootstrap(ctx context.Context, name string, budget int64) (Boots
 		return b, e
 	}
 	defer tx.Rollback(ctx)
-	if _, e = tx.Exec(ctx, "INSERT INTO organizations(id,name,budget_microusd) VALUES($1,$2,$3)", b.OrganizationID, name, budget); e != nil {
-		return b, e
-	}
-	if _, e = tx.Exec(ctx, "INSERT INTO principals(id,name) VALUES($1,$2)", b.PrincipalID, name+" owner"); e != nil {
-		return b, e
-	}
-	if _, e = tx.Exec(ctx, "INSERT INTO memberships(organization_id,principal_id,role) VALUES($1,$2,'owner')", b.OrganizationID, b.PrincipalID); e != nil {
-		return b, e
-	}
-	if _, e = tx.Exec(ctx, "INSERT INTO access_tokens(token_hash,principal_id) VALUES($1,$2)", Hash([]byte(b.Token)), b.PrincipalID); e != nil {
+	if e = insertBootstrap(ctx, tx, b, name, budget); e != nil {
 		return b, e
 	}
 	return b, tx.Commit(ctx)
+}
+
+func insertBootstrap(ctx context.Context, tx pgx.Tx, b Bootstrap, name string, budget int64) error {
+	if _, e := tx.Exec(ctx, "INSERT INTO organizations(id,name,budget_microusd) VALUES($1,$2,$3)", b.OrganizationID, name, budget); e != nil {
+		return e
+	}
+	if _, e := tx.Exec(ctx, "INSERT INTO principals(id,name) VALUES($1,$2)", b.PrincipalID, name+" owner"); e != nil {
+		return e
+	}
+	if _, e := tx.Exec(ctx, "INSERT INTO memberships(organization_id,principal_id,role) VALUES($1,$2,'owner')", b.OrganizationID, b.PrincipalID); e != nil {
+		return e
+	}
+	_, e := tx.Exec(ctx, "INSERT INTO access_tokens(token_hash,principal_id) VALUES($1,$2)", Hash([]byte(b.Token)), b.PrincipalID)
+	return e
 }
 
 const authSQL = `SELECT p.id,m.organization_id,m.role,p.kind FROM access_tokens t
  JOIN principals p ON p.id=t.principal_id JOIN memberships m ON m.principal_id=p.id JOIN organizations o ON o.id=m.organization_id
  JOIN organization_login_policies q ON q.organization_id=m.organization_id
  WHERE t.token_hash=$1 AND m.organization_id=$2 AND NOT t.revoked AND (t.expires_at IS NULL OR t.expires_at>clock_timestamp())
- AND p.kind='human' AND p.active AND m.active AND o.active AND q.mode='mixed'
+ AND p.kind='human' AND NOT recovery_historical_principal(p.id) AND p.active AND m.active AND o.active AND q.mode='mixed'
+ AND recovery_runtime_organization_available(o.id)
  AND t.credential_generation>m.credential_cutoff AND t.credential_generation>q.human_credential_cutoff`
 
 const ServiceKeyCredential = "service_key"
 const serviceAuthSQL = `SELECT p.id,m.organization_id,CASE WHEN t.role_ceiling='viewer' OR m.role='viewer' THEN 'viewer' ELSE 'member' END,p.kind
  FROM service_credentials t JOIN principals p ON p.id=t.principal_id JOIN memberships m ON m.principal_id=p.id AND m.organization_id=t.organization_id
  JOIN organizations o ON o.id=m.organization_id JOIN organization_login_policies q ON q.organization_id=m.organization_id
- WHERE t.token_hash=$1 AND t.organization_id=$2 AND p.service_organization_id=t.organization_id AND p.kind='service'
+ WHERE t.token_hash=$1 AND t.organization_id=$2 AND p.service_organization_id=t.organization_id AND p.kind='service' AND NOT recovery_historical_principal(p.id)
  AND m.role IN('member','viewer') AND t.role_ceiling IN('member','viewer') AND NOT t.revoked AND t.expires_at>clock_timestamp()
  AND p.active AND m.active AND o.active AND q.service_access_enabled
+ AND recovery_runtime_organization_available(o.id)
  AND t.credential_generation>m.credential_cutoff AND t.credential_generation>q.service_credential_cutoff`
 
 func (s *Store) Authenticate(ctx context.Context, token, org string) (domain.Principal, error) {

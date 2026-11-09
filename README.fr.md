@@ -1,5 +1,7 @@
 # RunVerge
 
+**Version préliminaire alpha.7** · [Notes et téléchargements](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.7)
+
 **Confiez des tâches aux agents, vérifiez les réponses et gardez les révisions.**
 
 [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)

@@ -1,0 +1,15 @@
+Draft a CI triage comment for a teammate. Use only the supplied evidence.
+Return three sections: Finding, Evidence, Next check. In Evidence, cite the
+supplied run URL with the relevant line range, e.g. #L18-L20. Distinguish facts
+from hypotheses. If the cause is unclear, say what would resolve it.
+Keep the complete draft under 120 words. Do not fetch, run, edit or publish anything.
+
+Run URL: https://ci.example.invalid/runs/4103
+Job: integration
+Commit note: Update the integration test runner. No baseline timing was supplied.
+
+L18 runner: starting integration suite
+L19 runner: no subsequent process output was captured
+L20 supervisor: job exceeded 10-minute limit
+L21 supervisor: sent termination signal
+L22 workflow: status=timed_out

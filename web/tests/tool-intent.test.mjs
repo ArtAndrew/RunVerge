@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {createHash} from 'node:crypto'
-import {bindToolView,exactArguments,prepareToolPayload,decideToolPayload,dispatchToolPayload,reconcileToolPayload,commandAllowed,mayPrepare} from '../src/toolIntent.ts'
+import {bindToolView,exactArguments,prepareToolPayload,decideToolPayload,dispatchToolPayload,reconcileToolPayload,commandAllowed,mayPrepare,githubCICommentArguments} from '../src/toolIntent.ts'
 const hash=s=>createHash('sha256').update(s).digest('hex'),args=' {"n":9007199254740993,"html":"<script>globalThis.pwned=true</script>"} ',schema='{"type":"object"}'
 const task={id:'task',organization_id:'org',owner_id:'principal',version:15,status:'waiting_approval',candidate_id:'candidate',current_run_id:'run'}
 const tool={id:'tool',organization_id:'org',version:3,provider:'account',price_version:'v1',effect:'write',max_charge_microusd:'1000000000000',input_schema_json:schema,input_schema_digest:hash(schema),max_input_bytes:32768,active:true}
@@ -15,3 +15,20 @@ test('approve is a receipt command, exact task version is used, and it never imp
 test('dispatch is explicit and expired or unknown actions cannot be sent even with malicious command metadata',()=>{const ready={...view,execution:{...execution,status:'approved'},available_commands:['dispatch']};assert.throws(()=>dispatchToolPayload(ready,false));assert.equal(dispatchToolPayload(ready,true).acknowledge_cost,true);for(const status of['unknown','sent','queued','leased','succeeded','rejected','denied','expired','cancelled'])assert.throws(()=>dispatchToolPayload({...ready,execution:{...ready.execution,status}},true));assert.throws(()=>dispatchToolPayload({...ready,execution:{...ready.execution,expires_at:'2000-01-01T00:00:00Z'}},true))})
 test('unknown reconciliation is exact operator assertion and contains no financial settlement',()=>{const unknown={...view,execution:{...execution,status:'unknown',expires_at:'2000-01-01T00:00:00Z'},available_commands:['reconcile']};const payload=reconcileToolPayload(unknown,'rejected','reference','','f'.repeat(64),'External observation');assert.equal(payload.result,'');assert.equal(payload.expected_task_version,15);assert.equal('actual_microusd' in payload,false);assert.throws(()=>reconcileToolPayload(view,'succeeded','reference','','f'.repeat(64),'Reason'));assert.throws(()=>reconcileToolPayload(unknown,'succeeded','reference','','f'.repeat(64)+'\n','Reason'))})
 test('safe denial remains available when approval is unavailable for a retired or distinct-approver profile',()=>{const denyOnly={...view,tool:{...tool,active:false,require_distinct_approver:true},available_commands:['deny']};assert.equal(commandAllowed(denyOnly,'approve'),false);assert.equal(commandAllowed(denyOnly,'deny'),true);assert.throws(()=>decideToolPayload(denyOnly,'approve','Reason'));assert.equal(decideToolPayload(denyOnly,'deny','Release unsent intent').decision,'deny')})
+test('CI comment preview binds the immutable heading and exact draft without rounding IDs', () => {
+  const github = {...tool, provider:'github', price_version:'github-ci-comment-v1',
+    require_distinct_approver:true, destination:'https://github.com/octo-org/sample'}
+  const commit = 'a'.repeat(40)
+  const goal = ['Review CI', 'Run URL: https://github.com/octo-org/sample/actions/runs/9007199254740993/attempts/1',
+    'Workflow ID: 20', 'Branch: main', 'Commit: '+commit, 'Conclusion: failure', 'Repository ID: 9007199254740995',
+    'L1 Run URL: https://attacker.invalid/'].join('\n')
+  const body = 'Disk full.\nExact "quoted" text.'
+  const args = githubCICommentArguments(goal, github, body)
+  assert.ok(args.includes('"run_id":9007199254740993'))
+  assert.ok(args.includes('"repository_id":9007199254740995'))
+  assert.ok(!args.includes('attacker.invalid'))
+  assert.equal(JSON.parse(exactArguments(args)).body, body)
+  assert.equal(githubCICommentArguments(goal, {...github,destination:'https://github.com/other/sample'}, body), null)
+  assert.equal(githubCICommentArguments(goal.replace('Repository ID:', 'L2 Repository ID:'), github, body), null)
+  assert.equal(githubCICommentArguments(goal, tool, body), null)
+})

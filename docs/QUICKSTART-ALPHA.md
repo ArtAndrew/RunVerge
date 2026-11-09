@@ -113,25 +113,22 @@ set +a
 локальный профиль ниже. API получает настройки базы; ключ OpenRouter загружайте
 только в отдельном терминале worker, как показано в инструкции подключения.
 
-**Если выбрали локальную модель:**
-
-Создайте `/absolute/runverge-private/local-model.json` по полному примеру
-из [LOCAL-MODELS.md](LOCAL-MODELS.md). Замените `organization_id` на значение
-из вашего `bootstrap.json`, имя модели и порт — на фактически работающие.
-Выберите `accounting_mode:"operator_unmetered_local"` только для собственного
-локального inference с объявленным нулевым API-тарифом. Все тарифные значения
-в этом профиле должны быть числом `0`. `credential_environment` должно точно
-совпадать с `PLATFORM_MODEL_KEY_LOCAL` в окружении worker.
+**Если выбрали локальный Ollama:** в кандидате beta.1 можно создать профиль
+командой. Укажите `organization_id` из `bootstrap.json` и точное имя с тегом
+из `ollama list`. Используйте `--local-zero-tariff` для своего сервера с
+локальными весами и отключённой облачной маршрутизацией.
 
 ```sh
-chmod 600 /absolute/runverge-private/local-model.json
+/absolute/runverge-installation/bin/platform prepare-model --provider ollama --local-zero-tariff \
+  --organization-id YOUR_ORGANIZATION_ID --model NAME:TAG \
+  --out /absolute/runverge-private/local-model.json
 /absolute/runverge-installation/bin/platform install-model --file /absolute/runverge-private/local-model.json
 ```
 
-Файл должен принадлежать текущему пользователю, быть обычным файлом без
-символической ссылки и не давать доступ группе или остальным пользователям.
-При успехе команда сообщает ID и версию установленного подключения. Она
-регистрирует профиль, но не проверяет получение ответа от модели.
+При другом порте Ollama добавьте `--port` к команде подготовки. Она создаёт
+новый приватный файл с правами 0600. После установки профиль появится в
+выборе модели для агента. Первое задание проверит получение ответа.
+Для ручной настройки см. [LOCAL-MODELS.md](LOCAL-MODELS.md).
 
 ## 4. Запустить сервер и исполнителя
 

@@ -259,7 +259,7 @@ func independentRecoveryFixtureNew(t *testing.T) independentRecoveryFixture {
 	if recoverySnapshotInventorySHA256 == "UNSEALED" {
 		t.Fatal("complete snapshot validation requires a reviewed inventory pin")
 	}
-	raw, err := os.ReadFile(filepath.Join("..", "..", "docs", "evidence", "recovery-snapshot-export", "trusted-inventory.json"))
+	raw, err := os.ReadFile(filepath.Join("testdata", "recovery-sql031-inventory.json"))
 	if err != nil {
 		t.Fatal("reviewed inventory fixture unavailable", err)
 	}

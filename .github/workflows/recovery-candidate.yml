@@ -1,0 +1,200 @@
+# SPDX-License-Identifier: Elastic-2.0
+name: Recovery validation candidate
+on:
+  workflow_dispatch:
+    inputs:
+      schema_reference:
+        description: 'Capture trusted schema metadata only; this is NOT validation acceptance'
+        type: boolean
+        default: false
+      accounting_only:
+        description: 'Development check of recovery accounting only; NOT the full candidate gate'
+        type: boolean
+        default: false
+      lineage_only:
+        description: 'Development check of historical lineage framing and source export; NOT full restore'
+        type: boolean
+        default: false
+      outbound_only:
+        description: 'Development check of restored outbound profiles; NOT the full candidate gate'
+        type: boolean
+        default: false
+      usage_only:
+        description: 'Development check of provider usage source binding; NOT the full candidate gate'
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - 'internal/storage/recovery_*'
+      - 'internal/recoveryaccess/**'
+      - 'internal/recoveryarchive/**'
+      - 'internal/recoverylineage/**'
+      - 'internal/storage/testdata/recovery-sql026-inventory.json'
+      - 'internal/storage/testdata/recovery-sql027-inventory.json'
+      - 'internal/storage/migrations/**'
+      - 'internal/storage/testdata/recovery-lineage-candidate.sql'
+      - 'cmd/platform/recovery_archive_host*'
+      - 'cmd/platform/recovery_database_fence_host*'
+      - 'cmd/platform/recovery_host*'
+      - 'cmd/platform/recovery_evidence_host*'
+      - 'cmd/platform/recovery_accounting_host*'
+      - 'cmd/platform/recovery_usage*'
+      - 'cmd/platform/recovery_provision_host*'
+      - 'cmd/platform/recovery_handoff*'
+      - 'cmd/platform/recovery_source_*'
+      - 'cmd/platform/recovery_process_host*'
+      - 'internal/modelruntime/intent_snapshot*'
+      - 'internal/modelgateway/openrouter_usage*'
+      - 'internal/modelgateway/usage_decimal*'
+      - '.github/workflows/recovery-candidate.yml'
+permissions:
+  contents: read
+jobs:
+  recovery:
+    runs-on: ubuntu-24.04
+    # Several bounded test processes run sequentially against owned databases.
+    timeout-minutes: 40
+    container:
+      image: golang:1.27.3-bookworm@sha256:df4bb0305771186a85d0fd3a40f5c5da9af97ac8053d391ffce2c070817a20c6
+      # Disposable test container only. Real provider access is not permitted.
+      options: --add-host openrouter.ai:127.0.0.1
+    services:
+      postgres:
+        image: postgres:18.6-bookworm@sha256:5c4783a8cc3f0074912164f94dfa1be4e043438f0f707cf968d7af9a0d31a2c8
+        env:
+          POSTGRES_USER: runverge
+          POSTGRES_PASSWORD: synthetic-recovery-ci-only
+          POSTGRES_DB: postgres
+          POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C --set=max_prepared_transactions=16
+        options: >-
+          --health-cmd "pg_isready -U runverge -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      TEST_DATABASE_URL: postgres://runverge:synthetic-recovery-ci-only@postgres:5432/postgres?sslmode=disable
+      RUNVERGE_RECOVERY_OWNED_PG: '1'
+      RUNVERGE_RECOVERY_INDEPENDENT_OWNED_PG: '1'
+      RUNVERGE_RECOVERY_OWNED_USAGE_HTTPS: '1'
+      GOTOOLCHAIN: local
+    steps:
+      - name: Refuse conflicting development modes
+        if: ${{ (inputs.lineage_only && (inputs.outbound_only || inputs.usage_only || inputs.accounting_only || inputs.schema_reference)) || (inputs.outbound_only && (inputs.usage_only || inputs.accounting_only || inputs.schema_reference)) || (inputs.usage_only && inputs.accounting_only) || (inputs.schema_reference && (inputs.usage_only || inputs.accounting_only)) }}
+        run: exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Read the exact previously verified SQL023 producer
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only && !inputs.usage_only }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: a81956505f3463276bcd86e585d74a467e46a202
+          path: _legacy_sql023
+          persist-credentials: false
+      - name: Build the old producer for real archive and upgrade compatibility
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only && !inputs.usage_only }}
+        run: |
+          go -C _legacy_sql023 build -mod=readonly -o "$RUNNER_TEMP/platform-sql023" ./cmd/platform
+          echo "RUNVERGE_RECOVERY_SQL023_BINARY=$RUNNER_TEMP/platform-sql023" >> "$GITHUB_ENV"
+      - name: Read the exact previously verified SQL024 producer
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only && !inputs.usage_only }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 9e91fcf179ce65d53a61601f105c55a5aefa9079
+          path: _legacy_sql024
+          persist-credentials: false
+      - name: Build SQL024 archive and populated held-upgrade fixture
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only && !inputs.usage_only }}
+        run: |
+          go -C _legacy_sql024 build -mod=readonly -o "$RUNNER_TEMP/platform-sql024" ./cmd/platform
+          echo "RUNVERGE_RECOVERY_SQL024_BINARY=$RUNNER_TEMP/platform-sql024" >> "$GITHUB_ENV"
+      - name: Check historical lineage framing and actual source export
+        if: ${{ !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only && !inputs.outbound_only }}
+        run: |
+          go test -mod=readonly -race ./internal/recoverylineage -count=1 -v
+          go test -mod=readonly -race ./internal/recoveryarchive -run '^TestDerivedPrivateSealedLifecycle$' -count=1 -v
+          go test -mod=readonly ./internal/storage -run '^TestRecovery(LineageEnvelope|LineageSource|LineageGeneration|LineageRelations|LineageBinary|LineageReceipt|LineageChain|LineagePayload|LineagePersistence|LineageAtomicImport|LineageExport|LineageVersionedLayouts|LineageAccountingCatalogCompatibility|SQL026FrozenProfile|SQL027HistoricalInventoryProjection|Snapshot(CopyBoundariesAndLimits|StrictWireObjects|OutputFailureAndBounds|Independent))' -count=1 -v -recovery-lineage-candidate-output="$GITHUB_WORKSPACE/recovery-lineage-reference"
+          go test -mod=readonly ./internal/storage -run '^TestRecoverySnapshot(PopulatedAndStrictValidation|OneCutAndSequenceHighWater|RefusesDriftHeldAndOversizeBeforeOutput|ExportFailureAndCancellation)$' -timeout=8m -count=1 -v
+      - name: Check restored outbound profiles and ordinary workers
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.accounting_only && !inputs.usage_only }}
+        run: |
+          go test -mod=readonly ./internal/storage -run '^TestRecoveryOutboundProfilesAuthor' -timeout=5m -count=1 -v
+          go test -mod=readonly ./internal/worker -run '^(TestRecoveryAdmissionFailurePrecedesEveryCredentialResolver|TestWorkerConcurrentModelsRetainUnknownCost|TestWorkerExplicitToolDispatchSharesBoundedPool|TestWebhookWorkerAuthorActualSchedulerBoundAndTerminalSource)$' -timeout=5m -count=1 -v
+      - name: Check usage acquisition authority, transport and source binding
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only }}
+        env:
+          RUNVERGE_RECOVERY_OWNED_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          go test -mod=readonly -race ./internal/modelgateway -count=1 -v
+          go test -mod=readonly -race ./internal/recoveryaccess -count=1 -v
+          go test -mod=readonly ./internal/storage -run '^TestRecoveryUsageAuthor' -timeout=10m -count=1 -v
+      - name: Check usage host commands in development mode
+        if: ${{ inputs.usage_only && !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only }}
+        run: go test -mod=readonly ./cmd/platform -run '^TestRecoveryHostAuthorUsage' -timeout=8m -count=1 -v
+      - name: Read the verified SQL026 producer
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 5faf2970c3002d7d854afd3585cbc70d31446235
+          path: _legacy_sql026
+          persist-credentials: false
+      - name: Build SQL026 producer
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only }}
+        run: go -C _legacy_sql026 build -mod=readonly -o "$RUNNER_TEMP/platform-sql026" ./cmd/platform
+      - name: Check populated SQL026 usage upgrade
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only }}
+        run: RUNVERGE_RECOVERY_SQL026_BINARY="$RUNNER_TEMP/platform-sql026" go test -mod=readonly ./internal/storage -run '^TestRecoverySQL026AuthorUsageUpgrade$' -timeout=12m -count=1 -v
+      - name: Check populated SQL026 accounting upgrade
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.usage_only }}
+        run: RUNVERGE_RECOVERY_SQL026_BINARY="$RUNNER_TEMP/platform-sql026" go test -mod=readonly ./internal/storage -run '^TestRecoverySQL026AuthorAccountingUpgrade$' -timeout=12m -count=1 -v
+      - name: Read the exact previously verified SQL025 producer
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.usage_only }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: a5795b9440504c231adf5747b24de7ee67e097a2
+          path: _legacy_sql025
+          persist-credentials: false
+      - name: Build SQL025 producer and check populated financial upgrade
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.usage_only }}
+        run: |
+          go -C _legacy_sql025 build -mod=readonly -o "$RUNNER_TEMP/platform-sql025" ./cmd/platform
+          RUNVERGE_RECOVERY_SQL025_BINARY="$RUNNER_TEMP/platform-sql025" go test -mod=readonly ./internal/storage -run '^TestRecoverySQL025AuthorPopulatedUpgrade$' -timeout=12m -count=1 -v
+      - name: Check model intent serialization and recovery snapshot validation
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.accounting_only && !inputs.usage_only }}
+        run: |
+          go test -mod=readonly ./internal/modelruntime -count=1
+          go test -mod=readonly -race ./internal/recoveryarchive -count=1 -v
+          go test -mod=readonly ./cmd/platform -run '^TestRecoveryHostAuthor' -count=1 -v
+          go test -mod=readonly ./internal/storage -run '^TestRecovery(DatabaseFenceAuthor|ProvisionAuthor|SourceEvidenceAuthor|EvidenceAuthor|Reconciliation|HandoffAuthor)' -count=1 -v
+          go test -mod=readonly ./internal/storage -run '^TestRecoveryReaderAuthor' -count=1 -v
+          go test -mod=readonly ./internal/storage -run 'TestRecovery(GateAuthor|GateIndependent|SnapshotTrustedInventory|SemanticCatalogTrusted|ImportAuthor|ImportIndependent|ModelStage|ModelHistory|ExecutionHistory|StageAuthor|StageIndependent|TeamHistory|ConfigurationHistory|AuthorityHistory|HistoryJSON|HistoryCoverage|CostHistory|Allocations|WebhookProfiles)' -count=1 -v
+      # Keep all accounting tests in both the full and accounting-only gates.
+      # Complementary selectors preserve coverage and the per-process 10m bound.
+      - name: Check recovery accounting facts and mutation guards
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.usage_only }}
+        run: go test -mod=readonly ./internal/storage -run '^TestRecoveryAccountingAuthor' -skip '^TestRecoveryAccountingAuthor(Review|SourceBoundResolution|ResolutionCommitLoss)' -timeout=10m -count=1 -v
+      - name: Check recovery accounting resolution and review
+        if: ${{ !inputs.schema_reference && !inputs.lineage_only && !inputs.outbound_only && !inputs.usage_only }}
+        run: go test -mod=readonly ./internal/storage -run '^TestRecoveryAccountingAuthor(Review|SourceBoundResolution|ResolutionCommitLoss)' -timeout=10m -count=1 -v
+      - name: Capture unsealed schema reference metadata only
+        if: ${{ inputs.schema_reference }}
+        run: |
+          mkdir recovery-reference
+          go test -mod=readonly ./internal/storage -run '^TestRecoverySnapshotTrustedInventory$' -count=1 -v -recovery-snapshot-inventory-output="$GITHUB_WORKSPACE/recovery-reference/inventory.json"
+          go test -mod=readonly ./internal/storage -run '^TestRecoverySemanticCatalogTrusted$' -count=1 -v -recovery-semantic-catalog-output="$GITHUB_WORKSPACE/recovery-reference/catalog.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        # Preserve first-stage inventory even while the semantic reader refuses
+        # an unsealed inventory. Reference capture is never runtime acceptance.
+        if: ${{ always() && inputs.schema_reference }}
+        with:
+          name: recovery-schema-reference
+          path: recovery-reference/*.json
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Retain candidate lineage schema reference
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ always() && !inputs.schema_reference && !inputs.accounting_only && !inputs.usage_only && !inputs.outbound_only }}
+        with:
+          name: recovery-lineage-schema-reference
+          path: recovery-lineage-reference/*.json
+          if-no-files-found: error
+          retention-days: 3
