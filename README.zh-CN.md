@@ -1,111 +1,51 @@
 # RunVerge
 
-**alpha.7 预览版** · [发行说明与下载](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.7)
+**一套自托管团队工作台，用来给智能体分配任务、审核结果并保留记录。**
 
-**向智能体布置任务，检查回答，并保留修改历史。**
+[**Alpha.8 · 下载与版本说明**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.8) · [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)
 
-[English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)
+![任务、草稿、指定审核人、审核和记录决定](docs/images/zh-CN/workflow.svg)
 
-![描述任务，获得草稿，检查后接受或批准修改。原始回答和修改意见保留在任务历史中。](docs/images/zh-CN/workflow.svg)
+把任务和参考资料交给智能体。草稿保存后，指定一位同事审核。同事可以在**分配给我的审核**中打开草稿，接受结果或提出修改意见。草稿和决定都会留在任务历史中。
 
-RunVerge 是一款与 AI 智能体协作的应用。你描述任务并设置预算，获得草稿，留下修改意见，再决定接受回答或批准新一轮执行。修改后仍可查看原始回答。
+## 在 Linux 上安装
 
-[**开始使用 →**](docs/QUICKSTART-ALPHA.md) · [**下载 alpha.6 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.6) · [**第一个任务 →**](examples/alpha-first-task.md) · [**反馈 →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
+Intel 或 AMD 服务器请选择 AMD64，Arm 服务器请选择 ARM64。解压安装包，再加载 Docker 镜像。
 
-> **实验性 alpha.6：** macOS arm64、所有者与成员的本地试用、仅限测试数据。PostgreSQL 18 需单独配置。模型可以在本地运行，也可以通过 OpenRouter 连接。本版本不支持完整恢复、现有安装的升级或面向整个组织的生产部署。[支持范围](docs/SUPPORT.md)。
+```sh
+docker image load -i image.tar.gz
+docker compose -f deploy/pilot.compose.yaml up --no-build --wait --wait-timeout 900
+```
 
-## 试用两个代理组成的审核团队
+- **[团队试用](docs/COMPOSE-PILOT.md)**. Docker Compose 启动本地 CPU 模型，并创建一个所有者账号和两个成员账号。使用内置示例和测试数据体验审核流程。
+- **[组织登录](docs/ORGANIZATION-COMPOSE.md)**. 通过 HTTPS 接入你的 OpenID Connect 身份提供方。将企业账号与 RunVerge 成员绑定，再为成员设置角色。
 
-一个代理起草，另一个代理审核，由您决定是否接受。可编辑的流程模板保留两份回答，并共享任务预算。同事可以使用自己的本地凭据创建任务，所有者可以要求修改或接受某个确切结果。经过批准的 MCP 读取结果，可以加入另行授权的修改请求。
+本地试用首次启动会下载约 1.12 GB 的模型权重。HTTPS 部署使用另行配置的模型。
 
-[代理团队英文指南](docs/TEAM-REVIEW.md) · [双人登录英文指南](docs/TWO-PERSON-PILOT.md)
+## 适用团队
 
-审核代理也可能漏掉编造的事实。本版本不强制独立审批：成员可以接受自己的工作。所有成员都能读取组织内的任务。仅使用测试数据；暂不支持远程团队部署或 SSO。
+适合起草通知和流程的运营团队、审核 AI 产出的技术团队，以及需要带 API 的内部工作台的开发者。可以从一项已经有人负责审核的重复任务开始。
 
-## RunVerge 安装在哪里，使用什么模型？
+## RunVerge 如何管理任务
 
-RunVerge 和模型是独立的服务。RunVerge 保存任务和结果，模型接收请求并生成回答。引擎已包含可由管理员配置的 HTTPS Chat Completions 连接。
+- 指定的审核人针对已保存的草稿作出决定。新的草稿可以重新指定审核人。
+- 修改请求会保留反馈。再次运行模型需要单独确认。
+- 任务限额、已确认费用和待核对金额分别显示。审核人根据参考资料核对草稿。
 
-alpha.6 软件包可在 macOS arm64 上运行，包含本地模型配置和明确指定的 [OpenRouter 文本模型配置](docs/OPENROUTER.md)。选择模型，将密钥保存在私有文件中，再检查生成的草稿。OpenRouter 模型在服务商处运行，不在您的电脑上运行。本版本不包含 DeepSeek、Nebius Token Factory、Z.ai 的直接连接或 Windows/Linux 原生软件包。验证一个模型不代表兼容所有服务商。
+![任务预算、已确认费用和待核对金额](docs/images/zh-CN/execution-controls.svg)
 
-[试用 OpenRouter](https://openrouter.ai/) · [连接到 RunVerge](docs/OPENROUTER.md)。
+## 与其他工具如何配合
 
-`main` 分支已提供[从源码构建的 Linux 服务器预览版](docs/LINUX-SERVER.md)，仅限全新安装和测试数据。已在 Linux amd64 和 arm64 上验证安装、独立工作进程执行任务及重启后保留结果。此预览版与 alpha.6 下载包分开，指南目前为英文。
+LangChain、LangGraph、Deep Agents 和 DeepSeek Harness 提供构建和定制智能体的工具。RunVerge 提供团队工作台、指定审核、任务历史和 Linux 部署流程。
 
-应用的安装主机和模型服务商可以分别选择。目前提供 Mac 软件包，并不意味着产品只能使用本地模型。
+![智能体框架与 RunVerge 团队流程](docs/images/zh-CN/starting-points.svg)
 
-## 适合哪些人？
+## 开发者接口
 
-| 用户 | 需求 | 现在可以尝试什么 |
-|---|---|---|
-| AI 应用开发者 | 为智能体工作配套审核流程 | 创建智能体和任务，通过界面、API 或 SDK 查看草稿和执行记录 |
-| 技术负责人 | 了解生成了什么、作出了什么决定 | 跟踪原始材料、反馈、人工决策和费用状态 |
-| 有开发者协助的早期用户 | 根据给定事实起草短文档 | 总结文本、起草说明或比较选项，再检查和修改结果 |
+[HTTP API](contracts/openapi.json) · [Python SDK](packages/python-sdk) · [TypeScript SDK](packages/typescript-sdk) · [MCP 适配器](docs/MCP-ADAPTER.md)
 
-可以先由一个所有者使用，也可以用独立凭据试用[本地双人流程](docs/TWO-PERSON-PILOT.md)。这不是可用于生产环境的多人共享服务。
+Alpha.8 是面向全新安装和测试数据的预览版。SSO 流程已在隔离的测试身份提供方上验证。此前的 macOS ARM64 安装包见 [alpha.7](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.7).
 
-## 实际优势
+## 许可证
 
-- **完整的操作流程：** 在一个应用中完成任务、草稿、反馈、接受或拒绝。
-- **保留历史：** 各轮执行分别保留材料，修改不会覆盖原始结果。
-- **明确控制修改：** 请求修改会暂停任务；新一轮执行需要单独确认费用。
-- **区分费用状态：** 预留金额、已确认费用和结果不确定的操作分别记录。
-- **本地模型：** 可在不使用付费模型 API 的情况下体验流程；硬件和电力仍有成本。
-- **便于集成：** API、CLI、Python SDK 和 TypeScript SDK 使用一致的公开契约。
-
-如果你需要带有已保存草稿、审核决定和费用记录的任务页面，可以使用 RunVerge。通用智能体 harness 是另一种起点，它更侧重让你自行控制智能体的行为。
-
-## 与其他工具的区别
-
-![LangChain、LangGraph、Deep Agents 和 DeepSeek Harness 帮助开发或定制智能体。RunVerge 提供任务页面、审核决定、已保存结果和预算。这些能力存在重叠。](docs/images/zh-CN/starting-points.svg)
-
-| 项目 | 主要侧重点 | 适用情况 |
-|---|---|---|
-| [LangChain](https://docs.langchain.com/oss/python/langchain/overview) | 模型、工具、中间件和智能体循环 | 希望在自己的应用中组合智能体行为 |
-| [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) | 有状态编排、持久执行和人工干预 | 需要结合确定性代码步骤与模型步骤的自定义图 |
-| [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) | 规划、子智能体、文件上下文和记忆 | 需要这些能力作为智能体的构建基础 |
-| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | 带 Web 界面的可扩展插件式 harness | 希望通过插件定制 harness |
-| **RunVerge alpha.6** | **本地任务与审核应用** | **希望以独立的本地身份和测试数据评估这一流程** |
-
-以上内容依据链接中的官方介绍，于 2026 年 10 月 28 日核对。比较的是使用起点，并非断言其他项目缺少某项功能。LangGraph 和 Deep Agents 同样支持持久化与人工干预；LangChain 生态也提供托管部署产品。目前没有比较证据表明 RunVerge 在回答质量、速度、安全性或总成本方面优于这些产品。
-
-## 执行与费用控制
-
-![执行前检查权限、预算和限制，按照配置的价格预留任务预算。确认费用与未知结果分别记录；请求结果不明确时保留预留金额。这是任务内部的预算记录，不是银行账户冻结。](docs/images/zh-CN/execution-controls.svg)
-
-任务预算、执行次数上限和截止时间限制新工作的准入，并不保证文本事实准确，也不保证服务商的最终账单。已发送操作结果不确定时，其预留金额会保留，不会盲目重试。本地 API 费率为零不代表 CPU/GPU、电力或折旧成本为零，也不会使付费工具免费。
-
-**MCP：** 提供受限的[文本读取示例](docs/MCP-READ.md)，采用受信任配置、权限检查和执行批准。任意服务器、OAuth 和通用连接器市场不属于 alpha.6。
-
-## 如何体验
-
-1. 按照[快速开始](docs/QUICKSTART-ALPHA.md)安装软件包，并配置 PostgreSQL 和模型。
-2. 使用包含五条示例事实的[第一个任务](examples/alpha-first-task.md)。
-3. 检查草稿，记录修改意见，再单独批准新一轮执行。
-4. 查看两个材料并决定接受什么结果。欢迎告诉我们你是否愿意带着第二个任务回来。
-
-**Alpha.6 提供七种界面语言：**英语、俄语、西班牙语、巴西葡萄牙语、德语、法语和简体中文。
-
-在 alpha.6 中，首次任务指南依次引导您**保存代理草稿 → 发布版本 → 创建任务并检查回答**。针对所提供文本的可选代理指令和任务示例，只会在您选择后填入可编辑字段，不会自动选择模型、发布代理或启动工作。
-
-在顶部栏选择界面语言，选择会保存在当前设备上。切换语言会保留连接和当前工作，不会翻译已输入的任务、模型回答或材料。金额保持精确的美元（USD）数值，不进行货币兑换。[语言选择、本地语言资源和回退行为](docs/LANGUAGES.md)。
-
-## 当前限制与文档
-
-发布流程已由智能体检查，尚待新用户独立试用。小型本地模型可能遗漏事实或截断回答，请在平台之外保存重要结果。
-
-完整恢复、升级、独立团队的使用体验、企业 SSO 完整生命周期、云服务商部署、任意 MCP 集成以及生产性能尚不属于 alpha.6 已验收范围。不要将其作为公开的多用户服务。在 **比较结果** 中查看两个确切版本及其反馈。使用已完成任务中的 **以此创建新任务**，即可替换原始数据并开始独立任务。[英文指南](docs/REPEAT-WORK.md)。
-
-软件包和 SHA-256 位于 [Releases](https://github.com/ArtAndrew/RunVerge/releases)。目前没有发布者签名；校验和只能核对文件是否与公布值一致，不能证明发布者身份。
-
-- [安装](docs/NATIVE-BUNDLE.md) · [本地模型](docs/LOCAL-MODELS.md) · [MCP](docs/MCP-READ.md)
-- [发布说明](docs/RELEASE-NOTES-alpha.6.md) · [支持范围](docs/SUPPORT.md) · [验证](docs/VALIDATION-alpha.6.md)
-- [开发](docs/DEVELOPMENT.md) · [API 契约](contracts/README.md) · [公开内容](docs/PUBLIC-SOURCE.md)
-
-[提交反馈](https://github.com/ArtAndrew/RunVerge/issues/new/choose)时，请提供系统、版本和遇到困难的步骤。不要附带令牌、私有配置、数据库连接字符串或私有文档。链接中的详细指南可能使用英语或俄语。
-
-## 技术与许可
-
-服务端和 worker 使用 Go，状态存储使用 PostgreSQL，Workspace 使用 React/TypeScript，SDK 支持 Python 和 TypeScript。CLI 命令仍为 `platform`，内部模块名保留为 `agent-platform`。
-
-服务端、CLI、Web 应用、文档和图表使用 [Elastic License 2.0](LICENSE)；SDK 和示例按照各自附带的 Apache-2.0 许可证发布。依赖项保留原有许可。ELv2 属于源码可用许可，不是 OSI 认可的开源许可证。[许可边界](docs/LICENSING.md)。
+服务端和 Web 工作台使用 ELv2。客户端 SDK 和示例使用 Apache 2.0。

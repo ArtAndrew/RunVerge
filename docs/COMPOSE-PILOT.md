@@ -15,16 +15,11 @@ The first source startup needs internet access to build the application and
 download 1.12 GB of local model weights. Allow at least 4 GB of available RAM
 and enough disk space for build layers, the model and PostgreSQL.
 
-If you received an image archive and deployment archive from a verified build,
-use the files for your server's architecture together:
+For the alpha.8 Linux package, unpack the archive for your server architecture
+and enter the extracted directory.
 
 ```sh
-sha256sum -c SHA256SUMS
-mkdir runverge-pilot
-tar -xzf runverge-pilot-deploy.tar.gz -C runverge-pilot
-arch=amd64 # Use arm64 for an aarch64 server.
-docker image load -i "runverge-pilot-linux-$arch-image.tar.gz"
-cd runverge-pilot
+docker image load -i image.tar.gz
 docker compose -f deploy/pilot.compose.yaml up --no-build --wait --wait-timeout 900
 ```
 

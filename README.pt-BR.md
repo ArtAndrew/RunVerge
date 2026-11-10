@@ -1,111 +1,51 @@
 # RunVerge
 
-**Prévia da versão alpha.7** · [Notas e downloads](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.7)
+**Um espaço de trabalho no seu servidor para equipes que delegam tarefas a agentes e revisam os resultados.**
 
-**Delegue tarefas a agentes, confira as respostas e mantenha o histórico de revisões.**
+[**Alpha.8 · Downloads e notas da versão**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.8) · [English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)
 
-[English](README.md) · [Русский](README.ru.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [简体中文](README.zh-CN.md)
+![Tarefa, rascunho, designação, revisão e decisão salva](docs/images/pt-BR/workflow.svg)
 
-![Descreva a tarefa, receba um rascunho, confira e aceite ou autorize uma revisão. As respostas originais e os comentários ficam no histórico da tarefa.](docs/images/pt-BR/workflow.svg)
+Passe a tarefa e os materiais ao agente. Assim que ele salvar um rascunho, designe um colega para revisar. A pessoa encontra o rascunho em **Atribuídas a mim** e pode aceitar ou pedir ajustes. O rascunho e a decisão ficam no histórico.
 
-RunVerge é uma aplicação para trabalhar com agentes de IA. Descreva a tarefa e seu orçamento, receba um rascunho, deixe comentários e decida se aceita a resposta ou autoriza outra tentativa. A resposta original continua disponível após as correções.
+## Instalação no Linux
 
-[**Começar →**](docs/QUICKSTART-ALPHA.md) · [**Baixar alpha.6 →**](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.6) · [**Primeira tarefa →**](examples/alpha-first-task.md) · [**Feedback →**](https://github.com/ArtAndrew/RunVerge/issues/new/choose)
+Baixe AMD64 para servidores Intel ou AMD, ou ARM64 para um servidor Arm. Extraia o pacote e carregue a imagem Docker.
 
-> **Alpha.6 experimental:** macOS arm64, um piloto local com proprietário e membro e apenas dados de teste. PostgreSQL 18 é configurado separadamente. Use um modelo local ou o OpenRouter. Restauração completa, atualização de instalações existentes e implantação em produção para uma organização inteira não são suportadas nesta versão. [Escopo suportado](docs/SUPPORT.md).
+```sh
+docker image load -i image.tar.gz
+docker compose -f deploy/pilot.compose.yaml up --no-build --wait --wait-timeout 900
+```
 
-## Experimente uma equipe de dois agentes
+- **[Piloto de equipe](docs/COMPOSE-PILOT.md)**. O Docker Compose inicia um modelo local em CPU e cria uma conta proprietária e dois membros. Use a tarefa incluída com dados de exemplo.
+- **[Login da organização](docs/ORGANIZATION-COMPOSE.md)**. Use HTTPS e seu provedor OpenID Connect. Vincule cada conta corporativa a um membro do RunVerge e defina seu papel.
 
-Um agente redige, outro revisa e você decide. O modelo editável de fluxo mantém as duas respostas e usa um orçamento comum para a tarefa. Um colega pode criar a tarefa com sua própria credencial local; o proprietário pode pedir alterações ou aceitar um resultado específico. Um documento lido via MCP com aprovação pode ser incluído em uma revisão autorizada separadamente.
+O piloto local baixa cerca de 1,12 GB de pesos no primeiro início. O perfil HTTPS usa um modelo configurado à parte.
 
-[Guia dos agentes em inglês](docs/TEAM-REVIEW.md) · [Acesso de duas pessoas, em inglês](docs/TWO-PERSON-PILOT.md)
+## Para quem é o RunVerge
 
-O revisor também pode deixar passar fatos inventados. Não há aprovação independente obrigatória: membros podem aceitar o próprio trabalho. Todos os membros podem ler as tarefas da organização. Use dados de teste; implantação remota para equipes e SSO não são suportados.
+Para equipes de operações que preparam avisos ou procedimentos, equipes de engenharia que revisam trabalhos de IA e desenvolvedores que buscam um ambiente interno com API. Comece por uma tarefa recorrente que alguém da equipe já revise.
 
-## Onde o RunVerge funciona e qual modelo utiliza
+## O que fica sob controle
 
-RunVerge e o modelo são serviços separados. RunVerge guarda tarefas e resultados; o modelo recebe uma solicitação e gera a resposta. O motor inclui uma conexão HTTPS Chat Completions configurável pelo administrador.
+- O colega designado decide sobre um rascunho salvo. Cada novo rascunho tem sua própria designação.
+- Um pedido de ajustes guarda os comentários. Uma nova tentativa do modelo exige outra confirmação.
+- A tarefa mostra o limite, o gasto confirmado e os valores em conciliação. Quem revisa compara o texto com os materiais de origem.
 
-O pacote alpha.6 roda no macOS arm64 e inclui configuração de modelos locais e um [perfil de texto para OpenRouter](docs/OPENROUTER.md). Escolha um modelo, salve a chave em um arquivo privado e revise o rascunho. O modelo do OpenRouter roda no provedor. Conexões diretas com DeepSeek, Nebius Token Factory e Z.ai e pacotes nativos para Windows/Linux ficam fora desta versão. Verificar um modelo não comprova compatibilidade com todos os provedores.
+![Orçamento, gasto confirmado e valores em conciliação](docs/images/pt-BR/execution-controls.svg)
 
-[Experimentar o OpenRouter](https://openrouter.ai/) · [Conectar ao RunVerge](docs/OPENROUTER.md).
+## Como se encaixa com outras ferramentas
 
-A branch `main` inclui uma [prévia para servidores Linux com compilação do código-fonte](docs/LINUX-SERVER.md), para instalações novas com dados de teste. A instalação, o worker separado e a preservação do resultado após reiniciar foram verificados no Linux amd64 e arm64. É uma opção separada do pacote alpha.6. O guia está, por enquanto, em inglês.
+LangChain, LangGraph, Deep Agents e DeepSeek Harness oferecem formas de criar ou personalizar agentes. O RunVerge entrega um ambiente de equipe com revisão designada, histórico de tarefas e instalação no Linux.
 
-O computador da aplicação e o provedor do modelo são escolhas separadas. O pacote atual para Mac não significa que o produto deva usar apenas modelos locais.
+![Frameworks de agentes e fluxo de equipe do RunVerge](docs/images/pt-BR/starting-points.svg)
 
-## Para quem é?
+## Interfaces para desenvolvimento
 
-| Perfil | Necessidade | O que pode testar hoje |
-|---|---|---|
-| Desenvolvedor de aplicações com IA | Um fluxo de revisão em torno do agente | Criar agentes e tarefas, consultar rascunhos e tentativas pela interface, API ou SDK |
-| Líder técnico | Entender o que foi produzido e decidido | Acompanhar materiais originais, comentários, decisões e situação dos custos |
-| Primeiro usuário com apoio de um desenvolvedor | Elaborar documentos curtos com fatos fornecidos | Resumir textos, redigir instruções ou comparar opções e revisar o resultado |
+[API HTTP](contracts/openapi.json) · [SDK Python](packages/python-sdk) · [SDK TypeScript](packages/typescript-sdk) · [Adaptador MCP](docs/MCP-ADAPTER.md)
 
-Comece com um proprietário ou experimente o [passo a passo local para duas pessoas](docs/TWO-PERSON-PILOT.md), com credenciais separadas. Não é um serviço compartilhado de produção.
+Alpha.8 é uma prévia para instalações novas e dados de teste. O fluxo SSO foi testado com um provedor isolado. O pacote anterior para macOS ARM64 está em [alpha.7](https://github.com/ArtAndrew/RunVerge/releases/tag/0.14.0-alpha.7).
 
-## Vantagens práticas
+## Licença
 
-- **Fluxo integrado:** tarefa, rascunho, comentários e aceitação ou rejeição em uma aplicação.
-- **Histórico preservado:** tentativas separadas mantêm seus materiais; a correção não substitui o original.
-- **Revisões sob controle:** pedir alterações pausa a tarefa. Uma nova tentativa exige consentimento separado sobre custos.
-- **Custos explícitos:** reservas, gastos confirmados e resultados incertos são registrados separadamente.
-- **Modelo local:** experimente sem uma API paga de modelo; equipamento e energia continuam tendo custo.
-- **Integração:** API, CLI e SDKs de Python e TypeScript usam contratos públicos comuns.
-
-Use RunVerge se precisar de páginas de tarefas com rascunhos salvos, decisões de revisão e registros de custos. Um harness geral é outro ponto de partida: oferece mais controle sobre o comportamento do próprio agente.
-
-## Comparação com outras ferramentas
-
-![LangChain, LangGraph, Deep Agents e DeepSeek Harness ajudam a criar ou personalizar agentes. RunVerge oferece tarefas, revisão, resultados salvos e orçamentos. Os recursos se sobrepõem.](docs/images/pt-BR/starting-points.svg)
-
-| Projeto | Foco principal | Quando escolher |
-|---|---|---|
-| [LangChain](https://docs.langchain.com/oss/python/langchain/overview) | Modelos, ferramentas, middleware e ciclos de agentes | Você quer compor o agente na sua aplicação |
-| [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview) | Orquestração com estado, execução durável e intervenção humana | Você precisa de grafos personalizados com etapas programadas e etapas do modelo |
-| [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) | Planejamento, subagentes, contexto de arquivos e memória | Você precisa desses recursos como base do agente |
-| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Harness extensível por plugins com interface web | Você quer personalizar o harness por plugins |
-| **RunVerge alpha.6** | **Aplicação local de tarefas e revisão** | **Você quer avaliar o fluxo com acessos locais separados e dados de teste** |
-
-As descrições oficiais vinculadas foram conferidas em 28 de outubro de 2026. A comparação trata de pontos de partida, não de recursos ausentes nos demais projetos. LangGraph e Deep Agents também oferecem persistência e intervenção humana; o ecossistema LangChain possui produtos de implantação gerenciada. Não há evidências comparativas de superioridade do RunVerge em qualidade, velocidade, segurança ou custo total.
-
-## Controle de execução e custos
-
-![Antes da execução, verificam-se permissões, orçamento e limites. O orçamento é reservado conforme os preços configurados. O custo é confirmado separadamente; se o resultado for incerto, a reserva permanece. É um registro interno, não um bloqueio bancário.](docs/images/pt-BR/execution-controls.svg)
-
-Orçamento, número de tentativas e prazo restringem a admissão de novo trabalho. Não garantem a precisão do texto nem a fatura final do provedor. Uma operação enviada com resultado incerto mantém sua reserva e não é repetida às cegas. Tarifa local de API zero não mede CPU/GPU, energia ou depreciação, nem torna ferramentas pagas gratuitas.
-
-**MCP:** há um [exemplo limitado de leitura de texto](docs/MCP-READ.md) com configuração confiável, permissões e aprovação da execução. Servidores arbitrários, OAuth e um catálogo geral de conectores não fazem parte da alpha.6.
-
-## Como experimentar
-
-1. Siga o [início rápido](docs/QUICKSTART-ALPHA.md) para instalar e configurar PostgreSQL e o modelo.
-2. Execute a [primeira tarefa](examples/alpha-first-task.md) com cinco fatos de exemplo.
-3. Confira o rascunho, registre uma correção e autorize outra tentativa separadamente.
-4. Examine os dois materiais e decida o que aceitar. Conte se voltaria com uma segunda tarefa.
-
-**A alpha.6 oferece sete idiomas de interface:** inglês, russo, espanhol, português do Brasil, alemão, francês e chinês simplificado.
-
-Na alpha.6, o guia inicial percorre **salvar um rascunho de agente → publicar uma versão → criar uma tarefa e revisar a resposta**. As instruções opcionais para trabalhar com um texto fornecido e os exemplos de tarefas só preenchem campos editáveis após sua escolha. Não selecionam um modelo, publicam um agente nem iniciam trabalho automaticamente.
-
-O idioma é escolhido na barra superior e salvo neste dispositivo. A troca mantém a conexão e o trabalho atual; os textos já inseridos, as respostas do modelo e os materiais não são traduzidos. Os valores continuam exatos em USD, sem conversão de moeda. [Seleção de idioma, arquivos locais e idioma de fallback](docs/LANGUAGES.md).
-
-## Limites atuais e documentação
-
-Um agente verificou o fluxo de publicação; ainda falta avaliação independente por novos usuários. Um modelo local pequeno pode omitir fatos ou truncar a resposta. Guarde resultados importantes fora da plataforma.
-
-Restauração completa, atualizações, usabilidade com equipes independentes, ciclo empresarial de SSO, implantação para provedores de nuvem, MCP arbitrário e desempenho de produção não foram aceitos para a alpha.6. Não exponha a instalação como serviço público multiusuário. Em **Comparar resultados**, veja duas versões exatas e seus comentários. **Usar em uma nova tarefa** permite repetir uma tarefa concluída com novos dados. [Guia em inglês](docs/REPEAT-WORK.md).
-
-Os pacotes e valores SHA-256 estão em [Releases](https://github.com/ArtAndrew/RunVerge/releases). Não há assinatura do editor; o checksum verifica correspondência com o valor publicado, não a identidade do editor.
-
-- [Instalação](docs/NATIVE-BUNDLE.md) · [modelos](docs/LOCAL-MODELS.md) · [MCP](docs/MCP-READ.md)
-- [Notas](docs/RELEASE-NOTES-alpha.6.md) · [suporte](docs/SUPPORT.md) · [validação](docs/VALIDATION-alpha.6.md)
-- [Desenvolvimento](docs/DEVELOPMENT.md) · [API](contracts/README.md) · [conteúdo público](docs/PUBLIC-SOURCE.md)
-
-[Envie feedback](https://github.com/ArtAndrew/RunVerge/issues/new/choose) com sistema operacional, versão e etapa difícil. Não anexe tokens, configurações privadas, strings de conexão ou documentos privados. Os guias detalhados vinculados podem estar em inglês ou russo.
-
-## Tecnologia e licenças
-
-Servidor e workers em Go, PostgreSQL, Workspace React/TypeScript e SDKs de Python e TypeScript. O comando CLI continua `platform`; módulos internos mantêm `agent-platform`.
-
-Servidor, CLI, aplicação web, documentação e diagramas: [Elastic License 2.0](LICENSE). SDKs e exemplos: Apache-2.0 conforme as licenças incluídas. As dependências mantêm suas licenças. ELv2 disponibiliza o código-fonte, mas não é uma licença de código aberto reconhecida pela OSI. [Limites das licenças](docs/LICENSING.md).
+O servidor e a interface web usam ELv2. Os SDKs de cliente e os exemplos usam Apache 2.0.

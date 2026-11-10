@@ -1,4 +1,16 @@
-# Supported alpha profile
+# Supported alpha profiles
+
+## Alpha.8 on Linux
+
+Alpha.8 provides Docker packages for Linux AMD64 and ARM64. The
+[team pilot](COMPOSE-PILOT.md) starts a local CPU model and three separate
+accounts. The [organization profile](ORGANIZATION-COMPOSE.md) uses HTTPS, an
+explicit OIDC identity mapping, and a model selected by the operator. Both
+profiles support named review of a saved draft. Use fresh installations and
+test data. The installed SSO walkthrough uses an isolated test issuer and
+a deterministic local model fixture.
+
+## Alpha.6 historical scope
 
 Alpha.6 is an experimental test-data release. The native download targets macOS arm64; Linux amd64 and arm64 have a separate source/Compose preview. PostgreSQL 18 and a model service are configured separately.
 

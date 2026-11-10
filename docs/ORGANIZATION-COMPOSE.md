@@ -15,7 +15,7 @@ callback `https://workspace.example.test:8443/auth/oidc/callback`. Replace the
 example origin with the actual HTTPS address employees will open. Obtain the
 full TLS certificate chain with its leaf first and its private key.
 
-From the source checkout, create database settings for a fresh installation.
+From the source checkout or extracted alpha.8 Linux package, create database settings for a fresh installation.
 
 ```sh
 python3 scripts/server_setup.py
@@ -58,7 +58,9 @@ these files read-only. Store this directory outside Git and the build context.
 ## Start the deployment and enroll the first owner
 
 Run these commands from the source checkout. Keep `COMPOSE_FILE` set for later
-commands against this installation.
+commands against this installation. From the extracted Linux package, load
+`image.tar.gz` with `docker image load -i image.tar.gz` and use `up --no-build --wait`
+in the startup command.
 
 ```sh
 export COMPOSE_FILE=deploy/compose.yaml:deploy/organization.compose.yaml
