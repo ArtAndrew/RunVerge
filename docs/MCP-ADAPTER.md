@@ -2,7 +2,7 @@
 
 Текущий wire API —0.14.0. Добавлен читающий `platform_capabilities`: тот же
 каталог поддержки, ролей и начала работы, что в HTTP/CLI/SDK/Workspace.
-Общее покрытие —81 JSON-операция:51 чтение и30 mutation tools с отдельным
+Общее покрытие включает 52 операции чтения и 31 изменяющий инструмент с отдельным
 операторским opt-in; SSE остаётся отдельным API transport. Сам каталог не
 выдаёт прав и не вызывает providers. Новый профиль проверяется отдельно от
 исторической основной установки0.12, описанной ниже. См. [инструкцию](CAPABILITIES.md).
@@ -32,7 +32,7 @@ Firecrawl documentation search был недоступен по квоте; ис
 
 ## Каталог
 
-Покрыт81 JSON-маршрут из82 реализованных API-маршрутов. SSE-поток не превращается в MCP-инструмент. По умолчанию объявляется51 инструмент чтения, включая `platform_api_compatibility`, `platform_event_snapshot` и `platform_event_feed`:
+По умолчанию объявляются 52 инструмента чтения, включая `platform_api_compatibility`, `platform_event_snapshot` и `platform_event_feed`. SSE остаётся отдельным API-транспортом.
 
 - текущий principal/организация/роль/permissions, агенты, доступные модели, список и детали задач;
 - события, страницы артефактов, точная версия артефакта, расходы с отдельными курсорами;
@@ -45,6 +45,8 @@ Firecrawl documentation search был недоступен по квоте; ис
 - каталог настройки, одобренные назначения и версии ресурсов, списки/точные разрешения, планы и проверки связи, журнал настройки.
 
 `platform_tasks_list` принимает необязательный аргумент `{"view":"attention"}`. Он возвращает очередь задач текущей организации, которым нужна проверка, подтверждение или разбор остановки. Успешный ответ содержит `task_view: "attention"`. Для следующей страницы передайте `next_cursor` вместе с тем же `view` и подключением. Чтение очереди требует `tasks.read`. [Правила отбора и пагинации](../contracts/README.md#tasks).
+
+`{"view":"assigned_review"}` показывает черновики, которые ждут решения текущего проверяющего. `platform_tasks_review_assignment` читает назначение и доступные действия. `platform_tasks_assign_reviewer` требует включения изменяющих инструментов и учётной записи уполномоченного человека. Он назначает коллегу на точный черновик. [Контракт назначения](../contracts/COLLABORATION.md#send-a-draft-to-a-colleague).
 
 Оператор отдельно включает каждый из30 изменяющих инструментов. Существующие23: `platform_agents_create`, `platform_agents_publish`, `platform_tasks_create`, `platform_tasks_cancel`, `platform_tasks_review`, `platform_tasks_retry`, `platform_materials_create`, `platform_materials_revise`, `platform_materials_publish`, `platform_tool_executions_prepare`, `platform_tool_executions_decide`, `platform_tool_executions_dispatch`, `platform_tool_executions_reconcile`, `platform_model_continue`, `platform_automation_create`, `platform_automation_revoke`, `platform_members_create`, `platform_members_update`, `platform_members_revoke_credentials`, `platform_login_policy_update`, `platform_service_accounts_create`, `platform_service_accounts_update`, `platform_service_keys_revoke`.
 

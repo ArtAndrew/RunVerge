@@ -40,7 +40,7 @@ func (s *Store) ReviewTask(ctx context.Context, p domain.Principal, id, key stri
 		return nil, domain.Err("invalid_request", "Укажите причину решения", 400)
 	}
 	guard := func(ctx context.Context, tx pgx.Tx, p domain.Principal) error {
-		return taskMutationPermission(ctx, tx, p, id, "tasks.review_own", "tasks.review_any")
+		return taskReviewPermission(ctx, tx, p, id, in.CandidateID)
 	}
 	return s.MutateGuarded(ctx, p, "POST /tasks/"+id+"/review", key, in, guard, func(ctx context.Context, tx pgx.Tx, p domain.Principal) (any, error) {
 		control, e := lockTaskTreeTx(ctx, tx, p.OrganizationID, id)
@@ -63,6 +63,10 @@ func (s *Store) ReviewTask(ctx context.Context, p domain.Principal, id, key stri
 		}
 		if task.Status != "waiting_input" || (!candidateWaitingReason(task.WaitingReason) && task.WaitingReason != "model_tools_pending") || task.CandidateID != in.CandidateID {
 			return nil, domain.Err("invalid_transition", "Этот результат больше не ожидает решения", 409)
+		}
+		// A handoff may have committed while this decision waited for the tree.
+		if e = taskReviewPermission(ctx, tx, p, id, task.CandidateID); e != nil {
+			return nil, e
 		}
 		if task.ParentID != "" {
 			var consumed bool

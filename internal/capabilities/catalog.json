@@ -4107,7 +4107,8 @@
         "scoped_idempotency_after_current_authorization",
         "exact_versions_and_current_state",
         "exact_candidate_artifact_digest",
-        "human_review_authority"
+        "human_review_authority",
+        "current_named_reviewer_if_assigned"
       ],
       "effect": "platform_write",
       "cost_semantics": "none",
@@ -4146,6 +4147,129 @@
       ],
       "documentation": [
         "contracts/EXECUTION.md"
+      ]
+    },
+    {
+      "id": "get_tasks_id_review-assignment",
+      "capability_id": "tasks",
+      "method": "GET",
+      "path": "/api/v1/tasks/{id}/review-assignment",
+      "input_schema": "",
+      "output_schema": "TaskReviewAssignment",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.read"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "reviewer_directory_only_for_assigner"
+      ],
+      "effect": "read_only",
+      "cost_semantics": "none",
+      "retry_policy": "read_with_current_authorization",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "GET /api/v1/tasks/{id}/review-assignment"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "get_task_review_assignment"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "getTaskReviewAssignment"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Проверяющий"
+        },
+        {
+          "surface": "mcp",
+          "status": "available",
+          "name": "platform_tasks_review_assignment"
+        }
+      ],
+      "documentation": [
+        "contracts/COLLABORATION.md"
+      ]
+    },
+    {
+      "id": "post_tasks_id_review-assignment",
+      "capability_id": "tasks",
+      "method": "POST",
+      "path": "/api/v1/tasks/{id}/review-assignment",
+      "input_schema": "AssignTaskReviewer",
+      "output_schema": "Task",
+      "response_kind": "object",
+      "success_status": 200,
+      "access_model": "role_and_resource",
+      "permission_alternatives": [
+        [
+          "tasks.review_own"
+        ],
+        [
+          "tasks.review_any"
+        ]
+      ],
+      "runtime_guards": [
+        "current_authorization",
+        "organization_and_resource_scope",
+        "scoped_idempotency_after_current_authorization",
+        "exact_versions_and_current_state",
+        "exact_candidate_and_active_independent_human"
+      ],
+      "effect": "platform_write",
+      "cost_semantics": "none",
+      "retry_policy": "explicit_same_key_after_inspection",
+      "bindings": [
+        {
+          "surface": "http",
+          "status": "available",
+          "name": "POST /api/v1/tasks/{id}/review-assignment"
+        },
+        {
+          "surface": "cli",
+          "status": "not_exposed",
+          "name": ""
+        },
+        {
+          "surface": "python",
+          "status": "available",
+          "name": "assign_task_reviewer"
+        },
+        {
+          "surface": "typescript",
+          "status": "available",
+          "name": "assignTaskReviewer"
+        },
+        {
+          "surface": "workspace",
+          "status": "available",
+          "name": "Задача · Назначить проверяющего"
+        },
+        {
+          "surface": "mcp",
+          "status": "operator_opt_in",
+          "name": "platform_tasks_assign_reviewer"
+        }
+      ],
+      "documentation": [
+        "contracts/COLLABORATION.md"
       ]
     },
     {

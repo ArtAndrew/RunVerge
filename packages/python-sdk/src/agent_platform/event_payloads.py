@@ -457,6 +457,19 @@ EVENT_PAYLOAD_REGISTRY = {'api_version': '0.14.0',
                                               'run_id': {'kind': 'string',
                                                          'required': True,
                                                          'max_bytes': 128}}},
+           'task.review_assigned': {'fields': {'assigned_by_principal_id': {'kind': 'string',
+                                                                            'required': True,
+                                                                            'max_bytes': 128},
+                                               'candidate_id': {'kind': 'string',
+                                                                'required': True,
+                                                                'max_bytes': 128},
+                                               'reviewer_principal_id': {'kind': 'string',
+                                                                         'required': True,
+                                                                         'max_bytes': 128},
+                                               'task_version': {'kind': 'integer',
+                                                                'required': True,
+                                                                'minimum': 1,
+                                                                'maximum': 2147483647}}},
            'task.succeeded': {'fields': {'adapter': {'kind': 'string',
                                                      'required': True,
                                                      'max_bytes': 4096,
@@ -1254,6 +1267,23 @@ class TaskResultDecidedEvent(EventMetadata):
     data: TaskResultDecidedPayload
 
 
+class _TaskReviewAssignedRequired(TypedDict):
+    assigned_by_principal_id: str
+    candidate_id: str
+    reviewer_principal_id: str
+    task_version: int
+
+
+class TaskReviewAssignedPayload(_TaskReviewAssignedRequired, total=False):
+    pass
+
+
+class TaskReviewAssignedEvent(EventMetadata):
+    type: Literal['task.review_assigned']
+    payload_version: Literal[1]
+    data: TaskReviewAssignedPayload
+
+
 class _TaskSucceededRequired(TypedDict):
     adapter: Literal['fixture:echo']
     verification: Literal['exact_goal_echo']
@@ -1596,4 +1626,4 @@ class ToolStoppedUnsentEvent(EventMetadata):
     data: ToolStoppedUnsentPayload
 
 
-TypedEvent = ActionDispatchedEvent | AutomationCompletedEvent | AutomationExpiredEvent | AutomationGrantedEvent | AutomationRevokedEvent | AutomationStoppedEvent | CostAdjustmentEvent | CostFixtureReconciledEvent | CostQuarantineResolutionEvent | CostQuarantinedEvent | CostReleasedEvent | CostReservedEvent | CostSettleEvent | CostSettledEvent | CostUnknownEvent | MaterialCreatedEvent | MaterialPublishedEvent | MaterialRevisedEvent | ModelCandidateCreatedEvent | ModelContinuationQueuedEvent | OperationClaimedEvent | TaskBlockedEvent | TaskCancelledEvent | TaskCreatedEvent | TaskDecisionInheritedEvent | TaskDelegatedEvent | TaskNewAttemptEvent | TaskResultDecidedEvent | TaskSucceededEvent | TeamBlockedEvent | TeamCandidateCreatedEvent | TeamInitializedEvent | TeamMemberCandidateEvent | TeamMemberStartedEvent | ToolApprovalDecidedEvent | ToolCancelledEvent | ToolClaimedEvent | ToolCostReleasedEvent | ToolDispatchQueuedEvent | ToolDispatchedEvent | ToolEffectObservedEvent | ToolOperatorReconciledEvent | ToolOutcomeConflictOverflowEvent | ToolOutcomeConflictedEvent | ToolOutcomeUnknownEvent | ToolPreparedEvent | ToolStoppedUnsentEvent
+TypedEvent = ActionDispatchedEvent | AutomationCompletedEvent | AutomationExpiredEvent | AutomationGrantedEvent | AutomationRevokedEvent | AutomationStoppedEvent | CostAdjustmentEvent | CostFixtureReconciledEvent | CostQuarantineResolutionEvent | CostQuarantinedEvent | CostReleasedEvent | CostReservedEvent | CostSettleEvent | CostSettledEvent | CostUnknownEvent | MaterialCreatedEvent | MaterialPublishedEvent | MaterialRevisedEvent | ModelCandidateCreatedEvent | ModelContinuationQueuedEvent | OperationClaimedEvent | TaskBlockedEvent | TaskCancelledEvent | TaskCreatedEvent | TaskDecisionInheritedEvent | TaskDelegatedEvent | TaskNewAttemptEvent | TaskResultDecidedEvent | TaskReviewAssignedEvent | TaskSucceededEvent | TeamBlockedEvent | TeamCandidateCreatedEvent | TeamInitializedEvent | TeamMemberCandidateEvent | TeamMemberStartedEvent | ToolApprovalDecidedEvent | ToolCancelledEvent | ToolClaimedEvent | ToolCostReleasedEvent | ToolDispatchQueuedEvent | ToolDispatchedEvent | ToolEffectObservedEvent | ToolOperatorReconciledEvent | ToolOutcomeConflictOverflowEvent | ToolOutcomeConflictedEvent | ToolOutcomeUnknownEvent | ToolPreparedEvent | ToolStoppedUnsentEvent

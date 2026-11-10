@@ -305,9 +305,10 @@ export interface ListOptions extends RequestOptions {
   limit?: number;
 }
 
+export type TaskListView = "attention" | "assigned_review";
 export interface TaskListOptions extends ListOptions {
-  /** Use an attention cursor returned for this organization when continuing this view. */
-  view?: "attention";
+  /** Continue a view with its own cursor under the same identity. */
+  view?: TaskListView;
 }
 
 export interface EventOptions extends RequestOptions {
@@ -359,6 +360,14 @@ export interface ClientOptions {
 
 
 export type ReviewDecision = "accept" | "reject" | "request_changes";
+export interface TaskReviewer { principal_id: string; display_name: string }
+export interface TaskReviewAssignment {
+  task_version: number; candidate_id?: string;
+  reviewer_principal_id?: string; reviewer_display_name?: string;
+  can_assign: boolean; can_review: boolean;
+  reviewers: TaskReviewer[]; more_reviewers: boolean;
+}
+export interface AssignTaskReviewerInput { expectedVersion: number; candidateId: string; reviewerPrincipalId: string }
 export interface TaskCandidate {
   parent_candidate_id?: string; review_basis_candidate_id?: string;
   material_id?: string; material_version?: number; published_by?: string;

@@ -887,6 +887,31 @@ export const EVENT_PAYLOAD_REGISTRY = {
         }
       }
     },
+    "task.review_assigned": {
+      "fields": {
+        "assigned_by_principal_id": {
+          "kind": "string",
+          "required": true,
+          "max_bytes": 128
+        },
+        "candidate_id": {
+          "kind": "string",
+          "required": true,
+          "max_bytes": 128
+        },
+        "reviewer_principal_id": {
+          "kind": "string",
+          "required": true,
+          "max_bytes": 128
+        },
+        "task_version": {
+          "kind": "integer",
+          "required": true,
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      }
+    },
     "task.succeeded": {
       "fields": {
         "adapter": {
@@ -1482,6 +1507,7 @@ export interface EventPayloadMap {
   "task.delegated": { "agent_version": number; "member_id": string; "parent_id": string; "root_id": string; "state": "dependency_pending" };
   "task.new_attempt": { "acknowledged_new_cost": true; "attempt": number; "input_digest": string; "operation_id": string; "prior_liabilities_preserved": true; "reason": string; "run_id": string };
   "task.result_decided": { "candidate_id": string; "content_digest": string; "costs_unchanged": true; "decision": "accept" | "reject" | "request_changes"; "decision_id": string; "method": "authorized_user_decision"; "principal_id": string; "run_id": string };
+  "task.review_assigned": { "assigned_by_principal_id": string; "candidate_id": string; "reviewer_principal_id": string; "task_version": number };
   "task.succeeded": { "adapter": "fixture:echo"; "verification": "exact_goal_echo" };
   "team.blocked": { "reason": string; "run_id": string };
   "team.candidate_created": { "all_fixture": boolean; "artifact_id": string; "candidate_id": string; "complete": boolean; "content_digest": string; "run_id": string; "synthetic_cost": boolean; "verified": false };

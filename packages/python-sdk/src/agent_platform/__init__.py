@@ -14,7 +14,7 @@ from .types import (
     ToolInfo, ToolExecution, ToolOutcomeReceipt, ToolExecutionView, CurrentIdentity, AccountingOutcome, Action, Agent, Approval, Artifact, AvailableModel, CostAdjustment, CostEvidence,
     CostQuarantine, CostReport, Event, LegacyEvent, TypedEvent, EventReplayWindow, TaskEventSnapshot, TaskEventBatch, TaskEventStreamFrame, EventStreamError, APICompatibility, FinancialIncident,
     LedgerEntry, Operation, Page, Reservation, Run, Task, TaskStatus,
-    Material, MaterialRevision, MaterialContent, ReviewDecision, TaskCandidate, TaskDecision, TeamDefinition, TeamMember,
+    Material, MaterialRevision, MaterialContent, ReviewDecision, TaskReviewAssignment, TaskReviewer, TaskCandidate, TaskDecision, TeamDefinition, TeamMember,
 )
 
 __version__ = "0.14.0"
@@ -29,7 +29,7 @@ __all__ = [
     "Client", "CostReport", "Event", "FinancialIncident", "LedgerEntry",
     "Operation", "Page", "ProtocolError", "Reservation", "Run", "Task",
     "TaskStatus", "TransportError", "__version__",
-    "Material", "MaterialRevision", "MaterialContent", "ReviewDecision", "TaskCandidate", "TaskDecision", "TeamDefinition", "TeamMember",
+    "Material", "MaterialRevision", "MaterialContent", "ReviewDecision", "TaskReviewAssignment", "TaskReviewer", "TaskCandidate", "TaskDecision", "TeamDefinition", "TeamMember",
 ]
 
 from .configuration_types import (

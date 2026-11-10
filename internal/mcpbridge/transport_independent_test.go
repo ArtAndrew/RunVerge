@@ -177,7 +177,7 @@ func TestIndependentMCPDiscoveryAndDisabledTools(t *testing.T) {
 			} `json:"annotations"`
 		} `json:"tools"`
 	}
-	if json.Unmarshal(out["result"], &listed) != nil || len(listed.Tools) != 51 {
+	if json.Unmarshal(out["result"], &listed) != nil || len(listed.Tools) != 52 {
 		t.Fatal("readonly catalog differs")
 	}
 	for _, v := range listed.Tools {

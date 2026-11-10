@@ -1035,6 +1035,16 @@
       "name": "Задача · Сохранить решение по точному результату"
     }
   },
+  "GET /api/v1/tasks/{id}/review-assignment": {
+    "python": {"status": "available", "name": "get_task_review_assignment"},
+    "typescript": {"status": "available", "name": "getTaskReviewAssignment"},
+    "workspace": {"status": "available", "name": "Задача · Проверяющий"}
+  },
+  "POST /api/v1/tasks/{id}/review-assignment": {
+    "python": {"status": "available", "name": "assign_task_reviewer"},
+    "typescript": {"status": "available", "name": "assignTaskReviewer"},
+    "workspace": {"status": "available", "name": "Задача · Назначить проверяющего"}
+  },
   "GET /api/v1/tasks/{id}/runs": {
     "python": {
       "status": "available",

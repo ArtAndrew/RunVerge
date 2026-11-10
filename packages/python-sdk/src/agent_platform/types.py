@@ -367,6 +367,25 @@ class Artifact(TypedDict):
 ReviewDecision = Literal["accept", "reject", "request_changes"]
 
 
+class TaskReviewer(TypedDict):
+    principal_id: str
+    display_name: str
+
+
+class _RequiredTaskReviewAssignment(TypedDict):
+    task_version: int
+    can_assign: bool
+    can_review: bool
+    reviewers: list[TaskReviewer]
+    more_reviewers: bool
+
+
+class TaskReviewAssignment(_RequiredTaskReviewAssignment, total=False):
+    candidate_id: str
+    reviewer_principal_id: str
+    reviewer_display_name: str
+
+
 class _RequiredTaskCandidate(TypedDict):
     id: str
     organization_id: str

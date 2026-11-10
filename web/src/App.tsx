@@ -62,7 +62,7 @@ export default function App() {
   const taskPages = useRef(1)
   const attentionPages = useRef(1)
   const agentPages = useRef(1)
-  const showingAttention = view === 'tasks' && filter === 'attention'
+  const inboxView = view === 'tasks' && (filter === 'attention' || filter === 'assigned_review') ? filter : undefined
 
   useEffect(()=>{const handler=(event:BeforeUnloadEvent)=>{if(vault.size){event.preventDefault();event.returnValue=''}};window.addEventListener('beforeunload',handler);return()=>window.removeEventListener('beforeunload',handler)},[vault])
 
@@ -101,11 +101,11 @@ export default function App() {
       try {
         const identity=await api!.currentIdentity(controller.signal)
         if(!draftScope||!sameIdentity(draftScope,identity))throw new ApiError(t('Учётная запись изменилась. Подключите пространство заново.'),'unauthenticated')
-        const readTasks = async (attention = false) => {
-          const readPage = (cursor?: string) => attention ? api!.attentionTasks(cursor, controller.signal) : api!.tasks(cursor, controller.signal)
+        const readTasks = async (inbox?: typeof inboxView) => {
+          const readPage = (cursor?: string) => inbox ? api!.taskInbox(inbox, cursor, controller.signal) : api!.tasks(cursor, controller.signal)
           let page = await readPage()
           const items = [...page.data]
-          for (let index = 1; index < (attention ? attentionPages.current : taskPages.current) && page.next_cursor; index++) {
+          for (let index = 1; index < (inbox ? attentionPages.current : taskPages.current) && page.next_cursor; index++) {
             page = await readPage(page.next_cursor)
             items.push(...page.data)
           }
@@ -123,8 +123,8 @@ export default function App() {
         const [taskPage, agentPage, inbox] = await Promise.all([
           readTasks(),
           readAgents(),
-          showingAttention
-            ? readTasks(true).then(page => ({page, error: null})).catch((error: unknown) => ({page: null, error}))
+          inboxView
+            ? readTasks(inboxView).then(page => ({page, error: null})).catch((error: unknown) => ({page: null, error}))
             : null,
         ])
         if (stopped || activeClient.current !== api) return
@@ -141,7 +141,7 @@ export default function App() {
       } catch (cause) {
         if (stopped || controller.signal.aborted || activeClient.current !== api) return
         setError(cause)
-        if (showingAttention) setAttentionPage(null)
+        if (inboxView) setAttentionPage(null)
         if (cause instanceof ApiError && ['unauthenticated', 'forbidden'].includes(cause.code)) {
           setTasks([]); setAgents([]); setTaskCursor(undefined); setAgentCursor(undefined); disconnect();setView('connection')
         }
@@ -154,7 +154,7 @@ export default function App() {
     }
     void load()
     return () => { stopped = true; controller.abort(); clearTimeout(timer) }
-  }, [api, draftScope, refresh, showingAttention])
+  }, [api, draftScope, refresh, inboxView])
 
   async function connect(next: Connection) {
     const attempt = ++connectAttempt.current
@@ -220,7 +220,7 @@ export default function App() {
     setAttentionError(null)
   }
   function selectTaskFilter(next: string) {
-    if (filter === 'attention' && next !== filter) resetAttention()
+    if (next !== filter) resetAttention()
     setFilter(next)
   }
 
@@ -244,16 +244,17 @@ export default function App() {
     } catch (cause) { if (activeClient.current === activeApi) setError(cause) } finally { setLoadingMore(false) }
   }
 
-  const attention = attentionPage?.data.length ?? tasks.filter(task => decisionTab(task) !== null).length
-  const attentionCount = number(attention) + (attentionPage?.next_cursor ? '+' : '')
+  const allAttention = inboxView === 'attention' ? attentionPage : null
+  const attention = allAttention?.data.length ?? tasks.filter(task => decisionTab(task) !== null).length
+  const attentionCount = number(attention) + (allAttention?.next_cursor ? '+' : '')
   const active = tasks.filter(task => ['queued', 'running'].includes(task.status)).length
   const completed = tasks.filter(task => task.status === 'succeeded').length
   const showFirstTaskGuide = !loading && !error && tasks.length === 0 && !taskCursor && Boolean(identity?.permissions.includes('tasks.create'))
   const publishedAgents = agents.filter(agent => agent.published)
-  const visibleTasks = showingAttention ? attentionPage?.data ?? [] : tasks
-  const visibleCursor = showingAttention ? attentionPage?.next_cursor : taskCursor
+  const visibleTasks = inboxView ? attentionPage?.data ?? [] : tasks
+  const visibleCursor = inboxView ? attentionPage?.next_cursor : taskCursor
   const filteredTasks = visibleTasks.filter(task => {
-    const matchesFilter = showingAttention || filter === 'all' || (filter === 'active' && !terminalStatuses.has(task.status)) || (filter === 'completed' && terminalStatuses.has(task.status))
+    const matchesFilter = inboxView || filter === 'all' || (filter === 'active' && !terminalStatuses.has(task.status)) || (filter === 'completed' && terminalStatuses.has(task.status))
     return matchesFilter && `${task.goal} ${task.id}`.toLocaleLowerCase(locale).includes(search.toLocaleLowerCase(locale))
   })
   const title = view === 'tasks' ? t("Задачи") : view === 'agents' ? t("Агенты") : view === 'members' ? t("Участники") : view === 'security' ? t("Безопасность") : view === 'configuration' ? t("Настройки подключений") : view === 'capabilities' ? t("Возможности") : t("Подключение")
@@ -286,19 +287,20 @@ export default function App() {
             {showFirstTaskGuide && <FirstTaskGuide agents={agents} moreAgents={Boolean(agentCursor)} identity={identity} onCreateAgent={() => setModal('agent')} onAgents={() => navigate('agents')} onTask={() => setModal('task')} />}
             <div className="stats-grid"><div className="stat-card"><span className="stat-icon"><Icon name="activity" /></span><div><span>{t("В работе и очереди")}</span><strong>{number(active)}</strong></div></div><div className="stat-card"><span className="stat-icon warm"><Icon name="clock" /></span><div><span>{t("Нужно внимание")}</span><strong>{attentionCount}</strong></div></div><div className="stat-card"><span className="stat-icon green"><Icon name="check" /></span><div><span>{t("Завершено")}</span><strong>{number(completed)}</strong></div></div></div><div className="stats-note">{t("По загруженным задачам · обновление каждые 15 секунд")}</div>
             {!publishedAgents.length && !showFirstTaskGuide && <div className="notice notice-info"><Icon name="agents" /><div><strong>{t("Нужен опубликованный агент")}</strong><p>{t("Создайте исполнителя и опубликуйте его версию, чтобы начать работу.")}</p></div><button className="button button-small button-secondary" onClick={() => navigate('agents')}>{t("К агентам")}<Icon name="arrow" /></button></div>}
-            <section className="panel task-list"><div className="list-toolbar"><div className="filter-buttons" aria-label={t("Фильтр задач")}>{[['all', t("Все")], ['active', t("Активные")], ['attention', t("Нужно внимание")], ['completed', t("Завершённые")]].map(([value, label]) => <button key={value} className={filter === value ? 'selected' : ''} aria-pressed={filter === value} onClick={() => selectTaskFilter(value)}>{label}</button>)}</div><input className="search-input" aria-label={t("Поиск по загруженным задачам")} placeholder={t("Найти задачу…")} value={search} onChange={event => setSearch(event.target.value)} /></div>
-              {showingAttention ? (
+            <section className="panel task-list"><div className="list-toolbar"><div className="filter-buttons" aria-label={t("Фильтр задач")}>{[['all', t("Все")], ['active', t("Активные")], ['attention', t("Нужно внимание")], ['assigned_review', t("Назначено мне")], ['completed', t("Завершённые")]].map(([value, label]) => <button key={value} className={filter === value ? 'selected' : ''} aria-pressed={filter === value} onClick={() => selectTaskFilter(value)}>{label}</button>)}</div><input className="search-input" aria-label={t("Поиск по загруженным задачам")} placeholder={t("Найти задачу…")} value={search} onChange={event => setSearch(event.target.value)} /></div>
+              {inboxView ? (
                 error ? null
                 : attentionError ? <ErrorNotice error={attentionError} onRetry={loading ? undefined : reload} />
                 : !attentionPage ? <Loading />
-                : filteredTasks.length ? <DecisionQueue tasks={filteredTasks} onOpen={openTask} />
+                : filteredTasks.length ? <DecisionQueue tasks={filteredTasks} onOpen={openTask} assigned={inboxView === 'assigned_review'} />
                 : search ? <EmptyState title={t("Ничего не найдено")} description={t("Измените поиск или фильтр. Поиск выполняется по загруженным задачам.")} />
+                : inboxView === 'assigned_review' ? <EmptyState title={t("Вам пока не назначили проверок")} description={t("Здесь появятся черновики, которые коллеги передадут вам на проверку.")} />
                 : <EmptyState title={t("Очередь решений пуста")} description={t("Здесь появятся задачи, которым нужна проверка, подтверждение или помощь.")} />
               ) : filteredTasks.length ? <div className="task-table-wrap"><table className="task-table"><thead><tr><th scope="col">{t("Задача")}</th><th scope="col">{t("Статус")}</th><th scope="col">{t("Расходы")}</th><th scope="col">{t("Создана")}</th><th scope="col"><span className="sr-only">{t("Открыть")}</span></th></tr></thead><tbody>{filteredTasks.map(task => <tr key={task.id}><td><button className="task-name" onClick={() => openTask(task.id)}>{task.goal}</button><div className="task-agent"><Icon name="agents" />{agents.find(agent => agent.id === task.agent_id)?.name ?? task.agent_id.slice(0, 12)}<span>v{task.agent_version}</span></div></td><td><Status status={task.status} /></td><td><BudgetBar budget={task.budget_microusd} spent={task.spent_microusd} reserved={task.reserved_microusd} /></td><td><time dateTime={task.created_at}>{dateTime(task.created_at)}</time></td><td><button className="icon-button" onClick={() => openTask(task.id)} aria-label={t("Открыть задачу: {value0}", {value0: task.goal})}><Icon name="arrow" /></button></td></tr>)}</tbody></table></div> : loading ? <Loading /> : <EmptyState title={tasks.length ? t("Ничего не найдено") : t("Первая задача — впереди")} description={tasks.length ? t("Измените поиск или фильтр. Поиск выполняется по загруженным задачам.") : t("Опишите ожидаемый результат и выберите опубликованного агента.")} />}
-              {(!showingAttention || attentionPage) && <div className="list-footer">
+              {(!inboxView || attentionPage) && <div className="list-footer">
                 <span>{t("Загружено задач:")} {number(visibleTasks.length)}</span>
                 {visibleCursor && <button className="button button-small button-secondary" onClick={() => {
-                  if (showingAttention) { attentionPages.current += 1; reload() }
+                  if (inboxView) { attentionPages.current += 1; reload() }
                   else void loadMore('tasks')
                 }} disabled={loading || loadingMore}>{loading || loadingMore ? t("Загружаем…") : t("Загрузить ещё")}</button>}
               </div>}

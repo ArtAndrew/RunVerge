@@ -24,6 +24,14 @@ Allowed decisions are `accept`, `reject`, `request_changes`; the latter two requ
 
 Accept closes Task/Run/Operation as succeeded and stores `accepted_decision_id`. Reject closes them as failed. Request changes closes the old Run/Operation as failed and blocks the Task with `candidate_changes_requested`; it does not dispatch another model call. Receipts include current principal, before/after task versions, artifact tuple, method and time. `authorized_user_decision` means an authorized principal submitted the command; it does not prove a human was present or independently fact-checked the output. The deterministic `fixture:echo` has a separate exact echo check and succeeds automatically.
 
+## Send a draft to a colleague
+
+`GET /tasks/{id}/review-assignment` returns the current candidate and task version, any named reviewer and the current principal's available actions. Only the human task owner or a human with `tasks.review_any` sees the eligible reviewers for a final root draft. Optional `q` searches display names with a 120-byte UTF-8 limit. A page contains up to 25 names. If `more_reviewers` is true, narrow the search.
+
+`POST /tasks/{id}/review-assignment` takes an `Idempotency-Key` and a body with `expected_version`, `candidate_id` and `reviewer_principal_id`. Pick an active human colleague in the same organization. The task owner, the assigner and the author or publisher of the candidate's material revision are excluded. A successful assignment updates the task version and records `task.review_assigned` in the durable history. The assigned human can use the usual `/review` endpoint for this candidate. A subsequent assignment replaces the recipient, and a new candidate has its own assignment. Unassigned candidates continue to use the usual review permissions.
+
+`GET /tasks?view=assigned_review` lists current final drafts assigned to the authenticated human. Use its cursor only for the same view, organization and reviewer. The Workspace shows this list under **Assigned to me**.
+
 Members can review/retry their own tasks; administrators/owners can do so for other owners according to the generated permissions. Target ownership and current authority are checked before cached mutation replay. Authority is checked again after lock waits and before commit. Browser mutations also require the established session/CSRF boundary. No review command settles a reserve, removes a hold, adjusts a counter or changes the original provenance. Review remains possible when a late financial hold exists.
 
 ## Explicit new attempt

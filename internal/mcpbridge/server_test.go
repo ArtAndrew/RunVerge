@@ -20,7 +20,7 @@ import (
 )
 
 var credentials = mcpbridge.Credentials{Token: "fixture-token", OrganizationID: "org_fixture"}
-var allMutations = []string{"platform_login_policy_update", "platform_service_accounts_create", "platform_service_accounts_update", "platform_service_keys_revoke", "platform_members_create", "platform_members_update", "platform_members_revoke_credentials", "platform_agents_create", "platform_agents_publish", "platform_tasks_create", "platform_tasks_cancel", "platform_tasks_review", "platform_tasks_retry", "platform_materials_create", "platform_materials_revise", "platform_materials_publish", "platform_tool_executions_prepare", "platform_tool_executions_decide", "platform_tool_executions_dispatch", "platform_tool_executions_reconcile", "platform_model_continue", "platform_automation_create", "platform_automation_revoke"}
+var allMutations = []string{"platform_login_policy_update", "platform_service_accounts_create", "platform_service_accounts_update", "platform_service_keys_revoke", "platform_members_create", "platform_members_update", "platform_members_revoke_credentials", "platform_agents_create", "platform_agents_publish", "platform_tasks_create", "platform_tasks_cancel", "platform_tasks_review", "platform_tasks_assign_reviewer", "platform_tasks_retry", "platform_materials_create", "platform_materials_revise", "platform_materials_publish", "platform_tool_executions_prepare", "platform_tool_executions_decide", "platform_tool_executions_dispatch", "platform_tool_executions_reconcile", "platform_model_continue", "platform_automation_create", "platform_automation_revoke"}
 
 func init() {
 	allMutations = append(allMutations, "platform_configuration_grants_create", "platform_configuration_grants_revoke", "platform_configuration_plans_create", "platform_configuration_plans_validate", "platform_configuration_plans_approve", "platform_configuration_plans_apply", "platform_configuration_plans_verify")
@@ -107,13 +107,13 @@ func TestServerRawHTTPModernCatalogAndPolicies(t *testing.T) {
 	}
 	_, out = rawHTTP(t, server.Client(), server.URL, wire(2, "tools/list", nil), nil)
 	tools := result(t, out)["tools"].([]any)
-	if len(tools) != 51 {
+	if len(tools) != 52 {
 		t.Fatalf("read-only catalog=%d", len(tools))
 	}
 	for _, tool := range tools {
-		b, _ := json.Marshal(tool)
-		if bytes.Contains(b, []byte("platform_tasks_review")) {
-			t.Fatal("mutation appeared without opt-in")
+		name := tool.(map[string]any)["name"]
+		if name == "platform_tasks_review" || name == "platform_tasks_assign_reviewer" {
+			t.Fatalf("%s appeared without opt-in", name)
 		}
 	}
 	_, out = rawHTTP(t, server.Client(), server.URL, wire(3, "tools/call", map[string]any{"name": "platform_tasks_get", "arguments": map[string]any{"task_id": "tsk_example"}}), nil)
@@ -176,7 +176,7 @@ func TestServerMutationsKeepDurableKeyAndRawCanonicalInput(t *testing.T) {
 	server := httptest.NewTLSServer(s.Handler())
 	defer server.Close()
 	_, out := rawHTTP(t, server.Client(), server.URL, wire(1, "tools/list", nil), nil)
-	if len(result(t, out)["tools"].([]any)) != 81 {
+	if len(result(t, out)["tools"].([]any)) != 83 {
 		t.Fatal("full catalog not mapped")
 	}
 	args := map[string]any{"name": "platform_tasks_create", "arguments": map[string]any{"idempotency_key": "stable-key", "input": map[string]any{"goal": "Exact input", "agent_id": "agt_fixture", "budget_microusd": 1000}}}

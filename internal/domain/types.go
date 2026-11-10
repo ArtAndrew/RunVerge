@@ -43,7 +43,10 @@ type CreateTask struct {
 	ExecutionTimeoutSeconds *int   `json:"execution_timeout_seconds,omitempty"`
 }
 
-const TaskViewAttention = "attention"
+const (
+	TaskViewAttention      = "attention"
+	TaskViewAssignedReview = "assigned_review"
+)
 
 type Task struct {
 	ID                     string    `json:"id"`

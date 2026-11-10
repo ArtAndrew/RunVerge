@@ -334,10 +334,23 @@ func (s *Store) ListTasks(ctx context.Context, p domain.Principal, raw string, l
 // A cursor for this view is tied to the organization and cannot be used in
 // the unfiltered list. Like other task lists, each page reads current state.
 func (s *Store) ListAttentionTasks(ctx context.Context, p domain.Principal, raw string, limit int) ([]domain.Task, string, error) {
-	return s.listTasks(ctx, p, raw, limit, domain.TaskViewAttention+"."+Hash([]byte(p.OrganizationID))[:16]+".")
+	return s.listTasks(ctx, p, raw, limit, domain.TaskViewAttention)
 }
 
-func (s *Store) listTasks(ctx context.Context, p domain.Principal, raw string, limit int, scope string) ([]domain.Task, string, error) {
+// A review inbox is personal. Its cursor cannot be moved across actors,
+// organizations, or to the general attention view.
+func (s *Store) ListAssignedReviews(ctx context.Context, p domain.Principal, raw string, limit int) ([]domain.Task, string, error) {
+	return s.listTasks(ctx, p, raw, limit, domain.TaskViewAssignedReview)
+}
+
+func (s *Store) listTasks(ctx context.Context, p domain.Principal, raw string, limit int, view string) ([]domain.Task, string, error) {
+	var scope string
+	switch view {
+	case domain.TaskViewAttention:
+		scope = view + "." + Hash([]byte(p.OrganizationID))[:16] + "."
+	case domain.TaskViewAssignedReview:
+		scope = view + "." + Hash([]byte(p.OrganizationID + "\x00" + p.ID))[:16] + "."
+	}
 	if scope != "" && raw != "" {
 		if !strings.HasPrefix(raw, scope) || len(raw) == len(scope) {
 			return nil, "", domain.Err("invalid_request", "Некорректный cursor для этой очереди", 400)
@@ -348,19 +361,32 @@ func (s *Store) listTasks(ctx context.Context, p domain.Principal, raw string, l
 	if e != nil {
 		return nil, "", e
 	}
-	tx, e := s.beginPrincipalRead(ctx, p, "tasks.read")
+	tx, p, e := s.beginPrincipalReadAs(ctx, p, "tasks.read")
 	if e != nil {
 		return nil, "", e
 	}
 	defer tx.Rollback(ctx)
 	query := "SELECT " + taskColumns + " FROM tasks WHERE organization_id=$1 AND (created_at,id)<($2,$3)"
-	if scope != "" {
+	args := []any{p.OrganizationID, c.CreatedAt, c.ID, limit + 1}
+	switch view {
+	case domain.TaskViewAttention:
 		query += ` AND status IN ('waiting_input','waiting_approval','blocked')
 			AND waiting_reason NOT IN ('tool_execution_pending','team_dependency_pending')
 			AND NOT (parent_id IS NOT NULL AND status='waiting_input'
 				AND waiting_reason IN ('model_candidate_pending','material_candidate_pending','team_candidate_pending'))`
+	case domain.TaskViewAssignedReview:
+		if p.Kind != "human" || !domain.PrincipalHasPermission(p, "tasks.review_own") {
+			return []domain.Task{}, "", tx.Commit(ctx)
+		}
+		query += ` AND status='waiting_input' AND parent_id IS NULL
+			AND waiting_reason IN ('model_candidate_pending','material_candidate_pending','team_candidate_pending')
+			AND (SELECT e.data->>'reviewer_principal_id' FROM events e
+				WHERE e.organization_id=tasks.organization_id AND e.task_id=tasks.id
+				AND e.type='task.review_assigned' AND e.payload_version=1 AND e.data->>'candidate_id'=tasks.candidate_id
+				ORDER BY e.sequence DESC LIMIT 1)=$5`
+		args = append(args, p.ID)
 	}
-	rows, e := tx.Query(ctx, query+" ORDER BY created_at DESC,id DESC LIMIT $4", p.OrganizationID, c.CreatedAt, c.ID, limit+1)
+	rows, e := tx.Query(ctx, query+" ORDER BY created_at DESC,id DESC LIMIT $4", args...)
 	if e != nil {
 		return nil, "", e
 	}

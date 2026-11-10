@@ -95,7 +95,12 @@ func allowedRequest(r Request) bool {
 		switch key {
 		case "cursor", "limit", "after", "reservation_cursor", "entry_cursor", "incident_cursor", "quarantine_cursor", "version", "principal_id", "plan_id":
 		case "view":
-			if r.Method != http.MethodGet || r.Path != "/api/v1/tasks" || values[0] != domain.TaskViewAttention {
+			if r.Method != http.MethodGet || r.Path != "/api/v1/tasks" || (values[0] != domain.TaskViewAttention && values[0] != domain.TaskViewAssignedReview) {
+				return false
+			}
+		case "q":
+			if r.Method != http.MethodGet || !strings.HasPrefix(r.Path, "/api/v1/tasks/") || !strings.HasSuffix(r.Path, "/review-assignment") ||
+				len(values[0]) > 120 || strings.ContainsRune(values[0], 0) {
 				return false
 			}
 		default:
@@ -209,7 +214,7 @@ func allowedRequest(r Request) bool {
 		return false
 	}
 	switch parts[2] {
-	case "materials", "tool-executions", "automation":
+	case "materials", "tool-executions", "automation", "review-assignment":
 		return r.Method == http.MethodGet || r.Method == http.MethodPost
 	case "cancel", "review", "retry", "continue-model":
 		return r.Method == http.MethodPost

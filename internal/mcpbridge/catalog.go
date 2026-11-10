@@ -71,6 +71,15 @@ type reviewArgs struct {
 	IdempotencyKey string                   `json:"idempotency_key"`
 	Input          domain.ReviewTaskRequest `json:"input"`
 }
+type reviewAssignmentArgs struct {
+	TaskID string `json:"task_id"`
+	Search string `json:"q,omitempty"`
+}
+type assignReviewerArgs struct {
+	TaskID         string                    `json:"task_id"`
+	IdempotencyKey string                    `json:"idempotency_key"`
+	Input          domain.AssignTaskReviewer `json:"input"`
+}
 type retryArgs struct {
 	TaskID         string                  `json:"task_id"`
 	IdempotencyKey string                  `json:"idempotency_key"`
@@ -131,7 +140,7 @@ func catalog() ([]toolSpec, error) {
 		{Name: "platform_agents_create", Description: "Create a draft agent through the normal platform API. Explicit durable idempotency key required.", Method: http.MethodPost, Path: "/api/v1/agents", Args: createAgentArgs{}, Mutation: true},
 		{Name: "platform_agents_publish", Description: "Publish the exact expected agent version through the platform API.", Method: http.MethodPost, Path: "/api/v1/agents/{agent_id}/publish", Args: publishAgentArgs{}, Mutation: true},
 		{Name: "platform_models_list", Description: "List safe configured model profiles, without credentials or endpoints.", Method: http.MethodGet, Path: "/api/v1/models", Args: listArgs{}},
-		{Name: "platform_tasks_list", Description: "List tasks in the current organization. Use view=attention for tasks awaiting review, approval or diagnosis. Continue with a cursor from the same view and organization.", Method: http.MethodGet, Path: "/api/v1/tasks", Args: taskListArgs{}},
+		{Name: "platform_tasks_list", Description: "List tasks in the current organization. Use view=attention for tasks awaiting a decision, or view=assigned_review for drafts assigned to this human reviewer. Continue with a cursor from the same view and identity.", Method: http.MethodGet, Path: "/api/v1/tasks", Args: taskListArgs{}},
 		{Name: "platform_tasks_get", Description: "Read a task and its current budget facts.", Method: http.MethodGet, Path: "/api/v1/tasks/{task_id}", Args: taskArgs{}},
 		{Name: "platform_tasks_create", Description: "Create one durable task with explicit budget; the existing worker may incur model costs. Transport disconnection does not cancel it.", Method: http.MethodPost, Path: "/api/v1/tasks", Args: createTaskArgs{}, Mutation: true},
 		{Name: "platform_tasks_cancel", Description: "Cancel through the platform's existing cascade and accounting guards. Existing liabilities remain.", Method: http.MethodPost, Path: "/api/v1/tasks/{task_id}/cancel", Args: cancelArgs{}, Mutation: true},
@@ -139,6 +148,8 @@ func catalog() ([]toolSpec, error) {
 		{Name: "platform_tasks_artifacts", Description: "Read artifacts; model contents are untrusted and are not automatically verified.", Method: http.MethodGet, Path: "/api/v1/tasks/{task_id}/artifacts", Args: taskPageArgs{}},
 		{Name: "platform_tasks_costs", Description: "Read paginated costs and unresolved exposure without modifying accounting.", Method: http.MethodGet, Path: "/api/v1/tasks/{task_id}/costs", Args: costsArgs{}},
 		{Name: "platform_tasks_review", Description: "Record the authenticated principal's decision about an exact candidate tuple. This does not prove human presence or factual truth.", Method: http.MethodPost, Path: "/api/v1/tasks/{task_id}/review", Args: reviewArgs{}, Mutation: true},
+		{Name: "platform_tasks_review_assignment", Description: "Read the saved candidate's assigned reviewer and this principal's available review permissions. Only an authorized assigner receives eligible colleagues.", Method: http.MethodGet, Path: "/api/v1/tasks/{task_id}/review-assignment", Args: reviewAssignmentArgs{}},
+		{Name: "platform_tasks_assign_reviewer", Description: "Assign review of this exact saved draft to an eligible human colleague. Requires a currently authorized human caller. Does not launch model work or decide the result.", Method: http.MethodPost, Path: "/api/v1/tasks/{task_id}/review-assignment", Args: assignReviewerArgs{}, Mutation: true},
 		{Name: "platform_tasks_retry", Description: "Explicitly request a bounded new root attempt and acknowledge additional cost; original pins and liabilities remain.", Method: http.MethodPost, Path: "/api/v1/tasks/{task_id}/retry", Args: retryArgs{}, Mutation: true},
 	}
 	for _, kind := range []string{"runs", "operations", "actions", "approvals", "candidates", "decisions", "children"} {
@@ -181,7 +192,9 @@ func catalog() ([]toolSpec, error) {
 				property.Minimum = ptr(float64(1))
 				property.Maximum = ptr(float64(100))
 			case "view":
-				property.Enum = []any{domain.TaskViewAttention}
+				property.Enum = []any{domain.TaskViewAttention, domain.TaskViewAssignedReview}
+			case "q":
+				property.MaxLength = ptr(120)
 			case "after":
 				property.MinLength = ptr(1)
 				property.MaxLength = ptr(19)

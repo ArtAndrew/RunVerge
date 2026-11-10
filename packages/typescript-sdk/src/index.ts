@@ -10,10 +10,10 @@ export type {
   ToolInfo, ToolExecution, ToolOutcomeReceipt, ToolExecutionView, PrepareToolExecutionInput, DecideToolExecutionInput, DispatchToolExecutionInput, ReconcileToolExecutionInput,
   CurrentIdentity, AccountingOutcome, Action, Agent, Approval, Artifact, AvailableModel, ClientOptions, CostAdjustment, CostEvidence, CostOptions, CostQuarantine, CostReport,
   CreateAgentInput, CreateTaskInput, Envelope, Event, EventBase, LegacyEvent, TypedEvent, EventOptions, EventReplayWindow, TaskEventSnapshot, TaskEventBatch, TaskEventStreamFrame, EventStreamError, EventFeedOptions, EventStreamOptions, APICompatibility,
-  FinancialIncident, LedgerEntry, ListOptions, TaskListOptions, Money, MutationOptions, Operation,
+  FinancialIncident, LedgerEntry, ListOptions, TaskListOptions, TaskListView, Money, MutationOptions, Operation,
   Page, PublishOptions, RequestOptions, Reservation, Run, Task, TaskStatus,
   Material, MaterialRevision, MaterialContent, CreateMaterialInput, ReviseMaterialInput, PublishMaterialInput, ArtifactOptions,
-  ReviewDecision, ReviewTaskInput, RetryTaskInput, TaskCandidate, TaskDecision, TeamDefinition, TeamMember,
+  ReviewDecision, ReviewTaskInput, TaskReviewAssignment, TaskReviewer, AssignTaskReviewerInput, RetryTaskInput, TaskCandidate, TaskDecision, TeamDefinition, TeamMember,
 } from "./types.js";
 
 export { API_VERSION, API_VERSION_HEADER } from "./events.js";

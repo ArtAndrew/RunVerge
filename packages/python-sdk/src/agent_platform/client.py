@@ -19,7 +19,7 @@ from .capabilities import capability_facts
 from .capability_types import ProductCapabilities
 from . import configuration_types as config_types
 from . import events as event_contract
-from .types import TaskEventSnapshot, TaskEventBatch, TaskEventStreamFrame
+from .types import TaskEventSnapshot, TaskEventBatch, TaskEventStreamFrame, TaskReviewAssignment
 from .types import ModelToolProposal, ModelToolResultBinding, ToolInfo, ToolExecution, ToolExecutionView, CurrentIdentity, Material, MaterialRevision, MaterialContent, Action, Agent, Approval, Artifact, AvailableModel, CostReport, Event, Operation, Page, Run, Task, ReviewDecision, TaskCandidate, TaskDecision, TeamDefinition
 from .money import parse_micro_usd
 from .types import AutomationToolPin, TaskAutomationState, ProgressSignal
@@ -445,13 +445,13 @@ class Client:
 
     def list_tasks(
         self, *, cursor: str | None = None, limit: int | None = None,
-        view: Literal["attention"] | None = None,
+        view: Literal["attention", "assigned_review"] | None = None,
     ) -> Page[Task]:
         """List organization tasks, optionally restricted to the current decision queue."""
         if limit is not None:
             _integer(limit, "limit", minimum=1, maximum=100)
-        if view is not None and view != "attention":
-            raise ValueError("view must be attention")
+        if view is not None and view not in ("attention", "assigned_review"):
+            raise ValueError("unsupported task view")
         response = self._request("GET", "/tasks", query={"cursor": cursor, "limit": limit, "view": view})
         if view is not None and response.get("task_view") != view:
             raise ProtocolError("Server did not confirm the requested task view")
@@ -493,6 +493,26 @@ class Client:
         return _task_facts(self._object(self._request(
             "POST", f"/tasks/{_identifier(task_id, 'task_id')}/review",
             body=body, idempotency_key=idempotency_key,
+        )))
+
+    def get_task_review_assignment(self, task_id: str, *, search: str | None = None) -> TaskReviewAssignment:
+        return cast(TaskReviewAssignment, self._object(self._request(
+            "GET", f"/tasks/{_identifier(task_id, 'task_id')}/review-assignment",
+            query={"q": None if search is None else _text(search, "search", 120)},
+        )))
+
+    def assign_task_reviewer(
+        self, task_id: str, *, expected_version: int, candidate_id: str,
+        reviewer_principal_id: str, idempotency_key: str,
+    ) -> Task:
+        return _task_facts(self._object(self._request(
+            "POST", f"/tasks/{_identifier(task_id, 'task_id')}/review-assignment",
+            body={
+                "expected_version": _integer(expected_version, "expected_version", minimum=1),
+                "candidate_id": _identifier(candidate_id, "candidate_id"),
+                "reviewer_principal_id": _identifier(reviewer_principal_id, "reviewer_principal_id"),
+            },
+            idempotency_key=idempotency_key,
         )))
 
     def retry_task(

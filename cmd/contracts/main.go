@@ -147,7 +147,7 @@ func describe(t reflect.Type) schema {
 				value["maximum"] = domain.MaxMoney
 			case "reserved_microusd", "spent_microusd", "unknown_microusd", "fencing_token", "attempts", "pending_quarantine_count":
 				value["minimum"] = 0
-			case "version", "agent_version", "model_connection_version", "artifact_version", "task_version_before", "task_version_after", "expected_version", "expected_revision", "base_revision", "revision", "max_attempts", "sequence":
+			case "version", "agent_version", "model_connection_version", "artifact_version", "task_version", "task_version_before", "task_version_after", "expected_version", "expected_revision", "base_revision", "revision", "max_attempts", "sequence":
 				value["minimum"] = 1
 			case "intent_hash", "payload_digest", "content_digest", "input_digest", "head_content_digest":
 				value["pattern"] = "^[0-9a-f]{64}(?![\\s\\S])"
@@ -251,7 +251,7 @@ func describe(t reflect.Type) schema {
 				value["minLength"] = 1
 				value["maxLength"] = 16384
 				value["x-max-utf8-bytes"] = 16384
-			case "agent_id", "candidate_id", "artifact_id", "material_id", "parent_candidate_id", "review_basis_candidate_id", "base_candidate_id":
+			case "agent_id", "candidate_id", "artifact_id", "material_id", "parent_candidate_id", "review_basis_candidate_id", "base_candidate_id", "reviewer_principal_id":
 				value["minLength"] = 1
 				value["maxLength"] = 128
 				value["x-max-utf8-bytes"] = 128
@@ -289,7 +289,7 @@ func describe(t reflect.Type) schema {
 			properties["status"].(schema)["enum"] = states
 		}
 		switch t.Name() {
-		case "CreateTask", "CreateAgent", "ApprovalDecision", "ReserveCostRequest", "CostEvidence", "CostAdjustment", "AgentDefinition", "TeamDefinition", "TeamMember", "ReviewTaskRequest", "RetryTaskRequest", "CreateMaterial", "ReviseMaterial", "PublishMaterial", "PrepareToolExecution", "DecideToolExecution", "DispatchToolExecution", "ReconcileToolExecution", "ContinueModelRequest", "ModelToolResultBinding", "CreateTaskAutomation", "RevokeTaskAutomation", "AutomationToolPin":
+		case "CreateTask", "CreateAgent", "ApprovalDecision", "ReserveCostRequest", "CostEvidence", "CostAdjustment", "AgentDefinition", "TeamDefinition", "TeamMember", "ReviewTaskRequest", "AssignTaskReviewer", "RetryTaskRequest", "CreateMaterial", "ReviseMaterial", "PublishMaterial", "PrepareToolExecution", "DecideToolExecution", "DispatchToolExecution", "ReconcileToolExecution", "ContinueModelRequest", "ModelToolResultBinding", "CreateTaskAutomation", "RevokeTaskAutomation", "AutomationToolPin":
 			result["additionalProperties"] = false
 		}
 		if t.Name() == "AccountingOutcome" {
@@ -615,6 +615,8 @@ func main() {
 	defs["TaskCandidate"] = describe(reflect.TypeFor[domain.TaskCandidate]())
 	defs["TaskDecision"] = describe(reflect.TypeFor[domain.TaskDecision]())
 	defs["ReviewTaskRequest"] = describe(reflect.TypeFor[domain.ReviewTaskRequest]())
+	defs["TaskReviewAssignment"] = describe(reflect.TypeFor[domain.TaskReviewAssignment]())
+	defs["AssignTaskReviewer"] = describe(reflect.TypeFor[domain.AssignTaskReviewer]())
 	defs["RetryTaskRequest"] = describe(reflect.TypeFor[domain.RetryTaskRequest]())
 	defs["CurrentIdentity"] = describe(reflect.TypeFor[domain.CurrentIdentity]())
 	for name, t := range map[string]reflect.Type{"TaskEventSnapshot": reflect.TypeFor[domain.TaskEventSnapshot](), "TaskEventBatch": reflect.TypeFor[domain.TaskEventBatch](), "EventReplayWindow": reflect.TypeFor[domain.EventReplayWindow](), "TaskEventStreamFrame": reflect.TypeFor[domain.TaskEventStreamFrame](), "EventStreamError": reflect.TypeFor[domain.EventStreamError](), "APICompatibility": reflect.TypeFor[domain.APICompatibility]()} {
@@ -738,6 +740,8 @@ func main() {
 		{"/tasks/{id}/actions", "get", "", "Action", "200", true}, {"/tasks/{id}/approvals", "get", "", "Approval", "200", true},
 		{"/tasks/{id}/costs", "get", "", "CostReport", "200", false},
 		{"/tasks/{id}/review", "post", "ReviewTaskRequest", "Task", "200", false},
+		{"/tasks/{id}/review-assignment", "get", "", "TaskReviewAssignment", "200", false},
+		{"/tasks/{id}/review-assignment", "post", "AssignTaskReviewer", "Task", "200", false},
 		{"/tasks/{id}/retry", "post", "RetryTaskRequest", "Task", "200", false},
 		{"/tasks/{id}/candidates", "get", "", "TaskCandidate", "200", true},
 		{"/tasks/{id}/decisions", "get", "", "TaskDecision", "200", true},
@@ -796,15 +800,19 @@ func main() {
 		if ep.path == "/membership-audit" || ep.path == "/security-audit" {
 			params = append(params, schema{"name": "principal_id", "in": "query", "schema": schema{"type": "string", "minLength": 1, "maxLength": 128}})
 		}
+		if ep.path == "/tasks/{id}/review-assignment" && ep.method == "get" {
+			params = append(params, schema{"name": "q", "in": "query", "schema": schema{"type": "string", "maxLength": 120, "x-max-utf8-bytes": 120}, "description": "Optional case-insensitive display-name search for eligible reviewers."})
+		}
 		if ep.path == "/configuration/verifications" {
 			params = append(params, schema{"name": "plan_id", "in": "query", "schema": schema{"type": "string", "minLength": 1, "maxLength": 128}})
 		}
 		properties := schema{"data": data, "next_cursor": schema{"type": "string"}}
 		if ep.path == "/tasks" && ep.method == "get" {
-			params = append(params, schema{"name": "view", "in": "query", "schema": schema{"type": "string", "const": domain.TaskViewAttention},
-				"description": "List tasks that currently need review, approval or diagnosis in the current organization. Use only cursors returned for this view and organization."})
-			properties["task_view"] = schema{"type": "string", "const": domain.TaskViewAttention,
-				"description": "Present in every successful response to view=attention, including an empty page."}
+			views := []string{domain.TaskViewAttention, domain.TaskViewAssignedReview}
+			params = append(params, schema{"name": "view", "in": "query", "schema": schema{"type": "string", "enum": views},
+				"description": "attention lists organization tasks that need a decision. assigned_review lists drafts assigned to the current human reviewer. Reuse a cursor only within the same view and scope."})
+			properties["task_view"] = schema{"type": "string", "enum": views,
+				"description": "Confirms the selected view in every successful response, including an empty page."}
 		}
 		if strings.HasSuffix(ep.path, "/event-feed") || strings.HasSuffix(ep.path, "/event-stream") {
 			params = append(params, schema{"name": "cursor", "in": "query", "schema": schema{"type": "string", "minLength": 1, "maxLength": 1024}})

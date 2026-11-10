@@ -11,11 +11,12 @@ const tabLabels: Record<DecisionTab, string> = {
   events: 'Ход работы',
 }
 
-export default function DecisionQueue({tasks, onOpen}: {
+export default function DecisionQueue({tasks, onOpen, assigned = false}: {
   tasks: Task[]
   onOpen: (id: string, tab: DecisionTab) => void
+  assigned?: boolean
 }) {
-  return <ul className="decision-queue" aria-label={t('Нужно внимание')}>
+  return <ul className="decision-queue" aria-label={assigned ? t('Назначено мне') : t('Нужно внимание')}>
     {tasks.map(task => {
       const tab = decisionTab(task)
       if (!tab) return null

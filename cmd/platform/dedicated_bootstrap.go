@@ -48,13 +48,19 @@ func readBootstrapJSON(root *os.Root, name string, value any) error {
 
 // The temporary file is complete and synced before it gets its final name.
 func publishBootstrapJSON(root *os.Root, directory *os.File, name string, value any) error {
+	return publishBootstrapFile(root, directory, name, func(w io.Writer) error {
+		return json.NewEncoder(w).Encode(value)
+	})
+}
+
+func publishBootstrapFile(root *os.Root, directory *os.File, name string, write func(io.Writer) error) error {
 	temporary := domain.NewID(".bootstrap")
 	file, err := root.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return err
 	}
 	defer root.Remove(temporary)
-	writeErr := json.NewEncoder(file).Encode(value)
+	writeErr := write(file)
 	if writeErr == nil {
 		writeErr = file.Sync()
 	}

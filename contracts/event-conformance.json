@@ -564,6 +564,25 @@
       "event": {
         "created_at": "2026-10-24T12:00:00Z",
         "data": {
+          "assigned_by_principal_id": "contract_value",
+          "candidate_id": "contract_value",
+          "reviewer_principal_id": "contract_value",
+          "task_version": 1
+        },
+        "id": "evt_contract",
+        "organization_id": "org_contract",
+        "payload_version": 1,
+        "sequence": "9007199254740993",
+        "task_id": "task_contract",
+        "type": "task.review_assigned"
+      },
+      "name": "task.review_assigned",
+      "valid": true
+    },
+    {
+      "event": {
+        "created_at": "2026-10-24T12:00:00Z",
+        "data": {
           "adapter": "fixture:echo",
           "verification": "exact_goal_echo"
         },

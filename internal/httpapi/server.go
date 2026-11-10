@@ -83,6 +83,8 @@ func (s *Server) Handler() http.Handler {
 		mux.HandleFunc("GET /api/v1/tasks/{id}/"+kind, s.auth(s.inspect(kind)))
 	}
 	mux.HandleFunc("POST /api/v1/tasks/{id}/review", s.auth(s.reviewTask))
+	mux.HandleFunc("GET /api/v1/tasks/{id}/review-assignment", s.auth(s.taskReviewAssignment))
+	mux.HandleFunc("POST /api/v1/tasks/{id}/review-assignment", s.auth(s.assignTaskReviewer))
 	mux.HandleFunc("POST /api/v1/tasks/{id}/retry", s.auth(s.retryTask))
 	mux.HandleFunc("GET /api/v1/tasks/{id}/candidates", s.auth(s.candidates))
 	mux.HandleFunc("GET /api/v1/tasks/{id}/decisions", s.auth(s.decisions))
@@ -356,7 +358,7 @@ func (s *Server) listTasks(w http.ResponseWriter, r *http.Request, p domain.Prin
 		return
 	}
 	if view, present := query["view"]; present {
-		if len(view) != 1 || view[0] != domain.TaskViewAttention {
+		if len(view) != 1 || (view[0] != domain.TaskViewAttention && view[0] != domain.TaskViewAssignedReview) {
 			s.fail(w, r, domain.Err("invalid_request", "Некорректный режим списка задач", 400))
 			return
 		}
@@ -366,7 +368,11 @@ func (s *Server) listTasks(w http.ResponseWriter, r *http.Request, p domain.Prin
 				return
 			}
 		}
-		out, next, err := s.Store.ListAttentionTasks(r.Context(), p, query.Get("cursor"), n)
+		list := s.Store.ListAttentionTasks
+		if view[0] == domain.TaskViewAssignedReview {
+			list = s.Store.ListAssignedReviews
+		}
+		out, next, err := list(r.Context(), p, query.Get("cursor"), n)
 		if err != nil {
 			s.fail(w, r, err)
 			return
@@ -376,7 +382,7 @@ func (s *Server) listTasks(w http.ResponseWriter, r *http.Request, p domain.Prin
 			Data       []domain.Task `json:"data"`
 			NextCursor string        `json:"next_cursor,omitempty"`
 			TaskView   string        `json:"task_view"`
-		}{Data: out, NextCursor: next, TaskView: domain.TaskViewAttention})
+		}{Data: out, NextCursor: next, TaskView: view[0]})
 		return
 	}
 	out, next, e := s.Store.ListTasks(r.Context(), p, query.Get("cursor"), n)

@@ -19,10 +19,10 @@ RUN go test -mod=readonly ./cmd/healthcheck
 RUN go test -mod=readonly ./cmd/platform -run '^Test(ContainerPreviewDoesNotRelaxDefaultOrIdentityListeners|PrepareModel|RecoveryProcessHost)' -count=1
 RUN go test -mod=readonly -race ./internal/recoveryprocess ./internal/recoverycontrol -count=1
 RUN go test -mod=readonly ./internal/modelgateway ./internal/modelruntime -count=1
-ARG RUNVERGE_VERSION=0.14.0-alpha.3
+ARG RUNVERGE_VERSION=0.14.0-alpha.8
 RUN mkdir -m 0755 /out && python3 scripts/build_native_bundle.py --output /out/bundle --version "$RUNVERGE_VERSION" > /out/build-report.json
 RUN hash="$(sha256sum /out/bundle/bundle.json | cut -d ' ' -f 1)" && /out/bundle/bin/platform bundle install --source /out/bundle --destination /out/installed --manifest-sha256 "$hash"
-RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/healthcheck ./cmd/healthcheck && mkdir -m 0755 /out/runtime-root && mkdir -m 0700 /out/runtime-root/state
+RUN CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /out/healthcheck ./cmd/healthcheck && mkdir -m 0755 /out/runtime-root && mkdir -m 0700 /out/runtime-root/state /out/runtime-root/pilot-db /out/runtime-root/pilot-runtime
 
 # Verify on the target Linux system, with a fresh owned PostgreSQL cluster.
 # The final image depends on this stage; a cross-build alone is insufficient.

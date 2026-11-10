@@ -17,7 +17,7 @@ import type {
   CreateAgentInput, CreateTaskInput, Event, EventOptions, ListOptions, TaskListOptions, TaskEventSnapshot, TaskEventBatch, TaskEventStreamFrame, EventFeedOptions, EventStreamOptions,
   MutationOptions, Operation, Page, PublishOptions, RequestOptions, Run, Task,
   Material, MaterialRevision, MaterialContent, CreateMaterialInput, ReviseMaterialInput, PublishMaterialInput, ArtifactOptions,
-  ReviewTaskInput, RetryTaskInput, TaskCandidate, TaskDecision, TeamDefinition,
+  ReviewTaskInput, TaskReviewAssignment, AssignTaskReviewerInput, RetryTaskInput, TaskCandidate, TaskDecision, TeamDefinition,
 } from "./types.js";
 
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
@@ -543,7 +543,7 @@ export class Client {
   async listTasks(options: TaskListOptions = {}): Promise<Page<Task>> {
     const query = this.#listQuery(options);
     if (options.view !== undefined) {
-      if (options.view !== "attention") throw new TypeError("view must be attention");
+      if (options.view !== "attention" && options.view !== "assigned_review") throw new TypeError("unsupported task view");
       query.view = options.view;
     }
     const response = await this.#request("GET", "/tasks", options, undefined, query);
@@ -573,6 +573,19 @@ export class Client {
       candidate_id: nonempty(input.candidateId, "candidateId"), artifact_id: nonempty(input.artifactId, "artifactId"),
       artifact_version: integer(input.artifactVersion, "artifactVersion", 1), content_digest: digest(input.contentDigest),
       decision: input.decision, ...(input.reason === undefined ? {} : { reason: text(input.reason, "reason", 4096) }),
+    })));
+  }
+
+  async getTaskReviewAssignment(taskId: string, options: RequestOptions & { search?: string } = {}): Promise<TaskReviewAssignment> {
+    const query = options.search === undefined ? undefined : { q: text(options.search, "search", 120) };
+    return object<TaskReviewAssignment>(await this.#request("GET", `/tasks/${identifier(taskId, "taskId")}/review-assignment`, options, undefined, query));
+  }
+
+  async assignTaskReviewer(taskId: string, input: AssignTaskReviewerInput, options: MutationOptions): Promise<Task> {
+    return taskFacts(object<Record<string, unknown>>(await this.#request("POST", `/tasks/${identifier(taskId, "taskId")}/review-assignment`, options, {
+      expected_version: integer(input.expectedVersion, "expectedVersion", 1),
+      candidate_id: identifier(input.candidateId, "candidateId"),
+      reviewer_principal_id: identifier(input.reviewerPrincipalId, "reviewerPrincipalId"),
     })));
   }
 

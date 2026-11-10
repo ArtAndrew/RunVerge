@@ -28,6 +28,7 @@ const eventLabels: Record<string, string> = {
   'cost.reserved': 'Средства зарезервированы', 'cost.unknown': 'Расход ожидает сверки',
   'cost.quarantined': 'Счёт сохранён для финансовой сверки',
   'model.candidate_created': 'Подготовлен непроверенный материал',
+  'task.review_assigned': 'Назначен проверяющий',
   'task.result_decided': 'Сохранено решение по результату',
   'task.new_attempt': 'Начата новая попытка',
   'team.candidate_created': 'Собран черновик команды',

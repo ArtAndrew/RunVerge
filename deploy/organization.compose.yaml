@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Elastic-2.0
+# Load after deploy/compose.yaml. The normal development listener stays separate.
+name: runverge-organization
+
+x-organization-image: &organization-image
+  image: ${RUNVERGE_IMAGE:-runverge:organization-preview}
+  build:
+    args:
+      RUNVERGE_VERSION: 0.14.0-alpha.8
+
+services:
+  migrate: *organization-image
+  worker: *organization-image
+  admin: *organization-image
+  api:
+    <<: *organization-image
+    command:
+      - serve
+      - --container-https
+      - --listen
+      - 0.0.0.0:8443
+      - --oidc-config
+      - /run/runverge/identity/oidc.json
+      - --tls-cert
+      - /run/runverge/identity/tls.crt
+      - --tls-key
+      - /run/runverge/identity/tls.key
+    ports: !override
+      - "${RUNVERGE_HTTPS_BIND:-127.0.0.1}:${RUNVERGE_HTTPS_PORT:-8443}:8443"
+    volumes:
+      - type: bind
+        source: ${RUNVERGE_PRIVATE_DIR:-./private}/identity
+        target: /run/runverge/identity
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, /usr/local/bin/runverge-healthcheck, --organization]

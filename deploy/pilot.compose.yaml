@@ -1,0 +1,159 @@
+# SPDX-License-Identifier: Elastic-2.0
+name: runverge-pilot
+
+x-runverge: &runverge
+  image: runverge:team-pilot-local
+  build:
+    context: ..
+    dockerfile: Dockerfile
+    target: runtime
+    args:
+      RUNVERGE_VERSION: 0.14.0-alpha.8
+  user: "10001:10001"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=16m,uid=10001,gid=10001,mode=0700"]
+  pids_limit: 128
+  stop_grace_period: 30s
+
+services:
+  prepare:
+    <<: *runverge
+    network_mode: none
+    command: [pilot-prepare]
+    volumes:
+      - setup:/state
+      - db-settings:/pilot-db
+      - app-settings:/pilot-runtime
+
+  db:
+    image: postgres:18.6-bookworm@sha256:5c4783a8cc3f0074912164f94dfa1be4e043438f0f707cf968d7af9a0d31a2c8
+    entrypoint: ["/bin/sh", "/pilot/postgres.sh"]
+    command: []
+    environment:
+      POSTGRES_USER: runverge_admin
+      POSTGRES_DB: runverge
+      POSTGRES_INITDB_ARGS: "--auth=scram-sha-256 --encoding=UTF8 --locale=C"
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+    volumes:
+      - postgres:/var/lib/postgresql
+      - db-settings:/pilot-db:ro
+      - ./pilot-postgres.sh:/pilot/postgres.sh:ro
+      - ./postgres/10-runtime.sql:/docker-entrypoint-initdb.d/10-runtime.sql:ro
+      - ./postgres/20-profile.sh:/docker-entrypoint-initdb.d/20-profile.sh:ro
+      - ./postgres/healthcheck.sh:/usr/local/bin/runverge-db-healthcheck:ro
+    healthcheck:
+      test: [CMD, /bin/sh, /pilot/postgres.sh, health]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    shm_size: 128mb
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  migrate:
+    <<: *runverge
+    environment:
+      RUNVERGE_COMPOSE_PILOT: "1"
+    command: [migrate]
+    volumes:
+      - app-settings:/pilot-runtime:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  model-fetch:
+    image: curlimages/curl:8.18.0@sha256:d94d07ba9e7d6de898b6d96c1a072f6f8266c687af78a74f380087a0addf5d17
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/pilot/model.sh"]
+    command: []
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - model:/models
+      - ./pilot-model.sh:/pilot/model.sh:ro
+
+  model:
+    image: ghcr.io/ggml-org/llama.cpp:server@sha256:4d2de15a0ffbce704777c64026b40512a71e0bbc0b303a5fe5ea9bf71760dff9
+    user: "10001:10001"
+    command: ["--model", "/models/pilot-qwen.gguf", "--alias", "qwen2.5-1.5b-instruct", "--host", "127.0.0.1", "--port", "11434", "--ctx-size", "4096", "--parallel", "1", "--threads", "2"]
+    volumes:
+      - model:/models:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      model-fetch:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, curl, -fsS, --max-time, "2", "http://127.0.0.1:11434/health"]
+      interval: 4s
+      timeout: 3s
+      start_period: 12s
+      retries: 20
+    restart: unless-stopped
+
+  seed:
+    <<: *runverge
+    environment:
+      RUNVERGE_COMPOSE_PILOT: "1"
+    command: [pilot-seed]
+    volumes:
+      - app-settings:/pilot-runtime:ro
+      - handoff:/state
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      model:
+        condition: service_healthy
+
+  api:
+    <<: *runverge
+    environment:
+      RUNVERGE_COMPOSE_PILOT: "1"
+      RUNVERGE_RECOVERY_CONTROL: container_v1
+    command: [serve, --container-preview, --listen, "0.0.0.0:8080"]
+    volumes:
+      - app-settings:/pilot-runtime:ro
+    ports:
+      - "127.0.0.1:${RUNVERGE_PILOT_PORT:-8080}:8080"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, /usr/local/bin/runverge-healthcheck]
+      interval: 4s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  worker:
+    <<: *runverge
+    network_mode: "service:model"
+    environment:
+      RUNVERGE_COMPOSE_PILOT: "1"
+      RUNVERGE_RECOVERY_CONTROL: container_v1
+      # The local model has no API key. The adapter requires a non-empty value.
+      PLATFORM_MODEL_KEY_LOCAL: runverge-pilot-loopback
+    command: [worker, --concurrency, "1"]
+    volumes:
+      - app-settings:/pilot-runtime:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      model:
+        condition: service_healthy
+        restart: true
+    restart: unless-stopped
+
+volumes:
+  setup:
+  postgres:
+  db-settings:
+  app-settings:
+  handoff:
+  model:

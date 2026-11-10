@@ -1,5 +1,9 @@
 # Linux server preview
 
+For a fresh installation with a local model and a ready team scenario, see the
+[Compose team pilot](COMPOSE-PILOT.md). For HTTPS and corporate OIDC, use the
+[organization Compose profile](ORGANIZATION-COMPOSE.md).
+
 This source-build preview runs RunVerge's API, Workspace and worker on a Linux
 server with Docker Compose. PostgreSQL runs in a separate container. The application
 can use a separately configured model service; a model is not included in the image.

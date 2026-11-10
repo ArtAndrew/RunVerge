@@ -107,6 +107,7 @@ func eventPayloadDefinitions() map[string]EventPayloadDefinition {
 	add("automation.revoked", "grant_id:id principal_id:id reason:text past_effects_preserved:true")
 	add("automation.expired automation.stopped automation.completed", "grant_id:id reason:text snapshot_digest:digest signal_count:integer task_acceptance_changed:false external_call:false")
 	add("task.result_decided", "decision_id:id candidate_id:id run_id:id decision:text method:text principal_id:id content_digest:digest costs_unchanged:true")
+	add("task.review_assigned", "candidate_id:id reviewer_principal_id:id assigned_by_principal_id:id task_version:positive")
 	add("task.new_attempt", "run_id:id operation_id:id attempt:positive input_digest:digest reason:text acknowledged_new_cost:true prior_liabilities_preserved:true")
 	add("task.cancelled", "reason:text liabilities_preserved:true")
 	add("operation.claimed", "operation_id:id fencing_token:fence attempt:positive adapter:text synthetic_cost?:true model_connection_id?:id model_connection_version?:positive")

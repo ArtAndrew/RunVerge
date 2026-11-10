@@ -12,9 +12,14 @@ import (
 // Reads use a fresh credential and effective permission in the same snapshot
 // as their tenant data; supplied Kind/Role values are never read authority.
 func (s *Store) beginPrincipalRead(ctx context.Context, p domain.Principal, permission string) (pgx.Tx, error) {
+	tx, _, err := s.beginPrincipalReadAs(ctx, p, permission)
+	return tx, err
+}
+
+func (s *Store) beginPrincipalReadAs(ctx context.Context, p domain.Principal, permission string) (pgx.Tx, domain.Principal, error) {
 	tx, err := s.beginRuntimeTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
-		return nil, err
+		return nil, domain.Principal{}, err
 	}
 	current := p
 	err = tx.QueryRow(ctx, authQuery(p), p.TokenHash, p.OrganizationID).Scan(&current.ID, &current.OrganizationID, &current.Role, &current.Kind)
@@ -29,9 +34,9 @@ func (s *Store) beginPrincipalRead(ctx context.Context, p domain.Principal, perm
 	}
 	if err != nil {
 		_ = tx.Rollback(ctx)
-		return nil, err
+		return nil, domain.Principal{}, err
 	}
-	return tx, nil
+	return tx, current, nil
 }
 func principalPermissionGuard(permission string) func(context.Context, pgx.Tx, domain.Principal) error {
 	return func(_ context.Context, _ pgx.Tx, p domain.Principal) error {

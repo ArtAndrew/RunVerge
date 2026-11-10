@@ -25,3 +25,10 @@ func validateServeListener(address string, containerPreview, oidc, mcp, trustedP
 	}
 	return nil
 }
+
+func validateContainerHTTPSListener(address string, preview, oidc, tls, trustedProxy bool) error {
+	if address != "0.0.0.0:8443" || preview || !oidc || !tls || trustedProxy {
+		return errors.New("HTTPS container requires 0.0.0.0:8443, an OIDC configuration and a TLS certificate and key")
+	}
+	return nil
+}

@@ -5,12 +5,41 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
 
 	"agentplatform.local/platform/internal/domain"
 )
+
+func (s *Server) taskReviewAssignment(w http.ResponseWriter, r *http.Request, p domain.Principal) {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	query := values["q"]
+	if err != nil || len(query) > 1 || (len(values) > 0 && (len(values) != 1 || len(query) != 1)) {
+		s.fail(w, r, domain.Err("invalid_request", "Допустим один параметр поиска q", 400))
+		return
+	}
+	result, err := s.Store.TaskReviewAssignment(r.Context(), p, r.PathValue("id"), values.Get("q"))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.ok(w, 200, result, "")
+}
+
+func (s *Server) assignTaskReviewer(w http.ResponseWriter, r *http.Request, p domain.Principal) {
+	var input domain.AssignTaskReviewer
+	if !s.decode(w, r, &input) {
+		return
+	}
+	value, err := s.Store.AssignTaskReviewer(r.Context(), p, r.PathValue("id"), r.Header.Get("Idempotency-Key"), input)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	s.ok(w, 200, value, "")
+}
 
 func (s *Server) reviewTask(w http.ResponseWriter, r *http.Request, p domain.Principal) {
 	var input domain.ReviewTaskRequest

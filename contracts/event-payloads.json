@@ -885,6 +885,31 @@
         }
       }
     },
+    "task.review_assigned": {
+      "fields": {
+        "assigned_by_principal_id": {
+          "kind": "string",
+          "required": true,
+          "max_bytes": 128
+        },
+        "candidate_id": {
+          "kind": "string",
+          "required": true,
+          "max_bytes": 128
+        },
+        "reviewer_principal_id": {
+          "kind": "string",
+          "required": true,
+          "max_bytes": 128
+        },
+        "task_version": {
+          "kind": "integer",
+          "required": true,
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      }
+    },
     "task.succeeded": {
       "fields": {
         "adapter": {

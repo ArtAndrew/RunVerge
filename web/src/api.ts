@@ -12,7 +12,7 @@ export interface Connection {
 }
 import {API_VERSION,API_VERSION_HEADER,eventSequence,checkAPIVersion,validateEvent,validateEventSnapshot,validateEventBatch,eventCursor,readEventFrames} from '../../packages/typescript-sdk/src/events.ts'
 import {ProtocolError} from '../../packages/typescript-sdk/src/errors.ts'
-import type {TaskEventSnapshot,TaskEventBatch,TaskEventStreamFrame} from '../../packages/typescript-sdk/src/types'
+import type {TaskEventSnapshot,TaskEventBatch,TaskEventStreamFrame,TaskListView} from '../../packages/typescript-sdk/src/types'
 export type {TaskEventSnapshot,TaskEventBatch,TaskEventStreamFrame}
 
 // The Workspace uses the same public wire types as the TypeScript SDK.
@@ -20,13 +20,14 @@ import type {
   TaskAutomationState, ProgressSignal, CostReport,
   ModelToolProposal,ModelToolResultBinding,
   ToolInfo, ToolExecution, ToolExecutionView,
-  CurrentIdentity, Material, MaterialRevision, MaterialContent, Agent, Task, Event as TaskEvent, Artifact, Page, AvailableModel, TaskCandidate, TaskDecision, ReviewDecision, TeamDefinition,
+  CurrentIdentity, Material, MaterialRevision, MaterialContent, Agent, Task, Event as TaskEvent, Artifact, Page, AvailableModel, TaskCandidate, TaskDecision, ReviewDecision, TaskReviewAssignment, TeamDefinition,
 } from '../../packages/typescript-sdk/src/types'
 // Forms currently submit the wire shape; the SDK's ergonomic mutation inputs
 // use camelCase. Derive these field types from the shared response definitions.
 type CreateTask = Pick<Task, 'goal' | 'agent_id' | 'budget_microusd'> & { max_runs?: number; execution_timeout_seconds?: number }
 type CreateAgent = Pick<Agent, 'name' | 'instructions' | 'model' | 'tools' | 'budget_microusd'> & { team?: TeamDefinition }
-export type { CostReport, CurrentIdentity, Material, MaterialRevision, MaterialContent, Agent, Task, TaskEvent, Artifact, Page, CreateTask, CreateAgent, AvailableModel, TaskCandidate, TaskDecision, ReviewDecision, TeamDefinition }
+export type { CostReport, CurrentIdentity, Material, MaterialRevision, MaterialContent, Agent, Task, TaskEvent, Artifact, Page, CreateTask, CreateAgent, AvailableModel, TaskCandidate, TaskDecision, ReviewDecision, TaskReviewAssignment, TeamDefinition }
+export interface AssignTaskReviewer { expected_version: number; candidate_id: string; reviewer_principal_id: string }
 export interface ReviewTask { expected_version: number; candidate_id: string; artifact_id: string; artifact_version: number; content_digest: string; decision: ReviewDecision; reason?: string }
 export interface CreateMaterial { name: string; media_type: Material['media_type']; content: string; base_candidate_id?: string; reason?: string }
 export interface ReviseMaterial { expected_version: number; content: string; reason: string; merge_base_version?: number }
@@ -233,9 +234,9 @@ export class ApiClient {
   tasks(cursor?: string, signal?: AbortSignal) {
     return this.list<Task>(`/tasks?limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, signal)
   }
-  async attentionTasks(cursor?: string, signal?: AbortSignal): Promise<Page<Task>> {
-    const page = await this.request<Task[]>(`/tasks?view=attention&limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { signal })
-    if (page.task_view !== 'attention') throw new Error('Сервер не подтвердил, что поддерживает очередь решений. Проверьте версию RunVerge.')
+  async taskInbox(view: TaskListView, cursor?: string, signal?: AbortSignal): Promise<Page<Task>> {
+    const page = await this.request<Task[]>(`/tasks?view=${view}&limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { signal })
+    if (page.task_view !== view) throw new Error('Сервер не подтвердил, что поддерживает очередь решений. Проверьте версию RunVerge.')
     if (!Array.isArray(page.data) || !page.data.every(task => task && task.organization_id === this.connection.organizationId &&
         typeof task.id === 'string' && task.id && typeof task.goal === 'string' && decisionTab(task) !== null) ||
         (page.next_cursor !== undefined && typeof page.next_cursor !== 'string')) {
@@ -279,6 +280,20 @@ export class ApiClient {
   decisions(id: string, cursor?: string, signal?: AbortSignal) { return this.list<TaskDecision>(`/tasks/${encodeURIComponent(id)}/decisions?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, signal) }
   children(id: string, cursor?: string, signal?: AbortSignal) { return this.list<Task>(`/tasks/${encodeURIComponent(id)}/children?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, signal) }
   async reviewTask(id: string, payload: ReviewTask) { return (await this.request<Task>(`/tasks/${encodeURIComponent(id)}/review`, {}, payload)).data }
+  async taskReviewAssignment(id: string, search = '', signal?: AbortSignal) {
+    const query = search ? `?q=${encodeURIComponent(search)}` : ''
+    const {data} = await this.request<TaskReviewAssignment>(`/tasks/${encodeURIComponent(id)}/review-assignment${query}`, {signal})
+    if (!data || !Number.isSafeInteger(data.task_version) || data.task_version < 1 ||
+      typeof data.can_assign !== 'boolean' || typeof data.can_review !== 'boolean' ||
+      typeof data.more_reviewers !== 'boolean' || !Array.isArray(data.reviewers) ||
+      !data.reviewers.every(value => value && typeof value.principal_id === 'string' && typeof value.display_name === 'string')) {
+      throw new ApiError('Ответ API не соответствует контракту.', 'invalid_response')
+    }
+    return data
+  }
+  async assignTaskReviewer(id: string, payload: AssignTaskReviewer) {
+    return (await this.request<Task>(`/tasks/${encodeURIComponent(id)}/review-assignment`, {}, payload)).data
+  }
   async retryTask(id: string, payload: RetryTask) {
     if (payload.acknowledge_new_cost !== true) throw new ApiError('Подтвердите возможные новые расходы.', 'invalid_request')
     return (await this.request<Task>(`/tasks/${encodeURIComponent(id)}/retry`, {}, payload)).data

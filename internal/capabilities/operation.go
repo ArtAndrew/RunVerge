@@ -179,9 +179,18 @@ func Describe(o domain.CapabilityOperation) domain.CapabilityOperation {
 		o.Effect = "queues_external_work"
 		o.CostSemantics = "may_reserve_and_queue"
 		o.RuntimeGuards = append(o.RuntimeGuards, "published_agent_pins_and_budget_admission")
+	case strings.HasSuffix(p, "/review-assignment"):
+		o.Documentation = []string{"contracts/COLLABORATION.md"}
+		if o.Method == "GET" {
+			permission("tasks.read")
+			o.RuntimeGuards = append(o.RuntimeGuards, "reviewer_directory_only_for_assigner")
+		} else {
+			permission("tasks.review_own", "tasks.review_any")
+			o.RuntimeGuards = append(o.RuntimeGuards, "exact_candidate_and_active_independent_human")
+		}
 	case strings.HasSuffix(p, "/review"):
 		permission("tasks.review_own", "tasks.review_any")
-		o.RuntimeGuards = append(o.RuntimeGuards, "exact_candidate_artifact_digest", "human_review_authority")
+		o.RuntimeGuards = append(o.RuntimeGuards, "exact_candidate_artifact_digest", "human_review_authority", "current_named_reviewer_if_assigned")
 	case strings.HasSuffix(p, "/retry"):
 		permission("tasks.retry_own", "tasks.retry_any")
 		o.Effect = "queues_external_work"

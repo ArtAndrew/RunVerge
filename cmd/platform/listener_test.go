@@ -24,4 +24,21 @@ func TestContainerPreviewDoesNotRelaxDefaultOrIdentityListeners(t *testing.T) {
 			}
 		})
 	}
+	for _, test := range []struct {
+		name, address                      string
+		preview, oidc, tls, proxy, allowed bool
+	}{
+		{"organization_https", "0.0.0.0:8443", false, true, true, false, true},
+		{"organization_without_oidc", "0.0.0.0:8443", false, false, true, false, false},
+		{"organization_without_tls", "0.0.0.0:8443", false, true, false, false, false},
+		{"organization_without_direct_tls", "0.0.0.0:8443", false, true, true, true, false},
+		{"organization_with_preview", "0.0.0.0:8443", true, true, true, false, false},
+		{"organization_wrong_port", "0.0.0.0:8080", false, true, true, false, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := validateContainerHTTPSListener(test.address, test.preview, test.oidc, test.tls, test.proxy) == nil; got != test.allowed {
+				t.Fatalf("allowed = %v, want %v", got, test.allowed)
+			}
+		})
+	}
 }

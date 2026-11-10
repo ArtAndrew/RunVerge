@@ -1,6 +1,6 @@
 import {t} from './i18n'
 import {useEffect,useRef,useState,type FormEvent} from 'react'
-import {ApiError,type CurrentIdentity,type ApiClient,type Artifact,type Task,type TaskCandidate,type TaskDecision,type ReviewDecision} from './api'
+import {ApiError,type CurrentIdentity,type ApiClient,type Artifact,type Task,type TaskCandidate,type TaskDecision,type ReviewDecision,type TaskReviewAssignment} from './api'
 import {mayReviewTask,bindCandidate,decisionLabels,freshExecutionMetadata,reviewLabels,reviewDecisions,reviewPayload,retryBlockReason,retryPayload,type ReviewSnapshot} from './review'
 import {dateTime,money} from './format'
 import TeamResult from './TeamResult'
@@ -20,6 +20,8 @@ export default function ResultReview({identity,api,task,candidates,artifacts,dec
   const [acknowledged,setAcknowledged]=useState(false)
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState<unknown>(null)
+  const [assignment,setAssignment]=useState<{taskId:string;version:number;data?:TaskReviewAssignment;legacy?:boolean;error?:unknown}|null>(null)
+  const [assignmentReload,reloadAssignment]=useState(0)
   const epoch=useRef(0)
   useEffect(()=>{epoch.current++;setBusy(false);setReview(null);setRetry(null);setSnapshot(null);setBasis(null);setError(null);setReason('');setFeedback('');setAcknowledged(false);return()=>{epoch.current++}},[api,task.id])
   useEffect(()=>{
@@ -29,7 +31,20 @@ export default function ResultReview({identity,api,task,candidates,artifacts,dec
   },[task,candidates,artifacts])
   const current=snapshot && snapshot.task.id===task.id && snapshot.task.version===task.version && snapshot.candidate.id===task.candidate_id && snapshot.candidate.run_id===task.current_run_id
   const native=snapshot?.candidate.source==='model_tools'
-  const reviewAllowed=mayReviewTask(identity,task)
+  useEffect(()=>{
+    if(task.status!=='waiting_input'||!task.candidate_id)return
+    const controller=new AbortController()
+    const binding={taskId:task.id,version:task.version}
+    void api.taskReviewAssignment(task.id,'',controller.signal).then(data=>{
+      if(!controller.signal.aborted)setAssignment({...binding,data})
+    }).catch(error=>{
+      if(!controller.signal.aborted)setAssignment(error instanceof ApiError&&error.code==='not_found'?{...binding,legacy:true}:{...binding,error})
+    })
+    return()=>controller.abort()
+  },[api,task.id,task.version,task.status,task.candidate_id,assignmentReload])
+  const assignmentView=assignment?.taskId===task.id&&assignment.version===task.version?assignment:null
+  const handoff=assignmentView?.data?.task_version===task.version&&assignmentView.data.candidate_id===task.candidate_id?assignmentView.data:null
+  const reviewAllowed=handoff?.can_review??Boolean(assignmentView?.legacy&&mayReviewTask(identity,task))
   useEffect(()=>{if(!reviewAllowed)setReview(null)},[reviewAllowed])
   const mayReview=Boolean(reviewAllowed && current && task.status==='waiting_input' && !bindingBusy && !loadError)
   const retryBlocked=retryBlockReason(task)
@@ -45,7 +60,14 @@ export default function ResultReview({identity,api,task,candidates,artifacts,dec
     try{
       const payload=review?reviewPayload(review.snapshot,review.decision,reason):retryPayload(retry!,reason,feedback,acknowledged)
       setBusy(true)
-      if(review){const me=await api.currentIdentity();if(submittedEpoch!==epoch.current)return;if(!identity||me.organization_id!==identity.organization_id||me.principal_id!==identity.principal_id||!mayReviewTask(me,task))throw new ApiError(t("Решение доступно только уполномоченному человеку в этой организации."),'forbidden')}
+      if(review){
+        const me=await api.currentIdentity()
+        if(submittedEpoch!==epoch.current)return
+        const canDecide=handoff?.reviewer_principal_id
+          ? handoff.can_review&&me.principal_id===handoff.reviewer_principal_id&&me.principal_kind==='human'&&me.permissions.includes('tasks.review_own')
+          : reviewAllowed&&mayReviewTask(me,task)
+        if(!identity||me.organization_id!==identity.organization_id||me.principal_id!==identity.principal_id||!canDecide)throw new ApiError(t("Решение доступно только уполномоченному человеку в этой организации."),'forbidden')
+      }
       const result=review?await api.reviewTask(task.id,payload as ReturnType<typeof reviewPayload>):await api.retryTask(task.id,payload as ReturnType<typeof retryPayload>)
       if(submittedEpoch!==epoch.current)return
       setReview(null);setRetry(null);onChanged(result)
@@ -55,6 +77,8 @@ export default function ResultReview({identity,api,task,candidates,artifacts,dec
     {task.candidate_id && <section className="review-candidate" aria-label={t("Текущий черновик")}>
       <div className="section-kicker"><Icon name="file" />{task.accepted_decision_id?t("Принятый материал"):task.status==='succeeded'?t("Материал завершённой задачи"):task.status==='waiting_input'?t("Черновик · ожидает решения"):t("Материал предыдущей попытки")}</div>
       <ErrorNotice error={bindingError}/>
+      {task.status==='waiting_input'&&<ErrorNotice error={assignmentView?.error} onRetry={()=>reloadAssignment(n=>n+1)}/>}
+      {current&&!loadError&&task.status==='waiting_input'&&handoff&&<ReviewHandoff key={`${task.id}:${task.version}`} api={api} task={task} assignment={handoff} onChanged={onChanged} onRefresh={onRefresh}/>}
       {bindingBusy&&!snapshot&&<p role="status">{t("Проверяем версию материала…")}</p>}
       {current&&snapshot&&<><p className="muted">{snapshot.artifact.name} · v{snapshot.artifact.version}{t(" · попытка ")}{task.attempt_count}</p><CopyText key={`${snapshot.artifact.id}:${snapshot.artifact.version}`} text={snapshot.artifact.content}/>{snapshot.candidate.source==='model_tools'?<div className="notice notice-info"><p>{t("Модель подготовила предложения инструментов. Откройте «Действия», чтобы проверить их и продолжить работу. Итоговый ответ появится после следующего шага модели.")}</p><details><summary>{t("Исходный пакет предложений")}</summary><pre className="prose-output">{snapshot.artifact.content}</pre></details></div>:snapshot.candidate.source==='team'?<TeamResult artifact={snapshot.artifact} children={children} onOpenTask={onOpenTask} contentDigest={snapshot.candidate.content_digest}/>:<pre className="prose-output">{snapshot.artifact.content}</pre>}{snapshot.candidate.source==='material'&&<><p className="aside-note">{t("Редактируемый итог · материал v")}{snapshot.candidate.material_version}{t(" · автор публикации ")}{snapshot.candidate.published_by}{t(". Текст предложен пользователем и требует отдельного решения.")}</p><BasisView basis={basis}/></>}{!native&&<button className="button button-small button-secondary" onClick={()=>onEditMaterial(snapshot)}>{snapshot.candidate.source==='team'?t("Подготовить итоговый текст"):t("Создать редактируемую копию")}</button>}<details><summary>{t("Версия и контрольная сумма")}</summary><dl className="technical-ids"><div><dt>{t("Черновик")}</dt><dd>{snapshot.candidate.id}</dd></div><div><dt>{t("Попытка")}</dt><dd>{snapshot.candidate.run_id}</dd></div><div><dt>SHA-256</dt><dd>{snapshot.candidate.content_digest}</dd></div></dl></details></>}
       {current&&snapshot&&(snapshot.candidate.source==='model'||snapshot.candidate.source==='material')&&<CIReferenceCheck goal={snapshot.task.goal} draft={snapshot.artifact.content}/>}
@@ -76,6 +100,64 @@ export default function ResultReview({identity,api,task,candidates,artifacts,dec
       <div className="modal-footer"><button className="button button-secondary" type="button" onClick={close} disabled={busy}>{t("Закрыть")}</button><button className="button button-primary" disabled={busy||changed||Boolean(loadError)||Boolean(retry&&!acknowledged)} type="submit">{busy?t("Сохраняем…"):review?t(reviewLabels[review.decision]):t("Запустить новую попытку")}</button></div>
     </form></Modal>}
   </div>
+}
+
+function ReviewHandoff({api,task,assignment,onChanged,onRefresh}:{api:ApiClient;task:Task;assignment:TaskReviewAssignment;onChanged:(task:Task)=>void;onRefresh:()=>void}){
+  const [search,setSearch]=useState('')
+  const [reviewer,setReviewer]=useState('')
+  const [filtered,setFiltered]=useState<TaskReviewAssignment|null>(null)
+  const [busy,setBusy]=useState(false)
+  const [error,setError]=useState<unknown>(null)
+  const visible=filtered??assignment
+  const scope=useRef<AbortController|null>(null)
+  useEffect(()=>{
+    const controller=new AbortController()
+    scope.current=controller
+    return()=>controller.abort()
+  },[])
+  async function searchReviewers(event:FormEvent){
+    event.preventDefault()
+    const signal=scope.current?.signal
+    setBusy(true);setError(null)
+    try{
+      const result=await api.taskReviewAssignment(task.id,search.trim(),signal)
+      if(signal?.aborted)return
+      if(result.task_version!==task.version||result.candidate_id!==assignment.candidate_id||!result.can_assign){onRefresh();return}
+      setFiltered(result);setReviewer('')
+    }catch(cause){if(!signal?.aborted)setError(cause)}finally{if(!signal?.aborted)setBusy(false)}
+  }
+  async function assign(event:FormEvent){
+    event.preventDefault()
+    if(!assignment.candidate_id||!visible.reviewers.some(value=>value.principal_id===reviewer))return
+    const signal=scope.current?.signal
+    setBusy(true);setError(null)
+    try{
+      const updated=await api.assignTaskReviewer(task.id,{expected_version:task.version,candidate_id:assignment.candidate_id,reviewer_principal_id:reviewer})
+      if(!signal?.aborted)onChanged(updated)
+    }catch(cause){
+      if(signal?.aborted)return
+      setError(cause)
+      if(cause instanceof ApiError&&['conflict','forbidden','not_found'].includes(cause.code))onRefresh()
+    }finally{if(!signal?.aborted)setBusy(false)}
+  }
+  return <>
+    {assignment.reviewer_principal_id&&<p className="muted">{t('Проверяющий: {name}',{name:assignment.reviewer_display_name??assignment.reviewer_principal_id})}</p>}
+    {assignment.can_assign&&<details>
+      <summary>{t('Передать на проверку коллеге')}</summary>
+      <ErrorNotice error={error}/>
+      {(assignment.more_reviewers||filtered)&&<form onSubmit={event=>void searchReviewers(event)}>
+        <label className="field">{t('Поиск по имени')}<input value={search} maxLength={40} onChange={event=>setSearch(event.target.value)} disabled={busy}/></label>
+        <button className="button button-small button-secondary" disabled={busy}>{t('Найти')}</button>
+      </form>}
+      {visible.reviewers.length===0?<p className="muted">{t('Подходящих коллег не найдено.')}</p>:<form onSubmit={event=>void assign(event)}>
+        <label className="field">{t('Проверяющий')}<select value={reviewer} onChange={event=>setReviewer(event.target.value)} disabled={busy}>
+          <option value="">{t('Выберите коллегу')}</option>
+          {visible.reviewers.map(value=><option key={value.principal_id} value={value.principal_id}>{value.display_name||value.principal_id}</option>)}
+        </select></label>
+        <button className="button button-small button-secondary" disabled={busy||!reviewer||reviewer===assignment.reviewer_principal_id}>{t('Назначить проверяющего')}</button>
+      </form>}
+    </details>}
+  </>
 }
 
 function BasisView({basis}:{basis:ReviewSnapshot|null}){

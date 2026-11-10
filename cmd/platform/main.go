@@ -59,6 +59,9 @@ func run() error {
 	if os.Args[1] == "prepare-model" {
 		return runPrepareModel(os.Args[2:], os.Stdout)
 	}
+	if os.Args[1] == "pilot-prepare" && len(os.Args) == 2 {
+		return prepareComposePilot()
+	}
 	if os.Args[1] == "config" {
 		return runConfigurationClient(ctx, os.Args[2:], os.Stdout)
 	}
@@ -69,6 +72,14 @@ func run() error {
 		return runConfigurationClient(ctx, append([]string{"capabilities"}, os.Args[2:]...), os.Stdout)
 	}
 	dsn := os.Getenv("DATABASE_URL")
+	pilot := os.Getenv("RUNVERGE_COMPOSE_PILOT") == "1"
+	if pilot {
+		var err error
+		dsn, err = composePilotDSN(dsn)
+		if err != nil {
+			return err
+		}
+	}
 	if dsn == "" {
 		return errors.New("DATABASE_URL is required")
 	}
@@ -90,6 +101,11 @@ func run() error {
 		defer closeControl()
 	}
 	switch os.Args[1] {
+	case "pilot-seed":
+		if !pilot || len(os.Args) != 2 {
+			return errors.New("pilot-seed requires the dedicated Compose pilot")
+		}
+		return seedComposePilot(ctx, s)
 	case "install-webhook-destination", "retire-webhook-destination":
 		return runWebhookHost(ctx, s, os.Args[1], os.Args[2:], os.Stdout)
 	case "install-credential-purpose", "install-configuration-destination":
@@ -238,6 +254,7 @@ func run() error {
 		f := flag.NewFlagSet("serve", flag.ContinueOnError)
 		addr := f.String("listen", "127.0.0.1:8080", "loopback listen address")
 		containerPreview := f.Bool("container-preview", false, "explicit test-data container listener at 0.0.0.0:8080; publish only on host loopback")
+		containerHTTPS := f.Bool("container-https", false, "organization container listener at 0.0.0.0:8443 with direct TLS and OIDC")
 		static := f.String("web", "", "explicit web assets; native packages default to their verified installed assets")
 		oidcFile := f.String("oidc-config", "", "private OIDC configuration JSON file")
 		tlsCert := f.String("tls-cert", "", "TLS certificate PEM file")
@@ -250,7 +267,15 @@ func run() error {
 		if e = f.Parse(os.Args[2:]); e != nil {
 			return e
 		}
-		if e = validateServeListener(*addr, *containerPreview, *oidcFile != "", *mcpEnabled, *tlsProxy); e != nil {
+		if f.NArg() != 0 || (*tlsCert == "") != (*tlsKey == "") {
+			return errors.New("invalid serve arguments")
+		}
+		if *containerHTTPS {
+			e = validateContainerHTTPSListener(*addr, *containerPreview, *oidcFile != "", *tlsCert != "", *tlsProxy)
+		} else {
+			e = validateServeListener(*addr, *containerPreview, *oidcFile != "", *mcpEnabled, *tlsProxy)
+		}
+		if e != nil {
 			return e
 		}
 		if *static == "" {
@@ -266,9 +291,6 @@ func run() error {
 				return fmt.Errorf("RUNVERGE_EVENT_STREAM_LIMIT must be an integer from 1 to %d", httpapi.MaxEventStreamLimit)
 			}
 			api.EventStreamLimit = limit
-		}
-		if f.NArg() != 0 || (*tlsCert == "") != (*tlsKey == "") {
-			return errors.New("invalid serve arguments")
 		}
 		if *mcpEnabled && *tlsCert == "" && !*tlsProxy {
 			return errors.New("HTTP MCP requires TLS or an explicitly trusted TLS-terminating proxy")
